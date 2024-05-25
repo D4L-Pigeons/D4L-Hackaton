@@ -17,7 +17,7 @@ $$
 \mathcal{L}_{} = \alpha \cdot \mathcal{L}_{\text{ELBO}}(x; \phi, \theta) + \beta \cdot \mathcal{L}_{\text{class}}(x,y;\psi)
 $$
 
-![alt text](OmiVAE-schema.png)
+![alt text](images/OmiVAE-schema.png)
 
 (2) **BABEL** *BABEL enables cross-modality translation between multiomic profiles at single-cell resolution*
 
@@ -45,22 +45,22 @@ Where $p$ represents the true Bernoulli distibution parameter and $x$ is the out
 
 The encoders and decoders of different modalities are interchanged and the reconstruction loss is calculated with respect to the true value of the other modality, which leads to four loss comonents for all encoder decoder pairs.
 
-![alt text](BABEL-schema.png)
+![alt text](images/BABEL-schema.png)
 
 (3) **(noname) Adversarial VAE** *Multi-domain translation between single-cell
 imaging and sequencing data using autoencoders*
 
 In the adversarial VAE case the requirement of paired sampled from different modalities is relaxed although they may be used to refiene the procedure as well. Two VAEs are trained for distinct modalities and GAN-like objective is used to align two embedding spaces.
 
-![alt text](image-5.png)
+![alt text](images/image-5.png)
 
-![alt text](image-6.png)
+![alt text](images/image-6.png)
 
-![alt text](image-7.png)
+![alt text](images/image-7.png)
 
-![alt text](noname-adv-VAE-schema.png)
+![alt text](images/noname-adv-VAE-schema.png)
 
-![alt text](image-8.png)
+![alt text](images/image-8.png)
 
 ### Limitation
 see the comments below about the modality specific local variation dimensions
