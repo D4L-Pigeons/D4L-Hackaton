@@ -1,9 +1,14 @@
 import torch
+from torch import Tensor
 
 
-class GaussianKLD(nn.Module):
-    def __init__(self):
-        super(GaussianKLD, self).__init__()
+def kld_stdgaussian(mu: Tensor, logvar: Tensor) -> Tensor:
+    return -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
-    def forward(self, mu, logvar):
-        return -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+
+def gex_reconstruction_loss(x_hat: Tensor, x: Tensor) -> Tensor:
+    return torch.nn.functional.mse_loss(x_hat, x)
+
+
+def adt_reconstruction_loss(x_hat: Tensor, x: Tensor) -> Tensor:
+    return torch.nn.functional.mse_loss(x_hat, x)
