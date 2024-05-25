@@ -1,35 +1,23 @@
 import anndata as ad
+from anndata import AnnData
 import numpy as np
 from torch import Tensor
 from argparse import Namespace
-import pytorch_lightning as pl
 from abc import ABC, abstractmethod
 
 
-class ModelBase(pl.LightningModule, ABC):
+class ModelBaseInterface(ABC):
 
     @abstractmethod
-    def encode(self, data: ad.AnnData) -> Tensor:
+    def train(self, data: AnnData) -> None:
         pass
 
     @abstractmethod
-    def decode(self, data: np.ndarray) -> Tensor:
+    def predict(self, data: AnnData) -> Tensor:
         pass
 
     @abstractmethod
-    def get_decoder_jacobian(self, data: ad.AnnData) -> Tensor:
-        pass
-
-    @abstractmethod
-    def train(self, data: ad.AnnData) -> None:
-        pass
-
-    @abstractmethod
-    def predict(self, data: ad.AnnData) -> Tensor:
-        pass
-
-    @abstractmethod
-    def predict_proba(self, data: ad.AnnData) -> Tensor:
+    def predict_proba(self, data: AnnData) -> Tensor:
         pass
 
     @abstractmethod
