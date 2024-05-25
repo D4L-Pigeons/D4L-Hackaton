@@ -1,10 +1,12 @@
 import anndata as ad
 import numpy as np
 from torch import Tensor
+from argparse import Namespace
+import pytorch_lightning as pl
 from abc import ABC, abstractmethod
 
 
-class ModelBase(ABC):
+class ModelBase(pl.LightningModule, ABC):
 
     @abstractmethod
     def encode(self, data: ad.AnnData) -> Tensor:
@@ -36,4 +38,29 @@ class ModelBase(ABC):
 
     @abstractmethod
     def load(self, file_path: str) -> None:
+        pass
+
+    @staticmethod
+    def assert_cfg_general(cfg: Namespace) -> None:
+        assert hasattr(cfg, "first_modality_dim"), AttributeError(
+            'cfg does not have the attribute "first_modality_dim"'
+        )
+        assert hasattr(cfg, "second_modality_dim"), AttributeError(
+            'cfg does not have the attribute "second_modality_dim"'
+        )
+        assert hasattr(cfg, "hidden_dim"), AttributeError(
+            'cfg does not have the attribute "hidden_dim"'
+        )
+        assert hasattr(cfg, "latent_dim"), AttributeError(
+            'cfg does not have the attribute "latent_dim"'
+        )
+        assert hasattr(cfg, "num_classes"), AttributeError(
+            'cfg does not have the attribute "num_classes"'
+        )
+        assert hasattr(cfg, "batch_norm"), AttributeError(
+            'cfg does not have the attribute "batch_norm"'
+        )
+
+    @abstractmethod
+    def assert_cfg(self, cfg: Namespace) -> None:
         pass
