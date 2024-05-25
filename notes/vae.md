@@ -1,4 +1,3 @@
-# MISTAKES IN THE DERIVATION TO BE FOUND!!!
 ## **Setup**
 - $p(x)$ - true data distribution (unknown analytical form)
 - $p(z)$ - prior distribution of the latent variable (known analytical form)
