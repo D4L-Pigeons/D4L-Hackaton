@@ -1,3 +1,4 @@
+# MISTAKES IN THE DERIVATION TO BE FOUND!!!
 ## **Setup**
 - $p(x)$ - true data distribution (unknown analytical form)
 - $p(z)$ - prior distribution of the latent variable (known analytical form)
@@ -29,17 +30,9 @@ $\mathcal{L}_{\text{ELBO}}(x; \phi, \theta) = \underbrace{\mathbb{D}_{\text{KL}}
 
 Second term is approximated with one sample.
 
-<!-- $\nabla_\theta\mathcal{L}_{\text{ELBO}}(x; \phi, \theta) = \nabla_\theta \mathbb{E}_{q_\phi(z | x)}[\log p_\theta(x, z) - \log q_\phi(z | x)] = \underbrace{ \mathbb{E}_{q_\phi(z | x)}[\nabla_\theta \log p_\theta(x, z)]}_{\text{log likelihood } \approx \text{ reconstruction loss MSE}} \approx_{z \sim q_\phi(z | x)} \nabla_\theta \log p_\theta(x, z)$ -->
-
-<!-- $\nabla_\phi\mathcal{L}_{\text{ELBO}}(x; \phi, \theta) = \underbrace{\nabla_\phi \mathbb{E}_{q_\phi(z | x)}[\log p_\theta(x, z) - \log q_\phi(z | x)]}_{\text{problematic to get an unbiased estimator}} \leftarrow \text{this is where we need reparametrisation trick in the Gaussian prior case to pass the gradient throught sampling}$ -->
-
 $\nabla_\theta\mathcal{L}_{\text{ELBO}}(x; \phi, \theta) = \nabla_\theta\mathbb{E}_{q_\phi(z | x)}[\log p_\theta(x | z)] = \mathbb{E}_{q_\phi(z | x)}[\nabla_\theta \log p_\theta(x | z)]$
 
 $\nabla_\phi\mathcal{L}_{\text{ELBO}}(x; \phi, \theta) = \nabla_\phi \underbrace{\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)]}_{\text{this is where we use analytical form}} + \underbrace{\nabla_\phi\mathbb{E}_{q_\phi(z | x)}[\log p(x | z)]}_{\text{problem with finding an unbiased estimator}}$
-
-<!-- ### Tr aining
-1. Pass $x$ through $f_\phi$ to get $q_\phi(z | x)$.
-2. Sample $z \sim q_\phi(z | x)$ to estimate $\mathbb{E}_{q_\phi(z | x)}[\mathbb{E}_{p_\theta(x | z)}[x | z]] = x$. -->
 
 ## Gaussian Prior $p(z)$ and posterior $q_\phi(z | x)$
 
@@ -51,15 +44,15 @@ $\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)] = \underbrace{\int_z q_\phi(z | x
 
 The second term may be simplified
 
-$\int_z q_\phi(z | x) \cdot \log p(z) dz = \int_z q_\phi(z | x) \cdot \log \left( \frac{1}{(2\pi)^{d/2}} \exp \left( -\frac{1}{2} z^\top z \right) \right) = \log \left( \frac{1}{(2\pi)^{d/2}} \right) -\frac{1}{2} \int_z q_\phi(z | x) \cdot z^\top z dz = -\frac{d}{2}\log(2\pi) - \sum_i \left( \sigma^2_{\phi, i}(x) + \mu^2_{\phi, i}(x) \right) \leftarrow \text{Are we assuming marginal Gaussians or is it implicit?}$
+$\int_z q_\phi(z | x) \cdot \log p(z) dz = \int_z q_\phi(z | x) \cdot \log \left( \frac{1}{(2\pi)^{d/2}} \exp \left( -\frac{1}{2} z^\top z \right) \right) = \log \left( \frac{1}{(2\pi)^{d/2}} \right) -\frac{1}{2} \int_z q_\phi(z | x) \cdot z^\top z dz = -\frac{d}{2}\log(2\pi) - \frac{1}{2} \sum_i \left( \sigma^2_{\phi, i}(x) + \mu^2_{\phi, i}(x) \right) \leftarrow \text{Are we assuming marginal Gaussians or is it implicit?}$
 
 The first term may be simplified with calculations similar to the ones above
 
-$\mathcal{H}(q_\phi(z | x)) = \int_z q_\phi(z | x) \cdot q_\phi(z | x) dz = \int_z q_\phi(z | x) \cdot q_\phi(z | x) dz = -\frac{d}{2}\log(2\pi) - \sum_i \log \sigma^2_{\phi, i}(x) -\frac{1}{2} \int_z (z - \mu_\phi(x))^\top \text{diag}(\sigma^2_\phi(x))^{-1} (z - \mu_\phi(x)) dz = -\frac{d}{2}\log(2\pi) - \sum_i \log \sigma^2_{\phi, i}(x) - \frac{d}{2}$
+$\mathcal{H}(q_\phi(z | x)) = -\int_z q_\phi(z | x) \cdot \log q_\phi(z | x) dz = \frac{d}{2}\log(2\pi) + \frac{1}{2} \sum_i \log \sigma^2_{\phi, i}(x) + \frac{1}{2} \int_z (z - \mu_\phi(x))^\top \text{diag}(\sigma^2_\phi(x))^{-1} (z - \mu_\phi(x)) dz = \frac{d}{2}\log(2\pi) + \frac{1}{2}  \sum_i \log \sigma^2_{\phi, i}(x) + \frac{d}{2}$
 
 Finally combining the results
 
-$\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)] = -\mathcal{H}(q_\phi(z | x)) - \int_z q_\phi(z | x) \cdot \log p(z) dz = \frac{d}{2}\log(2\pi) + \sum_i \log \sigma^2_{\phi, i}(x) + \frac{d}{2} + \frac{d}{2}\log(2\pi) + \sum_i \left( \sigma^2_{\phi, i}(x) + \mu^2_{\phi, i}(x) \right) = \sum_i \left( \frac{1}{2} + \frac{1}{2}\log(2\pi) + \sigma^2_{\phi, i}(x) + \mu^2_{\phi, i}(x) + 2\log \sigma_{\phi, i}(x) \right)$
+$\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)] = -\mathcal{H}(q_\phi(z | x)) - \int_z q_\phi(z | x) \cdot \log p(z) dz = -\frac{d}{2}\log(2\pi) - \frac{1}{2} \sum_i \log \sigma^2_{\phi, i}(x) - \frac{d}{2} + \frac{d}{2}\log(2\pi) + \sum_i \left( \sigma^2_{\phi, i}(x) + \mu^2_{\phi, i}(x) \right) = -\frac{1}{2}\sum_i \left( 1 + \sigma^2_{\phi, i}(x) - \mu^2_{\phi, i}(x) - \log \sigma^2_{\phi, i}(x) \right)$
 
 ### VAE Loss
 
