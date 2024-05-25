@@ -1,7 +1,6 @@
 .DS_Store
-data
+data/*
 __pycache__/
 .vscode
-results/
-config/
-src/datasets/__pycache__/
+src/results/*
+src/config/*
