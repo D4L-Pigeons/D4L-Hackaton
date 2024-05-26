@@ -41,6 +41,8 @@ def load_anndata(mode: str, plus_iid_holdout: bool = False) -> ad.AnnData:
 
 def get_dataset_from_anndata(
     data: ad.AnnData,
+    first_modality_dim: int,
+    second_modality_dim: int,
     include_class_labels: bool = False,
 ) -> TensorDataset:
     r"""
@@ -55,11 +57,27 @@ def get_dataset_from_anndata(
         The TensorDataset object for the given data.
     """
     gex_indicator = (data.var["feature_types"] == "GEX").values
+    assert gex_indicator.sum() >= first_modality_dim, (
+        f"first_modality_dim must be less than or equal to the number of GEX features, "
+        f"got {first_modality_dim} and {gex_indicator.sum()} instead."
+    )
+    assert (~gex_indicator).sum() >= second_modality_dim, (
+        f"second_modality_dim must be less than or equal to the number of ADT features, "
+        f"got {second_modality_dim} and {(~gex_indicator).sum()} instead."
+    )
     first_modality = torch.tensor(
-        data.layers.toarray()[:gex_indicator], dtype=torch.float32
+        data.layers["counts"].toarray()[:, gex_indicator][:, :first_modality_dim],
+        dtype=torch.float32,
     )
     second_modality = torch.tensor(
-        data.layers.toarray()[:~gex_indicator], dtype=torch.float32
+        data.layers["counts"].toarray()[:, ~gex_indicator][:, :second_modality_dim],
+        dtype=torch.float32,
+    )
+    print(
+        f"There are nan values in the first modality: {torch.isnan(first_modality).any()}"
+    )
+    print(
+        f"There are nan values in the second modality: {torch.isnan(second_modality).any()}"
     )
     if include_class_labels:
         labels = torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long)
@@ -72,8 +90,9 @@ def get_dataset_from_anndata(
 
 def get_dataloader_from_anndata(
     data: ad.AnnData,
+    first_modality_dim: int,
+    second_modality_dim: int,
     batch_size: int,
-    dataloader: bool,
     shuffle: bool = True,
     include_class_labels: bool = False,
 ) -> TensorDataset | DataLoader:
@@ -90,7 +109,12 @@ def get_dataloader_from_anndata(
     dataloader : torch.utils.data.DataLoader
         The DataLoader object for the given data. With the GEX data first.
     """
-    dataset = get_dataset(data, include_class_labels)
+    dataset = get_dataset_from_anndata(
+        data, first_modality_dim, second_modality_dim, include_class_labels
+    )
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
     return dataloader
+
+
+# def pearson_residuals_transform
