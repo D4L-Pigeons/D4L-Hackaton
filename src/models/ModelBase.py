@@ -6,7 +6,7 @@ from argparse import Namespace
 from abc import ABC, abstractmethod
 
 
-class ModelBaseInterface(ABC):
+class ModelBase(ABC):
 
     @abstractmethod
     def train(self, data: AnnData) -> None:
@@ -21,7 +21,7 @@ class ModelBaseInterface(ABC):
         pass
 
     @abstractmethod
-    def save(self, file_path: str) -> str:
+    def save(self, file_path: str) -> None:
         pass
 
     @abstractmethod
@@ -42,8 +42,8 @@ class ModelBaseInterface(ABC):
         assert hasattr(cfg, "latent_dim"), AttributeError(
             'cfg does not have the attribute "latent_dim"'
         )
-        assert hasattr(cfg, "num_classes"), AttributeError(
-            'cfg does not have the attribute "num_classes"'
+        assert hasattr(cfg, "batch_size"), AttributeError(
+            'cfg does not have the attribute "batch_size"'
         )
         assert hasattr(cfg, "batch_norm"), AttributeError(
             'cfg does not have the attribute "batch_norm"'
