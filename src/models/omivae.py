@@ -1,4 +1,4 @@
-from models.ModelBase import ModelBaseInterface
+from models.ModelBase import ModelBase
 from models.building_blocks import Block, ResidualBlock, ShortcutBlock
 from utils.loss_utils import (
     kld_stdgaussian,
@@ -6,6 +6,7 @@ from utils.loss_utils import (
     adt_reconstruction_loss,
 )
 from utils.data_utils import get_dataset_from_anndata, get_dataloader_from_anndata
+from utils.paths import LOGS_PATH
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -109,7 +110,7 @@ class OmiVAEGaussian(pl.LightningModule):
 
     def _reparameterize(self, mu: Tensor, logvar: Tensor) -> Tensor:
         std = torch.exp(0.5 * logvar)
-        eps = torch.randn(self.cfg.batch_size, self.cfg.latent_dim)
+        eps = torch.randn(std.size())
         return mu + eps * std
 
     def _forward_usupervised(self, x_fst: Tensor, x_snd: Tensor) -> Tuple[Tensor]:
@@ -124,10 +125,7 @@ class OmiVAEGaussian(pl.LightningModule):
         recon_loss = F.mse_loss(x_fst_hat, x_fst) + F.mse_loss(x_snd_hat, x_snd)
         kld_loss = kld_stdgaussian(mu, logvar)
 
-        self.log("Reconstruction Loss", recon_loss)
-        self.log("KLD Loss", kld_loss)
-
-        return self.cfg.recon_loss_coef * recon_loss + self.cfg.kld_loss_coef * kld_loss
+        return recon_loss, kld_loss
 
     def _forward_superivsed(self, x_fst: Tensor, x_snd: Tensor) -> Tuple[Tensor]:
         x_fst_hat, x_snd_hat, mu, logvar = self._forward_usupervised(x_fst, x_snd)
@@ -144,24 +142,41 @@ class OmiVAEGaussian(pl.LightningModule):
         ) + adt_reconstruction_loss(x_snd_hat, x_snd)
         kld_loss = kld_stdgaussian(mu, logvar)
         c_loss = F.cross_entropy(logits, target, weight=self.cfg.class_weights)
-        self.log("Reconstruction Loss", recon_loss)
-        self.log("KLD Loss", kld_loss)
-        self.log("Classification Loss", c_loss)
 
-        return (
-            self.cfg.recon_loss_coef * recon_loss
-            + self.cfg.kld_loss_coef * kld_loss
-            + self.cfg.c_loss_coef * c_loss
-        )
+        return recon_loss, kld_loss, c_loss
 
     def training_step(self, batch: Tensor) -> Tensor:
         if self.cfg.classification_head:
-            return self._training_step_supervised(batch)
-        return self._training_step_unsupervised(batch)
+            recon_loss, kld_loss, c_loss = self._training_step_supervised(batch)
+            self.log("Train recon", recon_loss, on_epoch=True, prog_bar=True)
+            self.log("Train kld", kld_loss, on_epoch=True, prog_bar=True)
+            self.log("Train class", c_loss, on_epoch=True, prog_bar=True)
+            # print("Train recon", recon_loss)
+            return (
+                self.cfg.recon_loss_coef * recon_loss
+                + self.cfg.kld_loss_coef * kld_loss
+                + self.cfg.c_loss_coef * c_loss
+            )
+        else:
+            recon_loss, kld_loss = self._training_step_unsupervised(batch)
+            self.log("Train recon", recon_loss, on_epoch=True, prog_bar=True)
+            self.log("Train kld", kld_loss, on_epoch=True, prog_bar=True)
+            # print("Train recon", recon_loss)
+            return (
+                self.cfg.recon_loss_coef * recon_loss
+                + self.cfg.kld_loss_coef * kld_loss
+            )
 
     def validation_step(self, batch: Tensor) -> Tensor:
         if self.cfg.classification_head:
-            return self._training_step_supervised(batch)
+            recon_loss, kld_loss, c_loss = self._training_step_supervised(batch)
+            self.log("Val recon", recon_loss, on_epoch=True, prog_bar=True)
+            self.log("Val kld", kld_loss, on_epoch=True, prog_bar=True)
+            self.log("Val class", c_loss, on_epoch=True, prog_bar=True)
+        else:
+            recon_loss, kld_loss = self._training_step_unsupervised(batch)
+            self.log("Val recon", recon_loss, on_epoch=True, prog_bar=True)
+            self.log("Val kld", kld_loss, on_epoch=True, prog_bar=True)
 
     def _predict(self, x: Tensor) -> Tensor:
         if not self.classification_head:
@@ -181,6 +196,15 @@ class OmiVAEGaussian(pl.LightningModule):
         return optim.Adam(self.parameters(), lr=self.cfg.lr)
 
     def assert_cfg(self, cfg: Namespace) -> None:
+        assert hasattr(cfg, "max_epochs"), AttributeError(
+            'cfg does not have the attribute "max_epochs"'
+        )
+        assert hasattr(cfg, "log_every_n_steps"), AttributeError(
+            'cfg does not have the attribute "log_every_n_steps"'
+        )
+        # assert hasattr(cfg, "logger"), AttributeError(
+        #     'cfg does not have the attribute "logger"'
+        # )
         assert hasattr(cfg, "classification_head"), AttributeError(
             'cfg does not have the attribute "classification_head"'
         )
@@ -196,9 +220,6 @@ class OmiVAEGaussian(pl.LightningModule):
         assert hasattr(cfg, "second_modality_embedding_dim"), AttributeError(
             'cfg does not have the attribute "second_modality_embedding_dim"'
         )
-        assert hasattr(cfg, "class_weights"), AttributeError(
-            'cfg does not have the attribute "class_weights"'
-        )
         assert hasattr(cfg, "recon_loss_coef"), AttributeError(
             'cfg does not have the attribute "recon_loss_coef"'
         )
@@ -209,6 +230,9 @@ class OmiVAEGaussian(pl.LightningModule):
             assert hasattr(cfg, "num_classes"), AttributeError(
                 'cfg does not have the attribute "num_classes"'
             )
+            assert hasattr(cfg, "class_weights"), AttributeError(
+                'cfg does not have the attribute "class_weights"'
+            )
             assert hasattr(cfg, "c_loss_coef"), AttributeError(
                 'cfg does not have the attribute "c_loss_coef"'
             )
@@ -217,35 +241,54 @@ class OmiVAEGaussian(pl.LightningModule):
         )
 
 
-__OMIVAE_IMPLEMENTATIONS = {
+_OMIVAE_IMPLEMENTATIONS = {
     "OmiVAEGaussian": OmiVAEGaussian,
 }
 
 
-class OmiInterface(ModelBaseInterface):
+class OmiModel(ModelBase):
     def __init__(self, cfg: Namespace):
-        super(OmiInterface, self).__init__()
+        super(OmiModel, self).__init__()
         self.assert_cfg(cfg)
         self.cfg = cfg
-        self.model = __OMIVAE_IMPLEMENTATIONS[cfg.omivae_implementation](cfg)
+        self.model = _OMIVAE_IMPLEMENTATIONS[cfg.omivae_implementation](cfg)
         self.trainer = pl.Trainer(
             max_epochs=cfg.max_epochs,
-            progress_bar_refresh_rate=cfg.progress_bar_refresh_rate,
-            logger=cfg.logger,
+            log_every_n_steps=cfg.log_every_n_steps,
+            logger=pl.loggers.TensorBoardLogger(
+                LOGS_PATH, name=cfg.omivae_implementation
+            ),
+            callbacks=(
+                [
+                    pl.callbacks.EarlyStopping(
+                        monitor="val_loss",
+                        min_delta=cfg.min_delta,
+                        patience=cfg.patience,
+                        verbose=False,
+                        mode="min",
+                    )
+                ]
+                if self.cfg.early_stopping
+                else None
+            ),
         )
 
     def train(self, train_data: AnnData, val_data: AnnData = None) -> None:
         self.trainer.fit(
             model=self.model,
-            train_data=get_dataloader_from_anndata(
+            train_dataloaders=get_dataloader_from_anndata(
                 train_data,
+                self.cfg.first_modality_dim,
+                self.cfg.second_modality_dim,
                 self.cfg.batch_size,
                 shuffle=True,
                 include_class_labels=self.cfg.classification_head,
             ),
-            val_data=(
+            val_dataloaders=(
                 get_dataset_from_anndata(
                     val_data,
+                    self.cfg.first_modality_dim,
+                    self.cfg.second_modality_dim,
                     include_class_labels=self.cfg.classification_head,
                 )
                 if val_data is not None
@@ -260,25 +303,41 @@ class OmiInterface(ModelBaseInterface):
         pass
 
     def save(self, file_path: str):
-        pass
+        save_path = file_path + ".ckpt"
+        torch.save(self.model.state_dict(), save_path)
+        return save_path
 
     def load(self, file_path: str):
-        pass
+        load_path = file_path + ".ckpt"
+        self.model.load_state_dict(torch.load(load_path))
 
     def assert_cfg(self, cfg: Namespace) -> None:
         self.assert_cfg_general(cfg)
         assert hasattr(cfg, "omivae_implementation"), AttributeError(
             'cfg does not have the attribute "omivae_implementation"'
         )
-        assert hasattr(cfg, "max_epochs"), AttributeError(
-            'cfg does not have the attribute "max_epochs"'
+        assert hasattr(cfg, "output_modelling_type"), AttributeError(
+            'cfg does not have the attribute "output_modelling_type"'
         )
-        assert hasattr(cfg, "progress_bar_refresh_rate"), AttributeError(
-            'cfg does not have the attribute "progress_bar_refresh_rate"'
+        assert cfg.output_modelling_type in [
+            "mse_direct_reconstruction",
+            "ll_neg_binomial",
+        ], ValueError(
+            f"Invalid output modelling type: {cfg.output_modelling_type}. Must be one of ['mse_direct_reconstruction', 'll_neg_binomial']"
         )
-        assert hasattr(cfg, "logger"), AttributeError(
-            'cfg does not have the attribute "logger"'
+        assert cfg.omivae_implementation in _OMIVAE_IMPLEMENTATIONS, ValueError(
+            f"Invalid OmiVAE implementation: {cfg.omivae_implementation}"
         )
+        assert hasattr(cfg, "early_stopping"), AttributeError(
+            'cfg does not have the attribute "early_stopping"'
+        )
+        if cfg.early_stopping:
+            assert hasattr(cfg, "min_delta"), AttributeError(
+                'cfg does not have the attribute "min_delta"'
+            )
+            assert hasattr(cfg, "patience"), AttributeError(
+                'cfg does not have the attribute "patience"'
+            )
 
 
 # class OmiVAE(OmiAE):
