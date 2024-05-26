@@ -3,5 +3,5 @@ data/*
 __pycache__/
 .vscode
 src/results/*
-src/config/*
+# src/config/*
 src/logs/*
