@@ -2,7 +2,7 @@
 first_modality_dim: 100 # GEX | max 13953 | MAY BE CHANGED FOR DEBUGGING
 second_modality_dim: 100 # ADT | max 134 | MAY BE CHANGED FOR DEBUGGING
 subsample_frac: 0.01 # | MAY BE CHANGED FOR DEBUGGING
-preprocessing: None # "scanorama", "seurat_alignment", "bbknn", "harmony", "mnn", "None"
+preprocessing: "pearson_residuals" # "pearson_residuals", "None"
 # architecture configuration
 omivae_implementation: "OmiVAEGaussian"
 batch_norm: True #False

@@ -1,11 +1,16 @@
 import torch.utils
-from utils.paths import ANNDATA_PATH
+from utils.paths import ANNDATA_PATH, PEARSON_RESIDUALS_ANNDATA_PATH
 import anndata as ad
 import torch
 from torch.utils.data import TensorDataset, DataLoader
+import scanpy as sc
 
 
-def load_anndata(mode: str, plus_iid_holdout: bool = False) -> ad.AnnData:
+def load_anndata(
+    mode: str,
+    plus_iid_holdout: bool = False,
+    preprocessing: str | None = "pearson_residuals",
+) -> ad.AnnData:
     r"""
     Load the full anndata object for the specified mode.
 
@@ -34,6 +39,14 @@ def load_anndata(mode: str, plus_iid_holdout: bool = False) -> ad.AnnData:
         filter_set.append("iid_holdout")
 
     _data = ad.read_h5ad(ANNDATA_PATH)
+    if preprocessing == "pearson_residuals":
+        if not PEARSON_RESIDUALS_ANNDATA_PATH.exists():
+            print("Normalizing Pearson residuals...")
+            sc.experimental.pp.normalize_pearson_residuals(_data)
+            _data.write(filename=PEARSON_RESIDUALS_ANNDATA_PATH)
+        else:
+            print("Loading precomputed Pearson residuals...")
+            _data = ad.read_h5ad(PEARSON_RESIDUALS_ANNDATA_PATH)
     data = _data[_data.obs["is_train"].apply(lambda x: x in filter_set)]
 
     return data
@@ -73,12 +86,12 @@ def get_dataset_from_anndata(
         data.layers["counts"].toarray()[:, ~gex_indicator][:, :second_modality_dim],
         dtype=torch.float32,
     )
-    print(
-        f"There are nan values in the first modality: {torch.isnan(first_modality).any()}"
-    )
-    print(
-        f"There are nan values in the second modality: {torch.isnan(second_modality).any()}"
-    )
+    # print(
+    #     f"There are nan values in the first modality: {torch.isnan(first_modality).any()}"
+    # )
+    # print(
+    #     f"There are nan values in the second modality: {torch.isnan(second_modality).any()}"
+    # )
     if include_class_labels:
         labels = torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long)
         dataset = TensorDataset(first_modality, second_modality, labels)
