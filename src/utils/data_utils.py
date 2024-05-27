@@ -32,7 +32,10 @@ def load_anndata(
     assert isinstance(
         plus_iid_holdout, bool
     ), f"plus_iid_holdout must be a boolean, got {plus_iid_holdout} instead."
-
+    assert preprocessing in [
+        None,
+        "pearson_residuals",
+    ], f"preprocessing must be one of [None, 'pearson_residuals'], got {preprocessing} instead."
     filter_set = mode.split("+")  # ['train'] or ['test'] or ['train', 'test']
 
     if plus_iid_holdout:
