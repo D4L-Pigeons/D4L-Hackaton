@@ -26,3 +26,6 @@ Note, that in IWAE we may increase the $K$ to get more samples or we could incre
 The analytical work is done as in the case of VAE.
 
 It may be shown that the IWAE provides better lower bound on the log likelihood of the data and is an asymptotically i $K$ unbiased estimator of the it.
+
+### Question
+Why we do not benefit from more samples in VAE and do in IWAE? - in VAE we stay with the ELBO, but better estimated and in IWAE if we are increasing the number of samples by increasing $K$ we get closer to unbiased estimator of data log likelihood.
