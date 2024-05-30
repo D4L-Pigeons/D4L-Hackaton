@@ -66,7 +66,8 @@ The posterior stays the same as above.
 
 When the cluster assignment is unknown the GM prior is used with mode seeking behaviour and possibililty of attraction to suboptimal cluster. Likely though the simmilar examples will be clustered in the same area even in fully unlabeled case. The analytical form is not as clean as in the Gaussian case. The log of the GM may be seen as logsumexp because of exp in the gaussian formula and it is dependent od the likelihood of being in each cluster separately.
 
-Gumbel somftmax may be useful when sampling from GM prior.
+#### Reparametrisation for GM prior
+The reparametrisation is two-fold gumbel softmax trics followed by standard reparametrisation for the chosen Gaussian Mixture component.
 
 <!-- One could do $\pi$ weighted sampling from GM and get logsumexp in the logs  -->
 
