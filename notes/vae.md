@@ -25,13 +25,13 @@ $\mathcal{L}_\text{ELBO}(\mathcal{D};\phi, \theta) = \sum_{x \in \mathcal{D}} \m
 
 Calculating $\mathcal{L}_\text{ELBO}(x;\phi, \theta)$ is intractable as it requirese integrating over $z$ and we estimate it with sampling (typically one sample).
 
-$\mathcal{L}_{\text{ELBO}}(x; \phi, \theta) = \underbrace{\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)]}_{\text{this is where we use analytical form}} + \underbrace{\mathbb{E}_{q_\phi(z | x)}[\log p_\theta(x | z)]}_{\log \text{likelihood } \approx \text{ reconstructions loss}}$
+$\mathcal{L}_{\text{ELBO}}(x; \phi, \theta) = \underbrace{-\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)]}_{\text{this is where we use analytical form}} + \underbrace{\mathbb{E}_{q_\phi(z | x)}[\log p_\theta(x | z)]}_{\log \text{likelihood } \approx \text{ reconstructions loss}}$
 
 Second term is approximated with one sample.
 
 $\nabla_\theta\mathcal{L}_{\text{ELBO}}(x; \phi, \theta) = \nabla_\theta\mathbb{E}_{q_\phi(z | x)}[\log p_\theta(x | z)] = \mathbb{E}_{q_\phi(z | x)}[\nabla_\theta \log p_\theta(x | z)]$
 
-$\nabla_\phi\mathcal{L}_{\text{ELBO}}(x; \phi, \theta) = \nabla_\phi \underbrace{\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)]}_{\text{this is where we use analytical form}} + \underbrace{\nabla_\phi\mathbb{E}_{q_\phi(z | x)}[\log p(x | z)]}_{\text{problem with finding an unbiased estimator}}$
+$\nabla_\phi\mathcal{L}_{\text{ELBO}}(x; \phi, \theta) = \nabla_\phi \underbrace{-\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)]}_{\text{this is where we use analytical form}} + \underbrace{\nabla_\phi\mathbb{E}_{q_\phi(z | x)}[\log p(x | z)]}_{\text{problem with finding an unbiased estimator}}$
 
 ## Gaussian Prior $p(z)$ and posterior $q_\phi(z | x)$
 
@@ -39,7 +39,7 @@ $q_\phi(z | x) = \mathcal{N}(\mu_\phi(x), \Sigma_\phi(x)) = \frac{1}{(2\pi)^{d/2
 
 $p(z) = \mathcal{N}(0, \mathbb{I}) = \frac{1}{(2\pi)^{d/2}} \exp \left( -\frac{1}{2} z^\top z \right)$
 
-$\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)] = \underbrace{\int_z q_\phi(z | x) \cdot \log q_\phi(z | x) dz}_{ -\mathcal{H}(q_\phi(z | x)) } - \int_z q_\phi(z | x) \cdot \log p(z) dz$
+$\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)] = \overbrace{\underbrace{\int_z q_\phi(z | x) \cdot \log q_\phi(z | x) dz}_{ -\mathcal{H}(q_\phi(z | x)) }}^{\text{streaches } q(z | x)} - \overbrace{\int_z q_\phi(z | x) \cdot \log p(z) dz}^{\text{mode seeking } \rightarrow \text{ squeezes } q(z | x)}$
 
 The second term may be simplified
 
@@ -52,6 +52,27 @@ $\mathcal{H}(q_\phi(z | x)) = -\int_z q_\phi(z | x) \cdot \log q_\phi(z | x) dz 
 Finally combining the results
 
 $\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)] = -\mathcal{H}(q_\phi(z | x)) - \int_z q_\phi(z | x) \cdot \log p(z) dz = -\frac{d}{2}\log(2\pi) - \frac{1}{2} \sum_i \log \sigma^2_{\phi, i}(x) - \frac{d}{2} + \frac{d}{2}\log(2\pi) + \sum_i \left( \sigma^2_{\phi, i}(x) + \mu^2_{\phi, i}(x) \right) = -\frac{1}{2}\sum_i \left( 1 + \sigma^2_{\phi, i}(x) - \mu^2_{\phi, i}(x) - \log \sigma^2_{\phi, i}(x) \right)$
+
+### Trainable Gaussisan Mixture prior and Gaussian posterior
+* $x_{i, k} = k'$ - the cluster/GM of $i$-th example
+
+$p(z) = \sum_{k = 1}^K \pi_k \cdot \mathcal{N}(\mu_k, \Sigma_k)$
+
+Posterior prior xd
+
+$p(z | x_k = k') = \sum_{k = 1}^K \pi_{k | x_k = k'} \cdot \mathcal{N}(\mu_k, \Sigma_k) \stackrel{\pi_{k | x_k = k'} = \delta_{k'}(k)}{=} \mathcal{N}(\mu_{k'}, \Sigma_{k'})$
+
+The posterior stays the same as above.
+
+When the cluster assignment is unknown the GM prior is used with mode seeking behaviour and possibililty of attraction to suboptimal cluster. Likely though the simmilar examples will be clustered in the same area even in fully unlabeled case. The analytical form is not as clean as in the Gaussian case. The log of the GM may be seen as logsumexp because of exp in the gaussian formula and it is dependent od the likelihood of being in each cluster separately.
+
+Gumbel somftmax may be useful when sampling from GM prior.
+
+<!-- One could do $\pi$ weighted sampling from GM and get logsumexp in the logs  -->
+
+# **TBD** ...
+<!-- ### Non-factorized prior & posterior
+... -->
 
 ### VAE Loss
 
