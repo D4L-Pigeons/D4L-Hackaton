@@ -3,7 +3,57 @@ from utils.paths import ANNDATA_PATH, PEARSON_RESIDUALS_ANNDATA_PATH
 import anndata as ad
 import torch
 from torch.utils.data import TensorDataset, DataLoader
-import scanpy as sc
+
+# import scanpy as sc
+import numpy as np
+import statsmodels.api as sm
+
+
+def fit_negative_binomial(counts):
+    """
+    Fit a negative binomial model to each gene and estimate the dispersion parameter.
+
+    Parameters:
+    counts (numpy.ndarray): The count matrix with genes as rows and cells as columns.
+
+    Returns:
+    tuple: A tuple containing the mean counts and dispersion parameters for each gene.
+    """
+    n_genes, n_cells = counts.shape
+    mean_counts = np.mean(counts, axis=1)
+    dispersions = np.zeros(n_genes)
+
+    for i in range(n_genes):
+        y = counts[i, :]
+        X = np.ones((n_cells, 1))  # Design matrix with intercept only
+
+        # Fit the negative binomial model
+        model = sm.GLM(y, X, family=sm.families.NegativeBinomial())
+        results = model.fit()
+
+        # Extract the dispersion parameter
+        dispersions[i] = results.scale
+
+    return mean_counts, dispersions
+
+
+# mean_counts, dispersions = fit_negative_binomial(counts)
+
+
+# def memory_aware_pearson_residuals(data: ad.AnnData) -> ad.AnnData:
+#     r"""
+#     Compute Pearson residuals in a memory-aware way.
+
+#     Arguments:
+#     data : anndata.AnnData
+#         The data to compute Pearson residuals for.
+
+#     Returns:
+#     data : anndata.AnnData
+#         The data with Pearson residuals computed.
+#     """
+#     # Compute Pearson residuals in an
+#     # n_cols = data.shape[1]
 
 
 def load_anndata(
@@ -42,14 +92,14 @@ def load_anndata(
         filter_set.append("iid_holdout")
 
     _data = ad.read_h5ad(ANNDATA_PATH)
-    if preprocessing == "pearson_residuals":
-        if not PEARSON_RESIDUALS_ANNDATA_PATH.exists():
-            print("Normalizing Pearson residuals...")
-            sc.experimental.pp.normalize_pearson_residuals(_data)
-            _data.write(filename=PEARSON_RESIDUALS_ANNDATA_PATH)
-        else:
-            print("Loading precomputed Pearson residuals...")
-            _data = ad.read_h5ad(PEARSON_RESIDUALS_ANNDATA_PATH)
+    # if preprocessing == "pearson_residuals":
+    #     if not PEARSON_RESIDUALS_ANNDATA_PATH.exists():
+    #         print("Normalizing Pearson residuals...")
+    #         sc.experimental.pp.normalize_pearson_residuals(_data)
+    #         _data.write(filename=PEARSON_RESIDUALS_ANNDATA_PATH)
+    #     else:
+    #         print("Loading precomputed Pearson residuals...")
+    #         _data = ad.read_h5ad(PEARSON_RESIDUALS_ANNDATA_PATH)
     data = _data[_data.obs["is_train"].apply(lambda x: x in filter_set)]
 
     return data
