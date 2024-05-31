@@ -2,19 +2,19 @@ import argparse
 import datetime
 import os
 from pathlib import Path
+
 import anndata as ad
 import numpy as np
 import pandas as pd
-import numpy as np
 import sklearn
 import sklearn.metrics
 import torch
 import yaml
 from sklearn.model_selection import KFold
 
+from models.ModelBase import ModelBase
 from utils.data_utils import load_anndata
 from utils.paths import CONFIG_PATH, RESULTS_PATH
-from models.ModelBase import ModelBase
 
 
 def main():

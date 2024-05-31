@@ -1,11 +1,11 @@
+from abc import ABC, abstractmethod
+
 import anndata as ad
 import numpy as np
 from torch import Tensor
-from abc import ABC, abstractmethod
 
 
 class ModelBase(ABC):
-
     @abstractmethod
     def encode(self, data: ad.AnnData) -> Tensor:
         pass

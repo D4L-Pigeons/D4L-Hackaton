@@ -1,7 +1,8 @@
-from utils.paths import ANNDATA_PATH
 import anndata as ad
 import torch
 from torch.utils.data import DataLoader
+
+from utils.paths import ANNDATA_PATH
 
 
 def load_anndata(mode: str, plus_iid_holdout: bool = False) -> ad.AnnData:
@@ -10,7 +11,7 @@ def load_anndata(mode: str, plus_iid_holdout: bool = False) -> ad.AnnData:
 
     Arguments:
     mode : str
-        The mode to load the anndata object for. Must be one of ['train', 'test'].
+        The mode to load the anndata object for. Must be one of ['train', 'test', 'train+test'].
     plus_iid_holdout : bool
         Whether to include the iid_holdout data in the anndata object.
 
