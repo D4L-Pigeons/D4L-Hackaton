@@ -1,3 +1,4 @@
+### TODO: abstract the modelled distibution from the BABEL description using notatnion used for OmiVAE
 ## **Methods**
 
 (1) **OmiVAE** *Integrated Multi-omics Analysis Using Variational Autoencoders: Application to Pan-cancer Classification*
@@ -27,13 +28,13 @@ BABEL relaxes the assumption of the Gaussian distribution when formulating the r
 
 In the original paper RNA and ATAC modalities are considered with RNA entries assumed to come from marginally negative binomial distirbution and ATAC entries coming from  Bernoulli distibution.
 
-The RNA marginal distribution for each entry is parametrised as it is usually done in negative binomial regression. (Why discrete?)
+The RNA marginal distribution for each entry is parametrised as it is usually done in negative binomial regression. (Why is this variable discrete?)
 
 $\mathbb{P}[x;\mu, \theta] = \frac{\Gamma(x + \theta)}{x! \Gamma(x)} \left( \frac{\theta}{\theta + \mu} \right)^\theta \left( \frac{\mu}{\theta + \mu} \right)^x$
 
 Where $\mu$ and $\theta$ stand for mean and dispersion parameter respectively. It leads to the loss component
 
-$$\mathcal{L}_{RNA}(x; \mu, \theta) = -\theta(\log (\theta + \epsilon) - \log(\theta + \mu) - x (\log (\mu + \epsilon) - \log (\theta + \mu)) - \log\Gamma(x + \theta) + \log\Gamma(x + 1) + \log\Gamma(\theta + \epsilon))$$
+$$\mathcal{L}_{RNA}(x; \mu, \theta) = -\theta \cdot (\log (\theta + \epsilon) - \log(\theta + \mu)) - x \cdot (\log (\mu + \epsilon) - \log (\theta + \mu)) - \log\Gamma(x + \theta) + \log\Gamma(x + 1) + \log\Gamma(\theta + \epsilon)$$
 <!-- ![alt text](image-3.png) -->
 
 The ATAC marginal distribution for each entory is prarmetrised as Bernoulli as a bernoulli distribution leading to binary corssentropy loss.

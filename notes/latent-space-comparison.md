@@ -1,11 +1,12 @@
-
-
 Comparing latent spaces of different Variational Autoencoders (VAEs) involves several techniques and methodologies to understand how well the latent representations capture the underlying data distribution and how similar or dissimilar these representations are between models. Here are some steps and methods you can use:
 
 ### 1. Visualization Techniques
 - **t-SNE (t-Distributed Stochastic Neighbor Embedding):** This is a popular technique to visualize high-dimensional data by projecting it into two or three dimensions. Apply t-SNE on the latent vectors from different VAEs and compare the resulting scatter plots.
 - **UMAP (Uniform Manifold Approximation and Projection):** Similar to t-SNE, UMAP is used to visualize high-dimensional data. It's known for preserving more of the global structure.
 - **PCA (Principal Component Analysis):** Use PCA to reduce the dimensionality of latent spaces and visualize the principal components. This can help in understanding the variance captured by the latent dimensions.
+
+NICE READY VISUALISATION SOLUTIONS: https://scanpy.readthedocs.io/en/stable/ecosystem.html
+
 
 ### 2. Statistical Comparison
 - **KL Divergence:** Measure the Kullback-Leibler divergence between the latent distributions of different VAEs to quantify how much one distribution diverges from another.

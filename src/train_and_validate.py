@@ -13,6 +13,7 @@ import yaml
 from sklearn.model_selection import KFold
 
 from models.ModelBase import ModelBase
+from models.omivae import OmiModel
 from utils.data_utils import load_anndata
 from utils.paths import CONFIG_PATH, RESULTS_PATH
 
@@ -47,6 +48,11 @@ def main():
         "--n-folds", default=5, help="Number of folds in cross validation."
     )
     parser.add_argument(
+        "--subsample-frac",
+        default=None,
+        help="Fraction of the data to use for cross validation. If None, use all data.",
+    )
+    parser.add_argument(
         "--retrain", default=True, help="Retrain a model using the whole dataset."
     )
 
@@ -55,10 +61,15 @@ def main():
     config = load_config(args)
     model = create_model(args, config)
 
-    data = load_anndata(mode=args.mode)
+    data = load_anndata(mode=args.mode, preprocessing=config.preprocessing)
 
     cross_validation_metrics = cross_validation(
-        data, model, random_state=args.cv_seed, n_folds=args.n_folds
+        data,
+        model,
+        classification_metrics=config.classification_head,
+        random_state=args.cv_seed,
+        n_folds=args.n_folds,
+        subsample_frac=args.subsample_frac,
     )
 
     # Save results
@@ -86,9 +97,10 @@ def main():
         yaml.dump(config.__dict__, file)
         print(f"Config saved to: {results_path / 'config.yaml'}")
 
-    # Save metrics
-    cross_validation_metrics.to_json(results_path / "metrics.json", indent=4)
-    print(f"Metrics saved to: {results_path / 'metrics.json'}")
+    if config.classification_head:
+        # Save metrics
+        cross_validation_metrics.to_json(results_path / "metrics.json", indent=4)
+        print(f"Metrics saved to: {results_path / 'metrics.json'}")
 
     # Retrain and save model
     if args.retrain:
@@ -107,7 +119,8 @@ def load_config(args) -> argparse.Namespace:
 
 def create_model(args, config) -> ModelBase:
     if args.method == "omivae":
-        raise NotImplementedError(f"{args.method} method not implemented.")
+        model = OmiModel(config)
+        return model
     elif args.method == "babel":
         raise NotImplementedError(f"{args.method} method not implemented.")
     elif args.method == "advae":
@@ -117,7 +130,12 @@ def create_model(args, config) -> ModelBase:
 
 
 def cross_validation(
-    data: ad.AnnData, model: ModelBase, random_state: int = 42, n_folds: int = 5
+    data: ad.AnnData,
+    model: ModelBase,
+    classification_metrics: bool,
+    random_state: int = 42,
+    n_folds: int = 5,
+    subsample_frac: float | None = None,
 ) -> pd.DataFrame:
     torch.manual_seed(42)
     r"""
@@ -144,35 +162,46 @@ def cross_validation(
 
     cross_validation_metrics = pd.DataFrame(columns=metrics_names)
 
-    for i, (train_data, test_data) in enumerate(k_folds(data, n_folds, random_state)):
+    for i, (train_data, test_data) in enumerate(
+        k_folds(data, n_folds, random_state, subsample_frac)
+    ):
         model.train(train_data)
         prediction = model.predict(test_data)
         prediction_probability = model.predict_proba(test_data)
-        ground_truth = test_data.obs["cell_labels"]
+        ground_truth = test_data.obs["cell_type"]
 
-        calculate_metrics(
-            ground_truth,
-            prediction,
-            prediction_probability,
-            test_data.obs["cell_labels"].cat.categories,
-            cross_validation_metrics,
-        )
+        if classification_metrics:
+            calculate_metrics(
+                ground_truth,
+                prediction,
+                prediction_probability,
+                test_data.obs["cell_type"].cat.categories,
+                cross_validation_metrics,
+            )
 
-        print(
-            f"Validation accuracy of {i} fold:",
-            cross_validation_metrics.loc[i]["accuracy"],
-        )
+            print(
+                f"Validation accuracy of {i} fold:",
+                cross_validation_metrics.loc[i]["accuracy"],
+            )
 
-    average_metrics = {
-        metric_name: cross_validation_metrics[metric_name].mean()
-        for metric_name in metrics_names
-    }
-    cross_validation_metrics.loc[len(cross_validation_metrics.index)] = average_metrics
+    if classification_metrics:
+        average_metrics = {
+            metric_name: cross_validation_metrics[metric_name].mean()
+            for metric_name in metrics_names
+        }
+        cross_validation_metrics.loc[
+            len(cross_validation_metrics.index)
+        ] = average_metrics
 
-    return cross_validation_metrics
+        return cross_validation_metrics
 
 
-def k_folds(data: ad.AnnData, n_folds: int, random_state: int):
+def k_folds(
+    data: ad.AnnData,
+    n_folds: int,
+    random_state: int,
+    subsample_frac: float | None = None,
+):
     r"""
     Generate indices for k-folds cross validation.
 
@@ -184,17 +213,17 @@ def k_folds(data: ad.AnnData, n_folds: int, random_state: int):
     Yields:
         Tuple[anndata.AnnData, anndata.AnnData]: The training and test data for each fold.
     """
-    sample_ids = data.obs["sample_id"].cat.remove_unused_categories()
-    sample_ids_unique = sample_ids.cat.categories
-
+    obs_names = data.obs_names.values
+    if subsample_frac is not None:
+        np.random.seed(random_state)
+        obs_names = np.random.choice(
+            obs_names, size=int(subsample_frac * len(obs_names)), replace=False
+        )
     kfold = KFold(n_splits=n_folds, shuffle=True, random_state=random_state)
-    split = kfold.split(sample_ids_unique.tolist())
+    split = kfold.split(obs_names)
 
-    for train, test in split:
-        train_mask = data.obs["sample_id"].isin(sample_ids_unique[train])
-        test_mask = data.obs["sample_id"].isin(sample_ids_unique[test])
-
-        yield data[train_mask], data[test_mask]
+    for train_obs_names, val_obs_names in split:
+        yield data[train_obs_names], data[val_obs_names]
 
 
 # def macro_average_precision(ground_truth, prediction_probability):
