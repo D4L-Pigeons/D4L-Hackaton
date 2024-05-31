@@ -12,10 +12,12 @@ from torch import Tensor
 
 from models.building_blocks import Block, ResidualBlock, ShortcutBlock
 from models.ModelBase import ModelBase
-from utils.data_utils import (get_dataloader_from_anndata,
-                              get_dataset_from_anndata)
-from utils.loss_utils import (adt_reconstruction_loss, gex_reconstruction_loss,
-                              kld_stdgaussian)
+from utils.data_utils import get_dataloader_from_anndata, get_dataset_from_anndata
+from utils.loss_utils import (
+    adt_reconstruction_loss,
+    gex_reconstruction_loss,
+    kld_stdgaussian,
+)
 from utils.paths import LOGS_PATH
 
 
