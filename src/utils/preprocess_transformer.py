@@ -1,7 +1,8 @@
+import random
+
 import numpy as np
 import torch
 from torch.utils.data import Tensor
-import random
 
 from src.utils.data_utils import get_dataset_from_anndata, load_anndata
 from utils.paths import ANNDATA_PATH

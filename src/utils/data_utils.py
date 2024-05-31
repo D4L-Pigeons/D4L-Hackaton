@@ -108,8 +108,8 @@ def load_anndata(
 
 def get_dataset_from_anndata(
     data: ad.AnnData,
-    first_modality_dim: int,
-    second_modality_dim: int,
+    first_modality_dim: int = 13953,
+    second_modality_dim: int = 134,
     include_class_labels: bool = False,
 ) -> TensorDataset:
     r"""

@@ -180,14 +180,14 @@ class OmiVAEGaussian(pl.LightningModule):
             self.log("Val recon", recon_loss, on_epoch=True, prog_bar=True)
             self.log("Val kld", kld_loss, on_epoch=True, prog_bar=True)
 
-    def _predict(self, x: Tensor) -> Tensor:
+    def predict(self, x: Tensor) -> Tensor:
         if not self.classification_head:
             raise ValueError("Model does not have a classification head")
         mu, _ = self._encode(x)
         logits = self.classification_head(mu)
         return logits
 
-    def _predict_proba(self, data: AnnData):
+    def predict_proba(self, data: AnnData):
         if not self.classification_head:
             raise ValueError("Model does not have a classification head")
         mu, _ = self._encode(data)
@@ -243,8 +243,61 @@ class OmiVAEGaussian(pl.LightningModule):
         )
 
 
+class OmiIWAE(OmiVAEGaussian):
+    def __init__(self, cfg: Namespace):
+        super(OmiIWAE, self).__init__(cfg)
+        self.num_samples = cfg.num_samples
+
+    def _reparameterize(self, mu: Tensor, logvar: Tensor) -> Tensor:
+        std = torch.exp(0.5 * logvar)
+        eps = torch.randn((self.num_samples, *std.size()), device=std.device)
+        z = mu.unsqueeze(0) + eps * std.unsqueeze(0)
+        return z
+
+    def _forward_usupervised(self, x_fst: Tensor, x_snd: Tensor) -> Tuple[Tensor]:
+        mu, logvar = self._encode(x_fst, x_snd)
+        z = self._reparameterize(mu, logvar)
+        x_fst_hat, x_snd_hat = self._decode(z)
+        return x_fst_hat, x_snd_hat, mu, logvar
+
+    def _training_step_unsupervised(self, batch: Tensor) -> Tensor:
+        x_fst, x_snd = batch
+        x_fst_hat, x_snd_hat, mu, logvar = self._forward_usupervised(x_fst, x_snd)
+        recon_loss = F.mse_loss(
+            x_fst_hat, x_fst.unsqueeze(0).expand(self.num_samples, *x_fst.size())
+        ) + F.mse_loss(
+            x_snd_hat, x_snd.unsqueeze(0).expand(self.num_samples, *x_snd.size())
+        )
+        kld_loss = kld_stdgaussian(mu, logvar)
+
+        return recon_loss, kld_loss
+
+    def _forward_supervised(self, x_fst: Tensor, x_snd: Tensor) -> Tuple[Tensor]:
+        x_fst_hat, x_snd_hat, mu, logvar = self._forward_usupervised(x_fst, x_snd)
+        logits = self.classification_head(
+            mu.mean(dim=0)
+        )  # classification performed with average mu
+        return x_fst_hat, x_snd_hat, logits, mu, logvar
+
+    def _training_step_supervised(self, batch: Tensor) -> Tensor:
+        x_fst, x_snd, target = batch
+        x_fst_hat, x_snd_hat, logits, mu, logvar = self._forward_supervised(
+            x_fst, x_snd
+        )
+        recon_loss = gex_reconstruction_loss(
+            x_fst_hat, x_fst.unsqueeze(0).expand(self.num_samples, *x_fst.size())
+        ) + adt_reconstruction_loss(
+            x_snd_hat, x_snd.unsqueeze(0).expand(self.num_samples, *x_snd.size())
+        )
+        kld_loss = kld_stdgaussian(mu, logvar)
+        c_loss = F.cross_entropy(logits, target, weight=self.cfg.class_weights)
+
+        return recon_loss, kld_loss, c_loss
+
+
 _OMIVAE_IMPLEMENTATIONS = {
     "OmiVAEGaussian": OmiVAEGaussian,
+    "OmiIWAE": OmiIWAE,
 }
 
 
@@ -299,10 +352,10 @@ class OmiModel(ModelBase):
         )
 
     def predict(self, data: AnnData):
-        pass
+        raise NotImplementedError
 
     def predict_proba(self, data: AnnData):
-        pass
+        raise NotImplementedError
 
     def save(self, file_path: str):
         save_path = file_path + ".ckpt"
@@ -343,5 +396,3 @@ class OmiModel(ModelBase):
 
 
 # class OmiVAE(OmiAE):
-
-# class OmiIWAE(OmiAE):

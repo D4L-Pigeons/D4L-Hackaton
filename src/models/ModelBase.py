@@ -1,16 +1,10 @@
 from abc import ABC, abstractmethod
+from argparse import Namespace
 
 import anndata as ad
 import numpy as np
 from anndata import AnnData
 from torch import Tensor
-
-<<<<<<< HEAD
-=======
-from abc import ABC, abstractmethod
-from argparse import Namespace
-
->>>>>>> main
 
 
 class ModelBase(ABC):

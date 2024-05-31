@@ -1,7 +1,11 @@
+from argparse import Namespace
+
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
+
+from src.models.building_blocks import Block
 
 
 def silhouette(X, labels):
@@ -28,5 +32,15 @@ def compare_results():
     pass
 
 
-def apply_classification_head():
+def apply_classification_head(model, cfg: Namespace, data):
+    if not cfg.classification_head:
+        classification_head = Block(
+            input_size=cfg.latent_dim,
+            output_size=cfg.num_classes,
+            hidden_size=cfg.num_classes * 2,
+            batch_norm=cfg.batch_norm,
+        )
+        logits = classification_head(mu)
+    else:
+        logits = model._predict(data)
     pass
