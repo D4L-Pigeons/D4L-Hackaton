@@ -1,7 +1,7 @@
 # data configuration
 first_modality_dim: 100 # GEX | max 13953 | MAY BE CHANGED FOR DEBUGGING
 second_modality_dim: 100 # ADT | max 134 | MAY BE CHANGED FOR DEBUGGING
-subsample_frac: 0.01 # | MAY BE CHANGED FOR DEBUGGING
+subsample_frac: 0.1 # | MAY BE CHANGED FOR DEBUGGING
 preprocessing: "standardize" # "log1p", "standardize", "pearson_residuals", null -> None
 include_class_labels: True
 # architecture configuration
@@ -26,8 +26,8 @@ num_classes: 0
 class_weights: null
 # loss configuration
 recon_loss_coef: 1
-gmm_likelihood_loss_coef: 1
-entropy_loss_coef: 1
+gmm_likelihood_loss_coef: 0.1
+entropy_loss_coef: 0.1
 # kld_loss_coef: 1
 c_loss_coef: 1
 # training configuration

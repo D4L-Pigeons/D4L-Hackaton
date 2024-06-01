@@ -293,7 +293,23 @@ class OmiGMPriorProbabilisticAE(OmiAE):
         per_component_logprob = gmm.component_distribution.log_prob(
             z_sample
         )  # [K, B, no_components]
-        gmm_likelihood_per_k = per_component_logprob[:, :, labels]  # [K, B]
+        assert per_component_logprob.shape == (
+            self.cfg.no_latent_samples,
+            x_fst.shape[0],
+            self.cfg.no_components,
+        ), AssertionError(
+            f"per_component_logprob shape is {per_component_logprob.shape}, expected {(self.cfg.no_latent_samples, x_fst.shape[0], self.cfg.no_components)}"
+        )
+        component_indicator = torch.arange(self.cfg.no_components).unsqueeze(0).repeat(
+            (x_fst.shape[0], 1)
+        ) == labels.unsqueeze(1)
+        assert component_indicator.shape == (
+            x_fst.shape[0],
+            self.cfg.no_components,
+        ), AssertionError(
+            f"component_indicator shape is {component_indicator.shape}, expected {(x_fst.shape[0], self.cfg.no_components)}"
+        )
+        gmm_likelihood_per_k = per_component_logprob[:, component_indicator]  # [K, B]
         assert gmm_likelihood_per_k.shape == (
             self.cfg.no_latent_samples,
             x_fst.shape[0],
