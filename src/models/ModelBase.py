@@ -45,6 +45,9 @@ class ModelBase(ABC):
         assert hasattr(cfg, "batch_norm"), AttributeError(
             'cfg does not have the attribute "batch_norm"'
         )
+        assert hasattr(cfg, "include_class_labels"), AttributeError(
+            'cfg does not have the attribute "include_class_labels"'
+        )
 
     @abstractmethod
     def assert_cfg(self, cfg: Namespace) -> None:
