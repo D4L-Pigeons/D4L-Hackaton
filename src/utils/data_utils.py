@@ -1,5 +1,5 @@
 import torch.utils
-from utils.paths import ANNDATA_PATH, LOG1P_ANNDATA_PATH
+from utils.paths import ANNDATA_PATH, LOG1P_ANNDATA_PATH, STD_ANNDATA_PATH
 import anndata as ad
 import torch
 from torch.utils.data import TensorDataset, DataLoader
@@ -85,8 +85,9 @@ def load_anndata(
     assert preprocessing in [
         None,
         "log1p",
+        "standardize",
         "pearson_residuals",
-    ], f"preprocessing must be one of [None, 'log1p', 'pearson_residuals'], got {preprocessing} instead."
+    ], f"preprocessing must be one of [None, 'log1p', 'standardize', 'pearson_residuals'], got {preprocessing} instead."
     filter_set = mode.split("+")  # ['train'] or ['test'] or ['train', 'test']
 
     if plus_iid_holdout:
@@ -95,12 +96,20 @@ def load_anndata(
     _data = ad.read_h5ad(ANNDATA_PATH)
     if preprocessing == "log1p":
         if not LOG1P_ANNDATA_PATH.exists():
-            print("Normalizing log1p...")
+            print("Preprocessing with log1p...")
             sc.pp.log1p(_data)
             _data.write(filename=LOG1P_ANNDATA_PATH)
         else:
             print("Loading precomputed log1p...")
             _data = ad.read_h5ad(LOG1P_ANNDATA_PATH)
+    elif preprocessing == "standardize":
+        if not STD_ANNDATA_PATH.exists():
+            print("Preprocessing with standardize...")
+            sc.pp.scale(_data)
+            _data.write(filename=STD_ANNDATA_PATH)
+        else:
+            print("Loading precomputed standardize...")
+            _data = ad.read_h5ad(STD_ANNDATA_PATH)
     # if preprocessing == "pearson_residuals":
     #     if not PEARSON_RESIDUALS_ANNDATA_PATH.exists():
     #         print("Normalizing Pearson residuals...")

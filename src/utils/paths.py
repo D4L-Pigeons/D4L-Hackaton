@@ -19,6 +19,11 @@ LOG1P_ANNDATA_PATH_FILENAME: str = (
 )
 LOG1P_ANNDATA_PATH: Path = PREPROCESSED_DATA_PATH / LOG1P_ANNDATA_PATH_FILENAME
 
+STD_ANNDATA_PATH_FILENAME: str = (
+    "GSE194122_openproblems_neurips2021_cite_BMMC_processed_std.h5ad"
+)
+STD_ANNDATA_PATH: Path = PREPROCESSED_DATA_PATH / STD_ANNDATA_PATH_FILENAME
+
 # Config paths
 CONFIG_PATH: Path = Path(__file__).parent.parent / "config"
 
