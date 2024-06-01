@@ -272,17 +272,34 @@ class OmiGMPriorProbabilisticAE(OmiAE):
         z_stds = self._var_transformation(z_stds)
         normal_rv = self._make_normal_rv(z_means, z_stds)
         entropy_per_batch_sample = normal_rv.entropy().sum(dim=1).unsqueeze(0)  # [1, B]
+        assert entropy_per_batch_sample.shape == (1, x_fst.shape[0]), AssertionError(
+            f"Entropy shape is {entropy_per_batch_sample.shape}, expected {(1, x_fst.shape[0])}"
+        )
         z_sample = normal_rv.rsample(
             sample_shape=(self.cfg.no_latent_samples,)
         ).unsqueeze(
             2
         )  # [K, B, 1, latent_dim]
+        assert z_sample.shape == (
+            self.cfg.no_latent_samples,
+            x_fst.shape[0],
+            1,
+            self.cfg.latent_dim,
+        ), AssertionError(
+            f"z_sample shape is {z_sample.shape}, expected {(self.cfg.no_latent_samples, x_fst.shape[0], 1, self.cfg.latent_dim)}"
+        )
 
         gmm = self._make_gmm()
         per_component_logprob = gmm.component_distribution.log_prob(
             z_sample
         )  # [K, B, no_components]
         gmm_likelihood_per_k = per_component_logprob[:, :, labels]  # [K, B]
+        assert gmm_likelihood_per_k.shape == (
+            self.cfg.no_latent_samples,
+            x_fst.shape[0],
+        ), AssertionError(
+            f"gmm_likelihood_per_k shape is {gmm_likelihood_per_k.shape}, expected {(self.cfg.no_latent_samples, x_fst.shape[0])}"
+        )
 
         x_fst_hat, x_snd_hat = self._decode(z_sample.squeeze(2))
         recon_loss_per_k = F.mse_loss(
@@ -292,12 +309,19 @@ class OmiGMPriorProbabilisticAE(OmiAE):
         ).mean(
             dim=-1
         )  # [K, B]
+        assert recon_loss_per_k.shape == (
+            self.cfg.no_latent_samples,
+            x_fst.shape[0],
+        ), AssertionError(
+            f"recon_loss_per_k shape is {recon_loss_per_k.shape}, expected {(self.cfg.no_latent_samples, x_fst.shape[0])}"
+        )
 
         if self.cfg.no_latent_samples > 1:  # IWAE with no_latent_samples latent samples
             total_loss = -torch.logsumexp(
-                self.cfg.gmm_likelihood_coef * gmm_likelihood_per_k
-                + self.cfg.entropy_coef * entropy_per_batch_sample
-                + self.recon_coef * recon_loss_per_k,
+                # gmm_likelihood_per_k + recon_loss_per_k + entropy_per_batch_sample,
+                self.cfg.gmm_likelihood_loss_coef * gmm_likelihood_per_k
+                + self.cfg.entropy_loss_coef * entropy_per_batch_sample
+                + self.cfg.recon_loss_coef * recon_loss_per_k,
                 dim=0,
             ).mean()
         else:  # IWAE reduces to VAE with one latent sample
@@ -342,11 +366,11 @@ class OmiGMPriorProbabilisticAE(OmiAE):
         assert hasattr(cfg, "no_latent_samples"), AttributeError(
             'cfg does not have the attribute "no_latent_samples"'
         )
-        assert hasattr(cfg, "gmm_likelihood_coef"), AttributeError(
-            'cfg does not have the attribute "gmm_likelihood_coef"'
+        assert hasattr(cfg, "gmm_likelihood_loss_coef"), AttributeError(
+            'cfg does not have the attribute "gmm_likelihood_loss_coef"'
         )
-        assert hasattr(cfg, "entropy_coef"), AttributeError(
-            'cfg does not have the attribute "entropy_coef"'
+        assert hasattr(cfg, "entropy_loss_coef"), AttributeError(
+            'cfg does not have the attribute "entropy_loss_coef"'
         )
         assert cfg.latent_dim * 2 == cfg.encoder_out_dim, ValueError(
             "The latent dimension must be twice the encoder output dimension"

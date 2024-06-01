@@ -19,15 +19,15 @@ second_modality_embedding_dim: 10 #64
 output_modelling_type: "mse_direct_reconstruction" # "mse_direct_reconstruction", "ll_neg_binomial"
 no_components: 2
 components_std: 1
-no_latent_samples: 1
+no_latent_samples: 16
 # classification specific configuration
 classification_head: False
 num_classes: 0
 class_weights: null
 # loss configuration
 recon_loss_coef: 1
-gmm_likelihood_coef: 1
-entropy_coef: 1
+gmm_likelihood_loss_coef: 1
+entropy_loss_coef: 1
 # kld_loss_coef: 1
 c_loss_coef: 1
 # training configuration
