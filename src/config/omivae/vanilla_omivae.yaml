@@ -1,18 +1,18 @@
 # data configuration
-first_modality_dim: 100 # GEX | max 13953 | MAY BE CHANGED FOR DEBUGGING
-second_modality_dim: 100 # ADT | max 134 | MAY BE CHANGED FOR DEBUGGING
-subsample_frac: 0.01 # | MAY BE CHANGED FOR DEBUGGING
-preprocessing: null # "pearson_residuals", null -> None
-# include_labels: False
+first_modality_dim: 13953 # GEX | max 13953 | MAY BE CHANGED FOR DEBUGGING
+second_modality_dim: 134 # ADT | max 134 | MAY BE CHANGED FOR DEBUGGING
+subsample_frac: 1 # | MAY BE CHANGED FOR DEBUGGING
+preprocessing: "standardize" # "log1p", "standardize", "pearson_residuals", null -> None
+include_class_labels: False
 # architecture configuration
 omivae_implementation: "OmiAE"
 batch_norm: False #False
-encoder_hidden_dim: 20 #512
+encoder_hidden_dim: 100 #512
 encoder_out_dim: 10 #128
 latent_dim: 10
 decoder_in_dim: 10 #128
 decoder_hidden_dim: 20 #512
-first_modality_hidden_dim: 50 #512
+first_modality_hidden_dim: 100 #512
 first_modality_embedding_dim: 50 #512
 second_modality_hidden_dim: 10 #128
 second_modality_embedding_dim: 10 #64
@@ -31,6 +31,6 @@ lr: 0.001
 max_epochs: 5
 log_every_n_steps: 1
 early_stopping: False
-min_delta: 0.00001
+min_delta: 0.001
 patience: 5
 # logger: True
