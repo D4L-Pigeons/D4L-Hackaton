@@ -96,7 +96,10 @@ class OmiVAEGaussian(pl.LightningModule):
         return mu, logvar
 
     def _decode(self, z: Tensor) -> Tuple[Tensor]:
-        x_fst, x_snd = self.decoder(z).split(
+        print(z.shape)
+        decoded_z = self.decoder(z)
+        print(decoded_z.shape)
+        x_fst, x_snd = decoded_z.split(
             [
                 self.cfg.first_modality_embedding_dim,
                 self.cfg.second_modality_embedding_dim,
@@ -112,7 +115,7 @@ class OmiVAEGaussian(pl.LightningModule):
 
     def _reparameterize(self, mu: Tensor, logvar: Tensor) -> Tensor:
         std = torch.exp(0.5 * logvar)
-        eps = torch.randn(std.size())
+        eps = torch.randn_like(std)
         return mu + eps * std
 
     def _forward_unsupervised(self, x_fst: Tensor, x_snd: Tensor) -> Tuple[Tensor]:
@@ -243,33 +246,36 @@ class OmiVAEGaussian(pl.LightningModule):
             'cfg does not have the attribute "lr"'
         )
 
+from torch.distributions.kl import kl_divergence as KL
+import torch.distributions as td
 
 class OmiIWAE(OmiVAEGaussian):
     def __init__(self, cfg: Namespace):
         super(OmiIWAE, self).__init__(cfg)
         self.num_samples = cfg.num_samples
 
-    def _reparameterize(self, mu: Tensor, logvar: Tensor) -> Tensor:
-        std = torch.exp(0.5 * logvar)
-        eps = torch.randn((self.num_samples, *std.size()), device=std.device)
-        z = mu.unsqueeze(0) + eps * std.unsqueeze(0)
-        return z
-
-    def _forward_unsupervised(self, x_fst: Tensor, x_snd: Tensor) -> Tuple[Tensor]:
-        mu, logvar = self._encode(x_fst, x_snd)
-        z = self._reparameterize(mu, logvar)
-        x_fst_hat, x_snd_hat = self._decode(z)
-        return x_fst_hat, x_snd_hat, mu, logvar
 
     def _training_step_unsupervised(self, batch: Tensor) -> Tensor:
         x_fst, x_snd = batch
-        x_fst_hat, x_snd_hat, mu, logvar = self._forward_unsupervised(x_fst, x_snd)
-        recon_loss = F.mse_loss(
-            x_fst_hat, x_fst.unsqueeze(0).expand(self.num_samples, *x_fst.size())
-        ) + F.mse_loss(
-            x_snd_hat, x_snd.unsqueeze(0).expand(self.num_samples, *x_snd.size())
-        )
-        kld_loss = kld_stdgaussian(mu, logvar)
+        for _ in range(self.num_samples):
+            x_fst_hat, x_snd_hat, mu, logvar = self._forward_unsupervised(x_fst, x_snd)
+            recon_loss = F.mse_loss(x_fst_hat, x_fst) + F.mse_loss(x_snd_hat, x_snd)
+            # kld_loss = kld_stdgaussian(mu, logvar)
+
+            std_dec = logvar.mul(0.5).exp_()
+            px_Gz = td.Normal(loc=mu, scale=std_dec).log_prob(x)
+
+            if log_px_z is None:
+                log_px_z = px_Gz.log_prob(x).mean(-1).unsqueeze(1)
+                kld = KL(qz_Gx_obs, p_z).unsqueeze(1)
+            else:
+                log_px_z = torch.cat([log_px_z, px_Gz.log_prob(x).mean(-1).unsqueeze(1)], 1)
+                kld = torch.cat([kld, KL(qz_Gx_obs, p_z).unsqueeze(1)], 1)
+
+        # loss calculation
+        log_wk = log_px_z - kld
+        L_k = log_wk.logsumexp(dim=-1) - self.num_samples.log()  # division by k in logspace
+        return -torch.mean(L_k)
 
         return recon_loss, kld_loss
 
@@ -285,15 +291,76 @@ class OmiIWAE(OmiVAEGaussian):
         x_fst_hat, x_snd_hat, logits, mu, logvar = self._forward_supervised(
             x_fst, x_snd
         )
-        recon_loss = gex_reconstruction_loss(
-            x_fst_hat, x_fst.unsqueeze(0).expand(self.num_samples, *x_fst.size())
-        ) + adt_reconstruction_loss(
-            x_snd_hat, x_snd.unsqueeze(0).expand(self.num_samples, *x_snd.size())
-        )
+        recon_loss = gex_reconstruction_loss(x_fst_hat, x_fst) + adt_reconstruction_loss(x_snd_hat, x_snd)
         kld_loss = kld_stdgaussian(mu, logvar)
         c_loss = F.cross_entropy(logits, target, weight=self.cfg.class_weights)
 
         return recon_loss, kld_loss, c_loss
+
+    def train_uns(self, x, beta, k_samples):
+
+        for _ in range(k_samples):
+            mu_enc, log_var_enc = self.encoder(x)
+            std_enc = torch.exp(0.5 * log_var_enc)
+
+            # Reparameterize:
+            z_Gx, qz_Gx_obs = self.reparameterize(mu_enc, std_enc)
+            mu_prior = torch.zeros(self.latent).to(self.device)
+            std_prior = torch.ones(self.latent).to(self.device)
+            p_z = td.Normal(loc=mu_prior, scale=std_prior)
+
+            #decode
+            mu_dec, log_var_dec = self.decoder(z_Gx)
+            std_dec = log_var_dec.mul(0.5).exp_()
+            px_Gz = td.Normal(loc=mu_dec, scale=std_dec).log_prob(x)
+
+            if log_px_z is None:
+                log_px_z = px_Gz.log_prob(x).mean(-1).unsqueeze(1)
+                kld = KL(qz_Gx_obs, p_z).unsqueeze(1)
+            else:
+                log_px_z = torch.cat([log_px_z, px_Gz.log_prob(x).mean(-1).unsqueeze(1)], 1)
+                kld = torch.cat([kld, KL(qz_Gx_obs, p_z).unsqueeze(1)], 1)
+
+        # loss calculation
+        log_wk = log_px_z - kld
+        L_k = log_wk.logsumexp(dim=-1) - k_samples.log()  # division by k in logspace
+        return -torch.mean(L_k)
+
+
+    def calc_loss_simple(self, batch):
+        x_fst, x_snd = batch
+        x = torch.cat([x_fst, x_snd], dim=1)
+        for _ in range(self.num_samples):
+
+            mu, logvar = self._encode(x_fst, x_snd)
+            std = torch.exp(0.5 * logvar)
+
+            qz_Gx_obs = td.Normal(loc=mu, scale=std)
+            z = qz_Gx_obs.rsample()
+            x_fst_hat, x_snd_hat = self._decode(z)
+
+            # Reparameterize:
+            mu_prior = torch.zeros(self.latent).to(self.device)
+            std_prior = torch.ones(self.latent).to(self.device)
+            p_z = td.Normal(loc=mu_prior, scale=std_prior)
+
+            #decode
+            mu_dec, log_var_dec = self._decode(z_Gx)
+            std_dec = log_var_dec.mul(0.5).exp_()
+            px_Gz = td.Normal(loc=mu_dec, scale=std_dec).log_prob(x)
+
+            if log_px_z is None:
+                log_px_z = px_Gz.log_prob(x).mean(-1).unsqueeze(1)
+                kld = KL(qz_Gx_obs, p_z).unsqueeze(1)
+            else:
+                log_px_z = torch.cat([log_px_z, px_Gz.log_prob(x).mean(-1).unsqueeze(1)], 1)
+                kld = torch.cat([kld, KL(qz_Gx_obs, p_z).unsqueeze(1)], 1)
+
+        # loss calculation
+        log_wk = log_px_z - kld
+        L_k = log_wk.logsumexp(dim=-1) - self.num_samples.log()  # division by k in logspace
+        return -torch.mean(L_k)
+
 
     def assert_cfg(self, cfg: Namespace) -> None:
         assert hasattr(cfg, "num_samples"), AttributeError(
