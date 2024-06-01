@@ -255,111 +255,107 @@ class OmiIWAE(OmiVAEGaussian):
         self.num_samples = cfg.num_samples
 
 
-    def _training_step_unsupervised(self, batch: Tensor) -> Tensor:
-        x_fst, x_snd = batch
-        for _ in range(self.num_samples):
-            x_fst_hat, x_snd_hat, mu, logvar = self._forward_unsupervised(x_fst, x_snd)
-            recon_loss = F.mse_loss(x_fst_hat, x_fst) + F.mse_loss(x_snd_hat, x_snd)
-            # kld_loss = kld_stdgaussian(mu, logvar)
+    # def _training_step_unsupervised(self, batch: Tensor) -> Tensor:
+    #     x_fst, x_snd = batch
+    #     for _ in range(self.num_samples):
+    #         x_fst_hat, x_snd_hat, mu, logvar = self._forward_unsupervised(x_fst, x_snd)
+    #         recon_loss = F.mse_loss(x_fst_hat, x_fst) + F.mse_loss(x_snd_hat, x_snd)
+    #         # kld_loss = kld_stdgaussian(mu, logvar)
 
-            std_dec = logvar.mul(0.5).exp_()
-            px_Gz = td.Normal(loc=mu, scale=std_dec).log_prob(x)
+    #         std_dec = logvar.mul(0.5).exp_()
+    #         px_Gz = td.Normal(loc=mu, scale=std_dec).log_prob(x)
 
-            if log_px_z is None:
-                log_px_z = px_Gz.log_prob(x).mean(-1).unsqueeze(1)
-                kld = KL(qz_Gx_obs, p_z).unsqueeze(1)
-            else:
-                log_px_z = torch.cat([log_px_z, px_Gz.log_prob(x).mean(-1).unsqueeze(1)], 1)
-                kld = torch.cat([kld, KL(qz_Gx_obs, p_z).unsqueeze(1)], 1)
+    #         if log_px_z is None:
+    #             log_px_z = px_Gz.log_prob(x).mean(-1).unsqueeze(1)
+    #             kld = KL(qz_Gx_obs, p_z).unsqueeze(1)
+    #         else:
+    #             log_px_z = torch.cat([log_px_z, px_Gz.log_prob(x).mean(-1).unsqueeze(1)], 1)
+    #             kld = torch.cat([kld, KL(qz_Gx_obs, p_z).unsqueeze(1)], 1)
 
-        # loss calculation
-        log_wk = log_px_z - kld
-        L_k = log_wk.logsumexp(dim=-1) - self.num_samples.log()  # division by k in logspace
-        return -torch.mean(L_k)
+    #     # loss calculation
+    #     log_wk = log_px_z - kld
+    #     L_k = log_wk.logsumexp(dim=-1) - self.num_samples.log()  # division by k in logspace
 
-        return recon_loss, kld_loss
+    #     return recon_loss, kld_loss
 
-    def _forward_supervised(self, x_fst: Tensor, x_snd: Tensor) -> Tuple[Tensor]:
-        x_fst_hat, x_snd_hat, mu, logvar = self._forward_unsupervised(x_fst, x_snd)
-        logits = self.classification_head(
-            mu.mean(dim=0)
-        )  # classification performed with average mu
-        return x_fst_hat, x_snd_hat, logits, mu, logvar
+    # def _forward_supervised(self, x_fst: Tensor, x_snd: Tensor) -> Tuple[Tensor]:
+    #     x_fst_hat, x_snd_hat, mu, logvar = self._forward_unsupervised(x_fst, x_snd)
+    #     logits = self.classification_head(
+    #         mu.mean(dim=0)
+    #     )  # classification performed with average mu
+    #     return x_fst_hat, x_snd_hat, logits, mu, logvar
 
-    def _training_step_supervised(self, batch: Tensor) -> Tensor:
+    # def _training_step_supervised(self, batch: Tensor) -> Tensor:
+    #     x_fst, x_snd, target = batch
+    #     x_fst_hat, x_snd_hat, logits, mu, logvar = self._forward_supervised(
+    #         x_fst, x_snd
+    #     )
+    #     recon_loss = gex_reconstruction_loss(x_fst_hat, x_fst) + adt_reconstruction_loss(x_snd_hat, x_snd)
+    #     kld_loss = kld_stdgaussian(mu, logvar)
+    #     c_loss = F.cross_entropy(logits, target, weight=self.cfg.class_weights)
+
+    #     return recon_loss, kld_loss, c_loss
+
+
+    def train_step_supervised(self, batch):
         x_fst, x_snd, target = batch
-        x_fst_hat, x_snd_hat, logits, mu, logvar = self._forward_supervised(
-            x_fst, x_snd
-        )
-        recon_loss = gex_reconstruction_loss(x_fst_hat, x_fst) + adt_reconstruction_loss(x_snd_hat, x_snd)
-        kld_loss = kld_stdgaussian(mu, logvar)
-        c_loss = F.cross_entropy(logits, target, weight=self.cfg.class_weights)
-
-        return recon_loss, kld_loss, c_loss
-
-    def train_uns(self, x, beta, k_samples):
-
-        for _ in range(k_samples):
-            mu_enc, log_var_enc = self.encoder(x)
-            std_enc = torch.exp(0.5 * log_var_enc)
-
-            # Reparameterize:
-            z_Gx, qz_Gx_obs = self.reparameterize(mu_enc, std_enc)
-            mu_prior = torch.zeros(self.latent).to(self.device)
-            std_prior = torch.ones(self.latent).to(self.device)
-            p_z = td.Normal(loc=mu_prior, scale=std_prior)
-
-            #decode
-            mu_dec, log_var_dec = self.decoder(z_Gx)
-            std_dec = log_var_dec.mul(0.5).exp_()
-            px_Gz = td.Normal(loc=mu_dec, scale=std_dec).log_prob(x)
-
-            if log_px_z is None:
-                log_px_z = px_Gz.log_prob(x).mean(-1).unsqueeze(1)
-                kld = KL(qz_Gx_obs, p_z).unsqueeze(1)
-            else:
-                log_px_z = torch.cat([log_px_z, px_Gz.log_prob(x).mean(-1).unsqueeze(1)], 1)
-                kld = torch.cat([kld, KL(qz_Gx_obs, p_z).unsqueeze(1)], 1)
-
-        # loss calculation
-        log_wk = log_px_z - kld
-        L_k = log_wk.logsumexp(dim=-1) - k_samples.log()  # division by k in logspace
-        return -torch.mean(L_k)
-
-
-    def calc_loss_simple(self, batch):
-        x_fst, x_snd = batch
-        x = torch.cat([x_fst, x_snd], dim=1)
+        recon_losses = []
+        log_qz_x = []
+        log_pz = []
+        c_losses = []
+        
         for _ in range(self.num_samples):
-
+            # Encode
             mu, logvar = self._encode(x_fst, x_snd)
             std = torch.exp(0.5 * logvar)
+            qz_x = td.Normal(loc=mu, scale=std)
 
-            qz_Gx_obs = td.Normal(loc=mu, scale=std)
-            z = qz_Gx_obs.rsample()
+            # Sample z
+            z = qz_x.rsample()
+
+            # Decode
             x_fst_hat, x_snd_hat = self._decode(z)
+            x_fst_hat = nn.Sigmoid()(x_fst_hat) # For stability
+            x_snd_hat = nn.Sigmoid()(x_snd_hat)
 
-            # Reparameterize:
-            mu_prior = torch.zeros(self.latent).to(self.device)
-            std_prior = torch.ones(self.latent).to(self.device)
-            p_z = td.Normal(loc=mu_prior, scale=std_prior)
+            # Calculate reconstruction loss
+            recon_loss = gex_reconstruction_loss(x_fst_hat, x_fst) + adt_reconstruction_loss(x_snd_hat, x_snd)
+            recon_losses.append(recon_loss)
 
-            #decode
-            mu_dec, log_var_dec = self._decode(z_Gx)
-            std_dec = log_var_dec.mul(0.5).exp_()
-            px_Gz = td.Normal(loc=mu_dec, scale=std_dec).log_prob(x)
+            # Calculate classification loss
+            logits = self.classification_head(z.mean(dim=0))
+            c_loss = F.cross_entropy(logits, target, weight=self.cfg.class_weights)
+            c_losses.append(c_loss)
 
-            if log_px_z is None:
-                log_px_z = px_Gz.log_prob(x).mean(-1).unsqueeze(1)
-                kld = KL(qz_Gx_obs, p_z).unsqueeze(1)
-            else:
-                log_px_z = torch.cat([log_px_z, px_Gz.log_prob(x).mean(-1).unsqueeze(1)], 1)
-                kld = torch.cat([kld, KL(qz_Gx_obs, p_z).unsqueeze(1)], 1)
+            # Log probabilities for IWAE
+            log_qz_x.append(qz_x.log_prob(z).sum(dim=-1))
+            p_z = td.Normal(loc=torch.zeros_like(mu), scale=torch.ones_like(std))
+            log_pz.append(p_z.log_prob(z).sum(dim=-1))
 
-        # loss calculation
-        log_wk = log_px_z - kld
-        L_k = log_wk.logsumexp(dim=-1) - self.num_samples.log()  # division by k in logspace
-        return -torch.mean(L_k)
+        # Stack losses and log probabilities
+        recon_losses = torch.stack(recon_losses, dim=-1)
+        log_qz_x = torch.stack(log_qz_x, dim=-1)
+        log_pz = torch.stack(log_pz, dim=-1)
+        c_losses = torch.stack(c_losses, dim=-1)
+
+        # Calculate log weights
+        log_w = recon_losses + log_pz - log_qz_x
+
+        # IWAE loss using log-sum-exp trick
+        log_w = log_w - log_w.logsumexp(dim=-1, keepdim=True)
+        w = log_w.exp()
+
+        # Final losses
+        recon_loss = torch.mean((w * recon_losses).sum(dim=-1))
+        kld_loss = -torch.mean((w * (log_pz - log_qz_x)).sum(dim=-1))
+        c_loss = torch.mean(c_losses)
+
+        # Log the losses
+        self.log("Train recon", recon_loss, on_epoch=True, prog_bar=True)
+        self.log("Train kld", kld_loss, on_epoch=True, prog_bar=True)
+        self.log("Train class", c_loss, on_epoch=True, prog_bar=True)
+
+        return self.cfg.recon_loss_coef * recon_loss + self.cfg.kld_loss_coef * kld_loss + self.cfg.c_loss_coef * c_loss
 
 
     def assert_cfg(self, cfg: Namespace) -> None:
