@@ -1,10 +1,10 @@
 import torch.utils
-from utils.paths import ANNDATA_PATH, PEARSON_RESIDUALS_ANNDATA_PATH
+from utils.paths import ANNDATA_PATH, LOG1P_ANNDATA_PATH
 import anndata as ad
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 
-# import scanpy as sc
+import scanpy as sc
 import numpy as np
 import statsmodels.api as sm
 
@@ -84,14 +84,23 @@ def load_anndata(
     ), f"plus_iid_holdout must be a boolean, got {plus_iid_holdout} instead."
     assert preprocessing in [
         None,
+        "log1p",
         "pearson_residuals",
-    ], f"preprocessing must be one of [None, 'pearson_residuals'], got {preprocessing} instead."
+    ], f"preprocessing must be one of [None, 'log1p', 'pearson_residuals'], got {preprocessing} instead."
     filter_set = mode.split("+")  # ['train'] or ['test'] or ['train', 'test']
 
     if plus_iid_holdout:
         filter_set.append("iid_holdout")
 
     _data = ad.read_h5ad(ANNDATA_PATH)
+    if preprocessing == "log1p":
+        if not LOG1P_ANNDATA_PATH.exists():
+            print("Normalizing log1p...")
+            sc.pp.log1p(_data)
+            _data.write(filename=LOG1P_ANNDATA_PATH)
+        else:
+            print("Loading precomputed log1p...")
+            _data = ad.read_h5ad(LOG1P_ANNDATA_PATH)
     # if preprocessing == "pearson_residuals":
     #     if not PEARSON_RESIDUALS_ANNDATA_PATH.exists():
     #         print("Normalizing Pearson residuals...")
