@@ -28,6 +28,7 @@ def evaluate_classification(y_true, y_pred, y_proba=None):
     conf_matrix = confusion_matrix(y_true, y_pred)
     mse = mean_squared_error(y_true, y_pred)
     mae = mean_absolute_error(y_true, y_pred)
+    roc_auc = roc_auc_score(y_true, y_pred)
     metrics = {
         'accuracy': accuracy,
         'precision': precision,
@@ -37,22 +38,19 @@ def evaluate_classification(y_true, y_pred, y_proba=None):
         'conf_matrix': conf_matrix,
         'mse': mse,
         'mae': mae,
+        'roc_auc': roc_auc,
     }
-    
-    if y_proba is not None:
-        roc_auc = roc_auc_score(y_true, y_proba, multi_class='ovr')
-        metrics['roc_auc'] = roc_auc
 
     print(metrics)
     return metrics
 
-def plot_roc_auc(y_true, y_proba, num_classes):
+def plot_roc_auc(y_true, y_pred, num_classes): # what to do with this?
     y_true_bin = label_binarize(y_true, classes=[i for i in range(num_classes)])
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
     for i in range(num_classes):
-        fpr[i], tpr[i], _ = roc_curve(y_true_bin[:, i], y_proba[:, i])
+        fpr[i], tpr[i], _ = roc_curve(y_true_bin[:, i], y_pred[:, i])
         roc_auc[i] = auc(fpr[i], tpr[i])
 
     plt.figure()
