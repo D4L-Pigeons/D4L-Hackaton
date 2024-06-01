@@ -122,6 +122,7 @@ class OmiVAEGaussian(pl.LightningModule):
         mu, logvar = self._encode(x_fst, x_snd)
         z = self._reparameterize(mu, logvar)
         x_fst_hat, x_snd_hat = self._decode(z)
+        print(mu.shape, logvar.shape)
         return x_fst_hat, x_snd_hat, mu, logvar
 
     def _training_step_unsupervised(self, batch: Tensor) -> Tensor:
@@ -297,7 +298,8 @@ class OmiIWAE(OmiVAEGaussian):
     #     return recon_loss, kld_loss, c_loss
 
 
-    def train_step_supervised(self, batch):
+    def _training_step_supervised(self, batch):
+        print("omniwae training supervised")
         x_fst, x_snd, target = batch
         recon_losses = []
         log_qz_x = []
@@ -307,6 +309,8 @@ class OmiIWAE(OmiVAEGaussian):
         for _ in range(self.num_samples):
             # Encode
             mu, logvar = self._encode(x_fst, x_snd)
+            print(mu.shape, logvar.shape)
+            logits = self.classification_head(mu)
             std = torch.exp(0.5 * logvar)
             qz_x = td.Normal(loc=mu, scale=std)
 
@@ -323,8 +327,7 @@ class OmiIWAE(OmiVAEGaussian):
             recon_losses.append(recon_loss)
 
             # Calculate classification loss
-            logits = self.classification_head(z.mean(dim=0))
-            c_loss = F.cross_entropy(logits, target, weight=self.cfg.class_weights)
+            c_loss = F.cross_entropy(logits, target)
             c_losses.append(c_loss)
 
             # Log probabilities for IWAE
@@ -349,11 +352,6 @@ class OmiIWAE(OmiVAEGaussian):
         recon_loss = torch.mean((w * recon_losses).sum(dim=-1))
         kld_loss = -torch.mean((w * (log_pz - log_qz_x)).sum(dim=-1))
         c_loss = torch.mean(c_losses)
-
-        # Log the losses
-        self.log("Train recon", recon_loss, on_epoch=True, prog_bar=True)
-        self.log("Train kld", kld_loss, on_epoch=True, prog_bar=True)
-        self.log("Train class", c_loss, on_epoch=True, prog_bar=True)
 
         return self.cfg.recon_loss_coef * recon_loss + self.cfg.kld_loss_coef * kld_loss + self.cfg.c_loss_coef * c_loss
 
