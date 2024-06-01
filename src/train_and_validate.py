@@ -39,7 +39,7 @@ def main():
     parser.add_argument(
         "--config",
         default="standard",
-        help="Name of a configuration in src/config/{method} directory.",
+        help="Name of a configuration in src/config/{method}.yaml.",
     )
     parser.add_argument(
         "--cv-seed", default=42, help="Seed used to make k folds for cross validation."

@@ -4,8 +4,8 @@ import numpy as np
 import torch
 from torch.utils.data import Tensor
 
-from src.utils.data_utils import get_dataset_from_anndata, load_anndata
-from utils.paths import ANNDATA_PATH
+from utils.data_utils import get_dataset_from_anndata, load_anndata
+from utils.paths import ANNDATA_PATH, TRANSFORMER_DATA_PATH
 
 
 def split_nonzero_zero_with_medians(data: Tensor):
@@ -40,13 +40,10 @@ def select_top_n_and_random_k(data: Tensor, n: int, k: int):
     return combined_data
 
 
-def get_markers_subset(n: int = 256, k: int = 50, mode: str = "train"):
+def get_and_save_markers_subset(n: int = 256, k: int = 50, mode: str = "train"):
     data_anndata = load_anndata(mode=mode)
-    data = get_dataset_from_anndata(
-        data_anndata, first_modality_dim, second_modality_dim
-    )
-    medians_nonzero, data_nonzero, data_zero = select_top_n_and_random_k(data)
-    nonzeros = get_top_nonzeros(medians_nonzero, data_nonzero, n)
-    zeros = get_random_zeros(data_zero, k)
-    markers_subset = np.cat(nonzeros, zeros)
-    return markers_subset
+    data = get_dataset_from_anndata(data_anndata)
+    markers_subset = select_top_n_and_random_k(data)
+    torch.save(markers_subset, TRANSFORMER_DATA_PATH)
+
+

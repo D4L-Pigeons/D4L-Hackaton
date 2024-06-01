@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
 
-from src.models.building_blocks import Block
+from models.building_blocks import Block
 
 
 def silhouette(X, labels):
