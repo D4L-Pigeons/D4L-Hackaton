@@ -92,9 +92,9 @@ class OmiAE(pl.LightningModule):
 
     def _encode(self, x_fst: Tensor, x_snd: Tensor) -> Tensor:
         x_fst = self.fstmod_in(x_fst)
-        print("encode 0 passed")
+        # print("encode 0 passed")
         x_snd = self.sndmod_in(x_snd)
-        print("encode 1 passed")
+        # print("encode 1 passed")
         encoder_out = self.encoder(torch.cat([x_fst, x_snd], dim=-1))
 
         return encoder_out
@@ -107,11 +107,11 @@ class OmiAE(pl.LightningModule):
             ],
             dim=-1,
         )
-        print("decode 0 passed")
+        # print("decode 0 passed")
         x_fst = self.fstmod_out(x_fst)
-        print("decode 1 passed")
+        # print("decode 1 passed")
         x_snd = self.sndmod_out(x_snd)
-        print("decode 2 passed")
+        # print("decode 2 passed")
 
         return x_fst, x_snd
 
@@ -235,9 +235,6 @@ class OmiAE(pl.LightningModule):
         assert hasattr(cfg, "recon_loss_coef"), AttributeError(
             'cfg does not have the attribute "recon_loss_coef"'
         )
-        assert hasattr(cfg, "kld_loss_coef"), AttributeError(
-            'cfg does not have the attribute "kld_loss_coef"'
-        )
         assert hasattr(cfg, "lr"), AttributeError(
             'cfg does not have the attribute "lr"'
         )
@@ -245,17 +242,17 @@ class OmiAE(pl.LightningModule):
 
 class OmiGMPriorProbabilisticAE(OmiAE):
     def __init__(self, cfg: Namespace):
-        super(OmiGMPriorProbabilisticAE, self).__init__()
+        super(OmiGMPriorProbabilisticAE, self).__init__(cfg)
         self.assert_cfg(cfg)
         self.component_logits = nn.Parameter(
             data=torch.zeros(size=(cfg.no_components,)), requires_grad=True
         )
         self.means = nn.Parameter(
-            torch.randn(cfg.no_components, self.latent_dim), requires_grad=True
+            torch.randn(cfg.no_components, cfg.latent_dim), requires_grad=True
         )
         # STDs of GMM
         self.register_buffer(
-            "stds", cfg.components_std * torch.ones(cfg.no_components, self.latent_dim)
+            "stds", cfg.components_std * torch.ones(cfg.no_components, cfg.latent_dim)
         )
 
     def _var_transformation(self, logvar: Tensor) -> Tensor:
@@ -269,13 +266,14 @@ class OmiGMPriorProbabilisticAE(OmiAE):
         x_fst, x_snd, labels = (
             batch  # ASSUMPTION THAT ALL LABELS ARE AVAILABLE (the extension to the mix of alebeled + unlabeled is not difficuls, but it is not implemented here as it may not be necessary for the task at hand)
         )
+        labels = torch.bernoulli(torch.ones_like(labels) * 0.5).long()
 
         z_means, z_stds = self._encode(x_fst, x_snd).chunk(2, dim=1)
         z_stds = self._var_transformation(z_stds)
         normal_rv = self._make_normal_rv(z_means, z_stds)
         entropy_per_batch_sample = normal_rv.entropy().sum(dim=1).unsqueeze(0)  # [1, B]
         z_sample = normal_rv.rsample(
-            sample_size=(self.cfg.no_latent_samples,)
+            sample_shape=(self.cfg.no_latent_samples,)
         ).unsqueeze(
             2
         )  # [K, B, 1, latent_dim]
@@ -286,7 +284,7 @@ class OmiGMPriorProbabilisticAE(OmiAE):
         )  # [K, B, no_components]
         gmm_likelihood_per_k = per_component_logprob[:, :, labels]  # [K, B]
 
-        x_fst_hat, x_snd_hat = self._decode(z_sample)
+        x_fst_hat, x_snd_hat = self._decode(z_sample.squeeze(2))
         recon_loss_per_k = F.mse_loss(
             x_fst_hat, x_fst.repeat(self.cfg.no_latent_samples, 1, 1), reduction="none"
         ).mean(dim=-1) + F.mse_loss(
@@ -341,17 +339,23 @@ class OmiGMPriorProbabilisticAE(OmiAE):
         assert hasattr(cfg, "components_std"), AttributeError(
             'cfg does not have the attribute "components_std"'
         )
+        assert hasattr(cfg, "no_latent_samples"), AttributeError(
+            'cfg does not have the attribute "no_latent_samples"'
+        )
         assert hasattr(cfg, "gmm_likelihood_coef"), AttributeError(
             'cfg does not have the attribute "gmm_likelihood_coef"'
         )
         assert hasattr(cfg, "entropy_coef"), AttributeError(
             'cfg does not have the attribute "entropy_coef"'
         )
+        assert cfg.latent_dim * 2 == cfg.encoder_out_dim, ValueError(
+            "The latent dimension must be twice the encoder output dimension"
+        )
 
 
 _OMIVAE_IMPLEMENTATIONS = {
     "OmiAE": OmiAE,
-    # "OmiVAEGaussian": OmiGMPriorProbabilisticAE,
+    "OmiGMPriorProbabilisticAE": OmiGMPriorProbabilisticAE,
 }
 
 
@@ -391,7 +395,8 @@ class OmiModel(ModelBase):
                 self.cfg.second_modality_dim,
                 self.cfg.batch_size,
                 shuffle=True,
-                include_class_labels=self.cfg.classification_head,
+                include_class_labels=self.cfg.classification_head
+                or self.cfg.include_class_labels,
             ),
             val_dataloaders=(
                 get_dataset_from_anndata(
@@ -425,6 +430,9 @@ class OmiModel(ModelBase):
         assert hasattr(cfg, "omivae_implementation"), AttributeError(
             'cfg does not have the attribute "omivae_implementation"'
         )
+        assert cfg.omivae_implementation in _OMIVAE_IMPLEMENTATIONS, ValueError(
+            f"Invalid OmiVAE implementation: {cfg.omivae_implementation}"
+        )
         assert hasattr(cfg, "output_modelling_type"), AttributeError(
             'cfg does not have the attribute "output_modelling_type"'
         )
@@ -433,9 +441,6 @@ class OmiModel(ModelBase):
             "ll_neg_binomial",
         ], ValueError(
             f"Invalid output modelling type: {cfg.output_modelling_type}. Must be one of ['mse_direct_reconstruction', 'll_neg_binomial']"
-        )
-        assert cfg.omivae_implementation in _OMIVAE_IMPLEMENTATIONS, ValueError(
-            f"Invalid OmiVAE implementation: {cfg.omivae_implementation}"
         )
         assert hasattr(cfg, "early_stopping"), AttributeError(
             'cfg does not have the attribute "early_stopping"'
