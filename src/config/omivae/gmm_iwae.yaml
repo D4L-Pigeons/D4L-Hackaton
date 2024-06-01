@@ -2,7 +2,7 @@
 first_modality_dim: 100 # GEX | max 13953 | MAY BE CHANGED FOR DEBUGGING
 second_modality_dim: 100 # ADT | max 134 | MAY BE CHANGED FOR DEBUGGING
 subsample_frac: 0.01 # | MAY BE CHANGED FOR DEBUGGING
-preprocessing: null # "pearson_residuals", null -> None
+preprocessing: "log1p" # "log1p", "pearson_residuals", null -> None
 # include_labels: False
 # architecture configuration
 omivae_implementation: "OmiAE"
