@@ -36,9 +36,6 @@ class ModelBase(ABC):
         assert hasattr(cfg, "second_modality_dim"), AttributeError(
             'cfg does not have the attribute "second_modality_dim"'
         )
-        assert hasattr(cfg, "hidden_dim"), AttributeError(
-            'cfg does not have the attribute "hidden_dim"'
-        )
         assert hasattr(cfg, "latent_dim"), AttributeError(
             'cfg does not have the attribute "latent_dim"'
         )
