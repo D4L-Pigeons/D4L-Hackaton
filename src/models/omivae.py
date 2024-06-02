@@ -1,25 +1,23 @@
-from argparse import Namespace
-from typing import Tuple
-
-import anndata as ad
-import pytorch_lightning as pl
+from models.ModelBase import ModelBase
+from models.building_blocks import Block, ResidualBlock, ShortcutBlock
+from utils.loss_utils import (
+    kld_stdgaussian,
+    gex_reconstruction_loss,
+    adt_reconstruction_loss,
+)
+from utils.data_utils import get_dataset_from_anndata, get_dataloader_from_anndata
+from utils.paths import LOGS_PATH
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import pytorch_lightning as pl
+from argparse import Namespace
+import anndata as ad
 from anndata import AnnData
+from typing import Tuple
 from torch import Tensor
 
-from models.building_blocks import Block, ResidualBlock, ShortcutBlock
-from models.ModelBase import ModelBase
-from utils.paths import LOGS_PATH
-from utils.loss_utils import (
-    adt_reconstruction_loss,
-    gex_reconstruction_loss,
-    kld_stdgaussian,
-)
-
-from utils.data_utils import get_dataloader_from_anndata, get_dataset_from_anndata
 
 class OmiVAEGaussian(pl.LightningModule):
     def __init__(self, cfg: Namespace):
@@ -96,10 +94,7 @@ class OmiVAEGaussian(pl.LightningModule):
         return mu, logvar
 
     def _decode(self, z: Tensor) -> Tuple[Tensor]:
-        print(z.shape)
-        decoded_z = self.decoder(z)
-        print(decoded_z.shape)
-        x_fst, x_snd = decoded_z.split(
+        x_fst, x_snd = self.decoder(z).split(
             [
                 self.cfg.first_modality_embedding_dim,
                 self.cfg.second_modality_embedding_dim,
@@ -115,26 +110,25 @@ class OmiVAEGaussian(pl.LightningModule):
 
     def _reparameterize(self, mu: Tensor, logvar: Tensor) -> Tensor:
         std = torch.exp(0.5 * logvar)
-        eps = torch.randn_like(std)
+        eps = torch.randn(std.size())
         return mu + eps * std
 
-    def _forward_unsupervised(self, x_fst: Tensor, x_snd: Tensor) -> Tuple[Tensor]:
+    def _forward_usupervised(self, x_fst: Tensor, x_snd: Tensor) -> Tuple[Tensor]:
         mu, logvar = self._encode(x_fst, x_snd)
         z = self._reparameterize(mu, logvar)
         x_fst_hat, x_snd_hat = self._decode(z)
-        print(mu.shape, logvar.shape)
         return x_fst_hat, x_snd_hat, mu, logvar
 
     def _training_step_unsupervised(self, batch: Tensor) -> Tensor:
         x_fst, x_snd = batch
-        x_fst_hat, x_snd_hat, mu, logvar = self._forward_unsupervised(x_fst, x_snd)
+        x_fst_hat, x_snd_hat, mu, logvar = self._forward_usupervised(x_fst, x_snd)
         recon_loss = F.mse_loss(x_fst_hat, x_fst) + F.mse_loss(x_snd_hat, x_snd)
         kld_loss = kld_stdgaussian(mu, logvar)
 
         return recon_loss, kld_loss
 
     def _forward_superivsed(self, x_fst: Tensor, x_snd: Tensor) -> Tuple[Tensor]:
-        x_fst_hat, x_snd_hat, mu, logvar = self._forward_unsupervised(x_fst, x_snd)
+        x_fst_hat, x_snd_hat, mu, logvar = self._forward_usupervised(x_fst, x_snd)
         logits = self.classification_head(mu)  # classification performed with mu
         return x_fst_hat, x_snd_hat, logits, mu, logvar
 
@@ -152,7 +146,6 @@ class OmiVAEGaussian(pl.LightningModule):
         return recon_loss, kld_loss, c_loss
 
     def training_step(self, batch: Tensor) -> Tensor:
-        print("Is model supervised:?:", self.cfg.classification_head)
         if self.cfg.classification_head:
             recon_loss, kld_loss, c_loss = self._training_step_supervised(batch)
             self.log("Train recon", recon_loss, on_epoch=True, prog_bar=True)
@@ -185,14 +178,14 @@ class OmiVAEGaussian(pl.LightningModule):
             self.log("Val recon", recon_loss, on_epoch=True, prog_bar=True)
             self.log("Val kld", kld_loss, on_epoch=True, prog_bar=True)
 
-    def predict(self, x: Tensor) -> Tensor:
+    def _predict(self, x: Tensor) -> Tensor:
         if not self.classification_head:
             raise ValueError("Model does not have a classification head")
         mu, _ = self._encode(x)
         logits = self.classification_head(mu)
         return logits
 
-    def predict_proba(self, data: AnnData):
+    def _predict_proba(self, data: AnnData):
         if not self.classification_head:
             raise ValueError("Model does not have a classification head")
         mu, _ = self._encode(data)
@@ -247,124 +240,9 @@ class OmiVAEGaussian(pl.LightningModule):
             'cfg does not have the attribute "lr"'
         )
 
-from torch.distributions.kl import kl_divergence as KL
-import torch.distributions as td
-
-class OmiIWAE(OmiVAEGaussian):
-    def __init__(self, cfg: Namespace):
-        super(OmiIWAE, self).__init__(cfg)
-        self.num_samples = cfg.num_samples
-
-
-    # def _training_step_unsupervised(self, batch: Tensor) -> Tensor:
-    #     x_fst, x_snd = batch
-    #     for _ in range(self.num_samples):
-    #         x_fst_hat, x_snd_hat, mu, logvar = self._forward_unsupervised(x_fst, x_snd)
-    #         recon_loss = F.mse_loss(x_fst_hat, x_fst) + F.mse_loss(x_snd_hat, x_snd)
-    #         # kld_loss = kld_stdgaussian(mu, logvar)
-
-    #         std_dec = logvar.mul(0.5).exp_()
-    #         px_Gz = td.Normal(loc=mu, scale=std_dec).log_prob(x)
-
-    #         if log_px_z is None:
-    #             log_px_z = px_Gz.log_prob(x).mean(-1).unsqueeze(1)
-    #             kld = KL(qz_Gx_obs, p_z).unsqueeze(1)
-    #         else:
-    #             log_px_z = torch.cat([log_px_z, px_Gz.log_prob(x).mean(-1).unsqueeze(1)], 1)
-    #             kld = torch.cat([kld, KL(qz_Gx_obs, p_z).unsqueeze(1)], 1)
-
-    #     # loss calculation
-    #     log_wk = log_px_z - kld
-    #     L_k = log_wk.logsumexp(dim=-1) - self.num_samples.log()  # division by k in logspace
-
-    #     return recon_loss, kld_loss
-
-    # def _forward_supervised(self, x_fst: Tensor, x_snd: Tensor) -> Tuple[Tensor]:
-    #     x_fst_hat, x_snd_hat, mu, logvar = self._forward_unsupervised(x_fst, x_snd)
-    #     logits = self.classification_head(
-    #         mu.mean(dim=0)
-    #     )  # classification performed with average mu
-    #     return x_fst_hat, x_snd_hat, logits, mu, logvar
-
-    # def _training_step_supervised(self, batch: Tensor) -> Tensor:
-    #     x_fst, x_snd, target = batch
-    #     x_fst_hat, x_snd_hat, logits, mu, logvar = self._forward_supervised(
-    #         x_fst, x_snd
-    #     )
-    #     recon_loss = gex_reconstruction_loss(x_fst_hat, x_fst) + adt_reconstruction_loss(x_snd_hat, x_snd)
-    #     kld_loss = kld_stdgaussian(mu, logvar)
-    #     c_loss = F.cross_entropy(logits, target, weight=self.cfg.class_weights)
-
-    #     return recon_loss, kld_loss, c_loss
-
-
-    def _training_step_supervised(self, batch):
-        print("omniwae training supervised")
-        x_fst, x_snd, target = batch
-        recon_losses = []
-        log_qz_x = []
-        log_pz = []
-        c_losses = []
-        
-        for _ in range(self.num_samples):
-            # Encode
-            mu, logvar = self._encode(x_fst, x_snd)
-            print(mu.shape, logvar.shape)
-            logits = self.classification_head(mu)
-            std = torch.exp(0.5 * logvar)
-            qz_x = td.Normal(loc=mu, scale=std)
-
-            # Sample z
-            z = qz_x.rsample()
-
-            # Decode
-            x_fst_hat, x_snd_hat = self._decode(z)
-            x_fst_hat = nn.Sigmoid()(x_fst_hat) # For stability
-            x_snd_hat = nn.Sigmoid()(x_snd_hat)
-
-            # Calculate reconstruction loss
-            recon_loss = gex_reconstruction_loss(x_fst_hat, x_fst) + adt_reconstruction_loss(x_snd_hat, x_snd)
-            recon_losses.append(recon_loss)
-
-            # Calculate classification loss
-            c_loss = F.cross_entropy(logits, target)
-            c_losses.append(c_loss)
-
-            # Log probabilities for IWAE
-            log_qz_x.append(qz_x.log_prob(z).sum(dim=-1))
-            p_z = td.Normal(loc=torch.zeros_like(mu), scale=torch.ones_like(std))
-            log_pz.append(p_z.log_prob(z).sum(dim=-1))
-
-        # Stack losses and log probabilities
-        recon_losses = torch.stack(recon_losses, dim=-1)
-        log_qz_x = torch.stack(log_qz_x, dim=-1)
-        log_pz = torch.stack(log_pz, dim=-1)
-        c_losses = torch.stack(c_losses, dim=-1)
-
-        # Calculate log weights
-        log_w = recon_losses + log_pz - log_qz_x
-
-        # IWAE loss using log-sum-exp trick
-        log_w = log_w - log_w.logsumexp(dim=-1, keepdim=True)
-        w = log_w.exp()
-
-        # Final losses
-        recon_loss = torch.mean((w * recon_losses).sum(dim=-1))
-        kld_loss = -torch.mean((w * (log_pz - log_qz_x)).sum(dim=-1))
-        c_loss = torch.mean(c_losses)
-
-        return self.cfg.recon_loss_coef * recon_loss + self.cfg.kld_loss_coef * kld_loss + self.cfg.c_loss_coef * c_loss
-
-
-    def assert_cfg(self, cfg: Namespace) -> None:
-        assert hasattr(cfg, "num_samples"), AttributeError(
-            'cfg does not have the attribute "num_samples"'
-        )
-
 
 _OMIVAE_IMPLEMENTATIONS = {
     "OmiVAEGaussian": OmiVAEGaussian,
-    "OmiIWAE": OmiIWAE,
 }
 
 
@@ -419,10 +297,10 @@ class OmiModel(ModelBase):
         )
 
     def predict(self, data: AnnData):
-        return self.model.predict(data)
+        pass
 
     def predict_proba(self, data: AnnData):
-        return self.model.predict_proba(data)
+        pass
 
     def save(self, file_path: str):
         save_path = file_path + ".ckpt"
@@ -463,3 +341,5 @@ class OmiModel(ModelBase):
 
 
 # class OmiVAE(OmiAE):
+
+# class OmiIWAE(OmiAE):
