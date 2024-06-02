@@ -1,22 +1,17 @@
-<<<<<<< HEAD
-import torch.utils
-from utils.paths import ANNDATA_PATH, LOG1P_ANNDATA_PATH, STD_ANNDATA_PATH
 import anndata as ad
-import torch
-from torch.utils.data import TensorDataset, DataLoader
-
-import scanpy as sc
-=======
-import anndata as ad
-# import scanpy as sc
->>>>>>> main
 import numpy as np
+import scanpy as sc
 import statsmodels.api as sm
 import torch
 import torch.utils
 from torch.utils.data import DataLoader, TensorDataset
 
-from utils.paths import ANNDATA_PATH, PEARSON_RESIDUALS_ANNDATA_PATH
+from utils.paths import (
+    ANNDATA_PATH,
+    LOG1P_ANNDATA_PATH,
+    PEARSON_RESIDUALS_ANNDATA_PATH,
+    STD_ANNDATA_PATH,
+)
 
 
 def fit_negative_binomial(counts):

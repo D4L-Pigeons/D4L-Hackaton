@@ -5,7 +5,7 @@ from pathlib import Path
 DATA_PATH: Path = Path(__file__).parent.parent.parent / "data"
 ANNDATA_FILENAME: str = "GSE194122_openproblems_neurips2021_cite_BMMC_processed.h5ad"
 ANNDATA_PATH: Path = DATA_PATH / ANNDATA_FILENAME
-HIERARCHY_PATH: Path = DATA_PATH / "second_hierarchy.h5ad" # change data type
+HIERARCHY_PATH: Path = DATA_PATH / "second_hierarchy.h5ad"  # change data type
 
 # Preprocessed data paths
 PREPROCESSED_DATA_PATH: Path = DATA_PATH / "preprocessed"
