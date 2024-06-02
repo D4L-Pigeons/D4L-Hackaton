@@ -1,13 +1,13 @@
-import anndata as ad
-from anndata import AnnData
-import numpy as np
-from torch import Tensor
-from argparse import Namespace
 from abc import ABC, abstractmethod
+from argparse import Namespace
+
+import anndata as ad
+import numpy as np
+from anndata import AnnData
+from torch import Tensor
 
 
 class ModelBase(ABC):
-
     @abstractmethod
     def train(self, data: AnnData) -> None:
         pass

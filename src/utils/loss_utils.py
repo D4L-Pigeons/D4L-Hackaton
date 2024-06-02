@@ -1,6 +1,7 @@
+from typing import Tuple
+
 import torch
 import torch.optim as optim
-from typing import Tuple
 from torch import Tensor
 from tqdm import tqdm
 
