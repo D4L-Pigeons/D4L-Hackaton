@@ -9,7 +9,7 @@ from utils.paths import TRANSFORMER_DATA_PATH
 
 
 def split_nonzero_zero_with_medians(data: Tensor):
-    all_medians = torch.median(data, dim=0).values # po wymiarze markerow
+    all_medians = torch.median(data, dim=0).values  # po wymiarze markerow
     assert all_medians.shape[0] == data.shape[1]
     nonzero_mask = all_medians != 0
     zero_mask = all_medians == 0
@@ -62,6 +62,6 @@ def get_and_save_markers_subset(n: int = 256, k: int = 50, mode: str = "train"):
 def main():
     get_and_save_markers_subset()
 
+
 if __name__ == "__main__":
     main()
-

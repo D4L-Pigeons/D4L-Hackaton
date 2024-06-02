@@ -16,7 +16,7 @@ PEARSON_RESIDUALS_ANNDATA_PATH: Path = (
 )
 
 # Data for transformer models paths
-TRANSFORMER_DATA_PATH: Path = DATA_PATH /  "data_transformer.pt"
+TRANSFORMER_DATA_PATH: Path = DATA_PATH / "data_transformer.pt"
 
 # Config paths
 CONFIG_PATH: Path = Path(__file__).parent.parent / "config"
@@ -26,4 +26,3 @@ RESULTS_PATH: Path = Path(__file__).parent.parent / "results"
 
 # Logs paths
 LOGS_PATH: Path = Path(__file__).parent.parent / "logs"
-
