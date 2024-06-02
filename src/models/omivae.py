@@ -395,6 +395,12 @@ class OmiGMPriorProbabilisticAE(OmiAE):
         )
 
 
+# class OmiHierarchicalGMPriorProbabilisticAE(OmiGMPriorProbabilisticAE): :) to be continued...
+
+# class M1M2 MODEL :) to be continued...
+
+# CLASS NALEŚNIK MODEL IF IT EVEN DIFFERES FROM THE ABOVE MODELS :) to be continued...
+
 _OMIVAE_IMPLEMENTATIONS = {
     "OmiAE": OmiAE,
     "OmiGMPriorProbabilisticAE": OmiGMPriorProbabilisticAE,
