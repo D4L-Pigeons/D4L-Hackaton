@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import torch.utils
 from utils.paths import ANNDATA_PATH, LOG1P_ANNDATA_PATH, STD_ANNDATA_PATH
 import anndata as ad
@@ -5,8 +6,17 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader
 
 import scanpy as sc
+=======
+import anndata as ad
+# import scanpy as sc
+>>>>>>> main
 import numpy as np
 import statsmodels.api as sm
+import torch
+import torch.utils
+from torch.utils.data import DataLoader, TensorDataset
+
+from utils.paths import ANNDATA_PATH, PEARSON_RESIDUALS_ANNDATA_PATH
 
 
 def fit_negative_binomial(counts):
@@ -66,7 +76,7 @@ def load_anndata(
 
     Arguments:
     mode : str
-        The mode to load the anndata object for. Must be one of ['train', 'test'].
+        The mode to load the anndata object for. Must be one of ['train', 'test', 'train+test'].
     plus_iid_holdout : bool
         Whether to include the iid_holdout data in the anndata object.
 
@@ -125,8 +135,8 @@ def load_anndata(
 
 def get_dataset_from_anndata(
     data: ad.AnnData,
-    first_modality_dim: int,
-    second_modality_dim: int,
+    first_modality_dim: int = 13953,
+    second_modality_dim: int = 134,
     include_class_labels: bool = False,
 ) -> TensorDataset:
     r"""
