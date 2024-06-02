@@ -8,7 +8,7 @@ import torch
 import numpy as np
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score, roc_auc_score,
-    mean_squared_error, mean_absolute_error, r2_score,
+    mean_squared_error, mean_absolute_error,
     silhouette_score, adjusted_rand_score, normalized_mutual_info_score, classification_report, confusion_matrix
 )
 import matplotlib.pyplot as plt
