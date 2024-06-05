@@ -1,10 +1,11 @@
-from models.ModelBase import ModelBase
+import anndata as ad
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import anndata as ad
 from torch.utils.data import DataLoader
+
+from models.ModelBase import ModelBase
 
 
 class Block(nn.Module):

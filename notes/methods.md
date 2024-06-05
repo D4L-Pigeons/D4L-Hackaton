@@ -34,7 +34,7 @@ $\mathbb{P}[x;\mu, \theta] = \frac{\Gamma(x + \theta)}{x! \Gamma(x)} \left( \fra
 
 Where $\mu$ and $\theta$ stand for mean and dispersion parameter respectively. It leads to the loss component
 
-$$\mathcal{L}_{RNA}(x; \mu, \theta) = -\theta(\log (\theta + \epsilon) - \log(\theta + \mu) - x (\log (\mu + \epsilon) - \log (\theta + \mu)) - \log\Gamma(x + \theta) + \log\Gamma(x + 1) + \log\Gamma(\theta + \epsilon))$$
+$$\mathcal{L}_{RNA}(x; \mu, \theta) = -\theta \cdot (\log (\theta + \epsilon) - \log(\theta + \mu)) - x \cdot (\log (\mu + \epsilon) - \log (\theta + \mu)) - \log\Gamma(x + \theta) + \log\Gamma(x + 1) + \log\Gamma(\theta + \epsilon)$$
 <!-- ![alt text](image-3.png) -->
 
 The ATAC marginal distribution for each entory is prarmetrised as Bernoulli as a bernoulli distribution leading to binary corssentropy loss.

@@ -2,20 +2,20 @@ import argparse
 import datetime
 import os
 from pathlib import Path
+
 import anndata as ad
 import numpy as np
 import pandas as pd
-import numpy as np
 import sklearn
 import sklearn.metrics
 import torch
 import yaml
 from sklearn.model_selection import KFold
 
-from utils.data_utils import load_anndata
-from utils.paths import CONFIG_PATH, RESULTS_PATH
 from models.ModelBase import ModelBase
 from models.omivae import OmiModel
+from utils.data_utils import load_anndata
+from utils.paths import CONFIG_PATH, RESULTS_PATH
 
 
 def main():
@@ -39,7 +39,7 @@ def main():
     parser.add_argument(
         "--config",
         default="standard",
-        help="Name of a configuration in src/config/{method} directory.",
+        help="Name of a configuration in src/config/{method}.yaml.",
     )
     parser.add_argument(
         "--cv-seed", default=42, help="Seed used to make k folds for cross validation."
@@ -61,7 +61,7 @@ def main():
     config = load_config(args)
     model = create_model(args, config)
 
-    data = load_anndata(mode=args.mode)
+    data = load_anndata(mode=args.mode, preprocessing=config.preprocessing)
 
     cross_validation_metrics = cross_validation(
         data,
@@ -189,9 +189,9 @@ def cross_validation(
             metric_name: cross_validation_metrics[metric_name].mean()
             for metric_name in metrics_names
         }
-        cross_validation_metrics.loc[len(cross_validation_metrics.index)] = (
-            average_metrics
-        )
+        cross_validation_metrics.loc[
+            len(cross_validation_metrics.index)
+        ] = average_metrics
 
         return cross_validation_metrics
 

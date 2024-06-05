@@ -1,22 +1,22 @@
-from models.ModelBase import ModelBase
-from models.building_blocks import Block, ResidualBlock, ShortcutBlock
-from utils.loss_utils import (
-    kld_stdgaussian,
-    gex_reconstruction_loss,
-    adt_reconstruction_loss,
-)
-from utils.data_utils import get_dataset_from_anndata, get_dataloader_from_anndata
-from utils.paths import LOGS_PATH
+from argparse import Namespace
+from typing import Tuple
+
+import anndata as ad
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import pytorch_lightning as pl
-from argparse import Namespace
-import anndata as ad
 from anndata import AnnData
-from typing import Tuple
 from torch import Tensor
+
+from models.building_blocks import Block, ResidualBlock, ShortcutBlock
+from models.ModelBase import ModelBase
+from utils.data_utils import (get_dataloader_from_anndata,
+                              get_dataset_from_anndata)
+from utils.loss_utils import (adt_reconstruction_loss, gex_reconstruction_loss,
+                              kld_stdgaussian)
+from utils.paths import LOGS_PATH
 
 
 class OmiVAEGaussian(pl.LightningModule):
