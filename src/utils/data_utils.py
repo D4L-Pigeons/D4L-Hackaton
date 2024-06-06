@@ -42,19 +42,13 @@ def fit_negative_binomial(counts):
 # mean_counts, dispersions = fit_negative_binomial(counts)
 
 
-def GEX_preprocessing(_data: ad.AnnData, remove_batch_effect: bool):
+def GEX_preprocessing(_data: ad.AnnData):
     sc.pp.log1p(_data)
     sc.pp.scale(_data)
-    if remove_batch_effect:
-        sc.pp.pca(_data, n_comps=50)
-        sc.external.pp.bbknn(_data, batch_key="Site")
 
 
-def ADT_preprocessing(_data: ad.AnnData, remove_batch_effect: bool):
+def ADT_preprocessing(_data: ad.AnnData):
     sc.pp.scale(_data)
-    if remove_batch_effect:
-        sc.pp.pca(_data, n_comps=50)
-        sc.external.pp.bbknn(_data, batch_key="Site")
     # sc.experimental.pp.normalize_pearson_residuals(_data)
 
     # TODO: consider the following operations
@@ -71,17 +65,23 @@ def ADT_preprocessing(_data: ad.AnnData, remove_batch_effect: bool):
 
 def preprocess_andata(remove_batch_effect: bool, normalize: bool) -> ad.AnnData:
     # if normalize and PREPROCESSED_ANNDATA_PATH.exists():
-    #     print("Loading precomputed log1p...")
+    #     print("Loading preprocessed data...")
     #     return ad.read_h5ad(PREPROCESSED_ANNDATA_PATH)
 
     _data = ad.read_h5ad(ANNDATA_PATH)
     print(_data)
     if normalize:
         gex_indicator = (_data.var["feature_types"] == "GEX").values
-        GEX_preprocessing(_data.layers["counts"][:, gex_indicator], remove_batch_effect)
-        ADT_preprocessing(
-            _data.layers["counts"][:, ~gex_indicator], remove_batch_effect
-        )
+        GEX_preprocessing(_data.layers["counts"][:, gex_indicator])
+        ADT_preprocessing(_data.layers["counts"][:, ~gex_indicator])
+        if remove_batch_effect:  # Ensure data selection if needed
+            sc.external.pp.bbknn(
+                _data[:, gex_indicator], batch_key="Site", use_rep="GEX_X_pca"
+            )
+            sc.external.pp.bbknn(
+                _data[:, ~gex_indicator], batch_key="Site", use_rep="ADT_X_pca"
+            )
+
         _data.write(filename=PREPROCESSED_ANNDATA_PATH)
     return _data
 
