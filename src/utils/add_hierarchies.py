@@ -1,11 +1,11 @@
+import sys
+
 import anndata as ad
+import numpy as np
 import torch
 
 from utils.data_utils import load_anndata
 from utils.paths import HIERARCHY_PATH
-import sys
-import numpy as np
-
 
 default_hierarchies_mapping = {
     "CD14+ Mono": "Monocytes",
@@ -56,15 +56,19 @@ default_hierarchies_mapping = {
 }
 
 
-def add_second_hierarchy(hierarchies_mapping: dict, mode: str = "train"):
-    data = load_anndata(mode=mode)
-    np.set_printoptions(threshold=sys.maxsize)
+def add_second_hierarchy(
+    _data, hierarchies_mapping: dict = default_hierarchies_mapping, mode: str = "train"
+):
+    if HIERARCHY_PATH.exists():
+        return ad.read_h5ad(HIERARCHY_PATH)
 
-    print(data.obs["cell_type"].unique())
-    labels = data.obs["cell_type"]
+    labels = _data.obs["cell_type"]
     print(labels)
-    data.obs["second_hierarchy"] = hierarchies_mapping[labels]
+    _data.obs["second_hierarchy"] = labels.map(hierarchies_mapping)
+    print("Second hierarchy mapping:", _data.obs["second_hierarchy"].head())
+
     ad.save_h5ad(HIERARCHY_PATH)
+    return _data
 
 
 def main():

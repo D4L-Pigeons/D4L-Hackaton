@@ -1,19 +1,14 @@
 import anndata as ad
 import numpy as np
 import scanpy as sc
+import scipy.sparse
 import statsmodels.api as sm
 import torch
 import torch.utils
 from torch.utils.data import DataLoader, TensorDataset
-import scipy.sparse
 
-from utils.paths import (
-    ANNDATA_PATH,
-    LOG1P_ANNDATA_PATH,
-    PEARSON_RESIDUALS_ANNDATA_PATH,
-    STD_ANNDATA_PATH,
-    PREPROCESSED_ANNDATA_PATH,
-)
+from utils.add_hierarchies import add_second_hierarchy
+from utils.paths import ANNDATA_PATH, PREPROCESSED_ANNDATA_PATH
 
 
 def fit_negative_binomial(counts):
@@ -146,6 +141,9 @@ def load_anndata(
 
     # Read and normalize
     _data = preprocess_andata(batch_effect, normalize)
+
+    if add_hierarchy:
+        _data = add_second_hierarchy()
 
     data = _data[_data.obs["is_train"].apply(lambda x: x in filter_set)]
 
