@@ -65,6 +65,7 @@ def load_anndata(
     mode: str,
     plus_iid_holdout: bool = False,
     preprocessing: str | None = "pearson_residuals",
+    preload_subsample_frac: float = 1.0,
 ) -> ad.AnnData:
     r"""
     Load the full anndata object for the specified mode.
@@ -99,6 +100,8 @@ def load_anndata(
         filter_set.append("iid_holdout")
 
     _data = ad.read_h5ad(ANNDATA_PATH)
+    if preload_subsample_frac is not None:
+        sc.pp.subsample(_data, fraction=preload_subsample_frac)
     if preprocessing == "log1p":
         if not LOG1P_ANNDATA_PATH.exists():
             print("Preprocessing with log1p...")
@@ -133,6 +136,7 @@ def get_dataset_from_anndata(
     first_modality_dim: int = 13953,
     second_modality_dim: int = 134,
     include_class_labels: bool = False,
+    single_modality: Optional[str] = None
 ) -> TensorDataset:
     r"""
     Get a TensorDataset object for the given data.
@@ -168,11 +172,16 @@ def get_dataset_from_anndata(
     # print(
     #     f"There are nan values in the second modality: {torch.isnan(second_modality).any()}"
     # )
+    modalities = (
+        [first_modality, second_modality] if single_modality is None else
+        [first_modality] if single_modality == "GEX" else
+        [second_modality]
+    )
     if include_class_labels:
         labels = torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long)
-        dataset = TensorDataset(first_modality, second_modality, labels)
+        dataset = TensorDataset(*modalities, labels)
     else:
-        dataset = TensorDataset(first_modality, second_modality)
+        dataset = TensorDataset(*modalities)
 
     return dataset
 
@@ -184,6 +193,7 @@ def get_dataloader_from_anndata(
     batch_size: int,
     shuffle: bool = True,
     include_class_labels: bool = False,
+    single_modality: Optional[str] = None
 ) -> TensorDataset | DataLoader:
     r"""
     Get a DataLoader object for the given data.
@@ -199,7 +209,7 @@ def get_dataloader_from_anndata(
         The DataLoader object for the given data. With the GEX data first.
     """
     dataset = get_dataset_from_anndata(
-        data, first_modality_dim, second_modality_dim, include_class_labels
+        data, first_modality_dim, second_modality_dim, include_class_labels, single_modality
     )
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 

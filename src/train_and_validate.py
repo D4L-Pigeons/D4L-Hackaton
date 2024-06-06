@@ -14,6 +14,7 @@ from sklearn.model_selection import KFold
 
 from models.ModelBase import ModelBase
 from models.omivae import OmiModel
+from models.vae import VAE
 from utils.data_utils import load_anndata
 from utils.paths import CONFIG_PATH, RESULTS_PATH
 
@@ -22,7 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description="Validate model")
     parser.add_argument(
         "--method",
-        choices=["omivae", "babel", "advae"],
+        choices=["omivae", "babel", "advae", "vae"],
         help="Name of the method to use.",
     )
     parser.add_argument(
@@ -45,11 +46,18 @@ def main():
         "--cv-seed", default=42, help="Seed used to make k folds for cross validation."
     )
     parser.add_argument(
-        "--n-folds", default=5, help="Number of folds in cross validation."
+        "--n-folds", default=5, type=int, help="Number of folds in cross validation."
+    )
+    parser.add_argument(
+        "--preload-subsample-frac",
+        default=None,
+        type=float,
+        help="Fraction of the data to load. If None, use all data. Don't use subsample-frac with this option."
     )
     parser.add_argument(
         "--subsample-frac",
         default=None,
+        type=float,
         help="Fraction of the data to use for cross validation. If None, use all data.",
     )
     parser.add_argument(
@@ -61,7 +69,8 @@ def main():
     config = load_config(args)
     model = create_model(args, config)
 
-    data = load_anndata(mode=args.mode, preprocessing=config.preprocessing)
+    data = load_anndata(mode=args.mode, preprocessing=config.preprocessing,
+                        preload_subsample_frac=args.preload_subsample_frac)
 
     cross_validation_metrics = cross_validation(
         data,
@@ -125,6 +134,8 @@ def create_model(args, config) -> ModelBase:
         raise NotImplementedError(f"{args.method} method not implemented.")
     elif args.method == "advae":
         raise NotImplementedError(f"{args.method} method not implemented.")
+    elif args.method == "vae":
+        return VAE(config)
     else:
         raise NotImplementedError(f"{args.method} method not implemented.")
 

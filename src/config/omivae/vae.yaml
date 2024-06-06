@@ -1,0 +1,21 @@
+# data configuration
+modality: "GEX" # "GEX", "ADT"
+modality_dim: 134 # 13953 # GEX | max 13953 | MAY BE CHANGED FOR DEBUGGING
+# second_modality_dim: 134 # ADT | max 134 | MAY BE CHANGED FOR DEBUGGING
+subsample_frac: 0.1 # 1 # | MAY BE CHANGED FOR DEBUGGING
+preprocessing: "standardize" # "log1p", "standardize", "pearson_residuals", null -> None
+include_class_labels: False
+
+# architecture configuration
+# shortcut
+modality_embedding_dim: 64
+modality_hidden_dim: 128
+#encoder
+latent_dim: 10
+latent_hidden_dim: 128
+#other
+kld_weight: 1
+learning_rate: 0.001
+batch_norm: True
+# classification specific configuration
+classification_head: False
