@@ -5,12 +5,14 @@ import statsmodels.api as sm
 import torch
 import torch.utils
 from torch.utils.data import DataLoader, TensorDataset
+import scipy.sparse
 
 from utils.paths import (
     ANNDATA_PATH,
     LOG1P_ANNDATA_PATH,
     PEARSON_RESIDUALS_ANNDATA_PATH,
     STD_ANNDATA_PATH,
+    PREPROCESSED_ANNDATA_PATH,
 )
 
 
@@ -61,10 +63,51 @@ def fit_negative_binomial(counts):
 #     # n_cols = data.shape[1]
 
 
+def remove_batch_effect(_data: ad.AnnData):
+    pass
+
+
+def GEX_preprocessing(_data: ad.AnnData):
+    sc.pp.log1p(_data)
+    sc.pp.scale(_data)
+
+
+def ADT_preprocessing(_data: ad.AnnData):
+    sc.pp.scale(_data)
+    # sc.experimental.pp.normalize_pearson_residuals(_data)
+    return
+    # consider the following operations
+    if scipy.sparse.issparse(X):
+        mean = X.mean(axis=0).A1
+        std = np.sqrt(X.power(2).mean(axis=0).A1 - np.square(mean))
+        X = (X.toarray() - mean) / std
+    else:
+        mean = X.mean(axis=0)
+        std = np.sqrt(X.square().mean(axis=0) - np.square(mean))
+        X = (X - mean) / std
+    X = X.clip(-10, 10)
+    return X
+
+
+def preprocess_andata(batch_effect: bool, normalize: bool) -> ad.AnnData:
+    if normalize and PREPROCESSED_ANNDATA_PATH.exists():
+        print("Loading precomputed log1p...")
+        return ad.read_h5ad(PREPROCESSED_ANNDATA_PATH)
+
+    _data = ad.read_h5ad(ANNDATA_PATH).toarray()
+    if normalize:
+        GEX_preprocessing(_data[_data.var["feature_types"] == "GEX"])
+        ADT_preprocessing(_data[_data.var["feature_types"] == "ADT"])
+        _data.write(filename=PREPROCESSED_ANNDATA_PATH)
+    return _data
+
+
 def load_anndata(
     mode: str,
     plus_iid_holdout: bool = False,
-    preprocessing: str | None = "pearson_residuals",
+    normalize: bool = True,
+    batch_effect: bool = True,
+    add_hierarchy: bool = True,
 ) -> ad.AnnData:
     r"""
     Load the full anndata object for the specified mode.
@@ -87,42 +130,23 @@ def load_anndata(
     assert isinstance(
         plus_iid_holdout, bool
     ), f"plus_iid_holdout must be a boolean, got {plus_iid_holdout} instead."
-    assert preprocessing in [
-        None,
-        "log1p",
-        "standardize",
-        "pearson_residuals",
-    ], f"preprocessing must be one of [None, 'log1p', 'standardize', 'pearson_residuals'], got {preprocessing} instead."
+    assert isinstance(
+        normalize, bool
+    ), f"normalize must be a boolean, got {normalize} instead."
+    assert isinstance(
+        batch_effect, bool
+    ), f"batch_effect must be a boolean, got {batch_effect} instead."
+    assert isinstance(
+        add_hierarchy, bool
+    ), f"batch_effect must be a boolean, got {add_hierarchy} instead."
     filter_set = mode.split("+")  # ['train'] or ['test'] or ['train', 'test']
 
     if plus_iid_holdout:
         filter_set.append("iid_holdout")
 
-    _data = ad.read_h5ad(ANNDATA_PATH)
-    if preprocessing == "log1p":
-        if not LOG1P_ANNDATA_PATH.exists():
-            print("Preprocessing with log1p...")
-            sc.pp.log1p(_data)
-            _data.write(filename=LOG1P_ANNDATA_PATH)
-        else:
-            print("Loading precomputed log1p...")
-            _data = ad.read_h5ad(LOG1P_ANNDATA_PATH)
-    elif preprocessing == "standardize":
-        if not STD_ANNDATA_PATH.exists():
-            print("Preprocessing with standardize...")
-            sc.pp.scale(_data)
-            _data.write(filename=STD_ANNDATA_PATH)
-        else:
-            print("Loading precomputed standardize...")
-            _data = ad.read_h5ad(STD_ANNDATA_PATH)
-    # if preprocessing == "pearson_residuals":
-    #     if not PEARSON_RESIDUALS_ANNDATA_PATH.exists():
-    #         print("Normalizing Pearson residuals...")
-    #         sc.experimental.pp.normalize_pearson_residuals(_data)
-    #         _data.write(filename=PEARSON_RESIDUALS_ANNDATA_PATH)
-    #     else:
-    #         print("Loading precomputed Pearson residuals...")
-    #         _data = ad.read_h5ad(PEARSON_RESIDUALS_ANNDATA_PATH)
+    # Read and normalize
+    _data = preprocess_andata(batch_effect, normalize)
+
     data = _data[_data.obs["is_train"].apply(lambda x: x in filter_set)]
 
     return data
@@ -155,19 +179,13 @@ def get_dataset_from_anndata(
         f"got {second_modality_dim} and {(~gex_indicator).sum()} instead."
     )
     first_modality = torch.tensor(
-        data.layers["counts"].toarray()[:, gex_indicator][:, :first_modality_dim],
+        data.layers["counts"][:, gex_indicator][:, :first_modality_dim],
         dtype=torch.float32,
     )
     second_modality = torch.tensor(
-        data.layers["counts"].toarray()[:, ~gex_indicator][:, :second_modality_dim],
+        data.layers["counts"][:, ~gex_indicator][:, :second_modality_dim],
         dtype=torch.float32,
     )
-    # print(
-    #     f"There are nan values in the first modality: {torch.isnan(first_modality).any()}"
-    # )
-    # print(
-    #     f"There are nan values in the second modality: {torch.isnan(second_modality).any()}"
-    # )
     if include_class_labels:
         labels = torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long)
         dataset = TensorDataset(first_modality, second_modality, labels)

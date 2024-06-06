@@ -7,7 +7,7 @@ import sys
 import numpy as np
 
 
-hierarchies_mapping = {
+default_hierarchies_mapping = {
     "CD14+ Mono": "Monocytes",
     "CD16+ Mono": "Monocytes",
     "CD4+ T activated": "T Cells",
@@ -53,11 +53,10 @@ hierarchies_mapping = {
     "Normoblast": "Erythroid Lineage",
     "ILC": "Innate Lymphoid Cells",
     "ILC1": "Innate Lymphoid Cells",
-    # Add any other categories and mappings here
 }
 
 
-def add_second_hierarchy(mode: str = "train"):
+def add_second_hierarchy(hierarchies_mapping: dict, mode: str = "train"):
     data = load_anndata(mode=mode)
     np.set_printoptions(threshold=sys.maxsize)
 
@@ -69,7 +68,7 @@ def add_second_hierarchy(mode: str = "train"):
 
 
 def main():
-    add_second_hierarchy()
+    add_second_hierarchy(default_hierarchies_mapping)
 
 
 if __name__ == "__main__":
