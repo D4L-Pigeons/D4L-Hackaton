@@ -64,9 +64,9 @@ def ADT_preprocessing(_data: ad.AnnData):
 
 
 def preprocess_andata(remove_batch_effect: bool, normalize: bool) -> ad.AnnData:
-    # if normalize and PREPROCESSED_ANNDATA_PATH.exists():
-    #     print("Loading preprocessed data...")
-    #     return ad.read_h5ad(PREPROCESSED_ANNDATA_PATH)
+    if normalize and PREPROCESSED_ANNDATA_PATH.exists():
+        print("Loading preprocessed data...")
+        return ad.read_h5ad(PREPROCESSED_ANNDATA_PATH)
 
     _data = ad.read_h5ad(ANNDATA_PATH)
     print(_data)
