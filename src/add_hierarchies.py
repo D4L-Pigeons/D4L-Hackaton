@@ -3,6 +3,9 @@ import torch
 
 from utils.data_utils import load_anndata
 from utils.paths import HIERARCHY_PATH
+import sys
+import numpy as np
+
 
 hierarchies_mapping = {
     "CD14+ Mono": "Monocytes",
@@ -56,8 +59,11 @@ hierarchies_mapping = {
 
 def add_second_hierarchy(mode: str = "train"):
     data = load_anndata(mode=mode)
+    np.set_printoptions(threshold=sys.maxsize)
+
     print(data.obs["cell_type"].unique())
-    labels = torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long)
+    labels = data.obs["cell_type"]
+    print(labels)
     data.obs["second_hierarchy"] = hierarchies_mapping[labels]
     ad.save_h5ad(HIERARCHY_PATH)
 
