@@ -116,6 +116,7 @@ def get_dataset_from_anndata(
     first_modality_dim: int = 13953,
     second_modality_dim: int = 134,
     include_class_labels: bool = False,
+    target_hierarchy_level: int = -1,
 ) -> TensorDataset:
     r"""
     Get a TensorDataset object for the given data.
@@ -128,6 +129,10 @@ def get_dataset_from_anndata(
     dataset : torch.utils.data.TensorDataset
         The TensorDataset object for the given data.
     """
+    implemented_hierarchy_levels_to_target_names = {
+        -1: "cell_type",
+        -2: "second_hierarchy",
+    }
     gex_indicator = data.var["feature_types"] == "GEX"
     assert gex_indicator.sum() >= first_modality_dim, (
         f"first_modality_dim must be less than or equal to the number of GEX features, "
@@ -137,6 +142,9 @@ def get_dataset_from_anndata(
         f"second_modality_dim must be less than or equal to the number of ADT features, "
         f"got {second_modality_dim} and {(~gex_indicator).sum()} instead."
     )
+    assert (
+        target_hierarchy_level in implemented_hierarchy_levels_to_target_names.keys()
+    ), f"target_hierarchy_level must be one of {implemented_hierarchy_levels_to_target_names.keys()}, got {target_hierarchy_level} instead."
     first_modality = torch.tensor(
         data.layers["counts"].toarray()[:, gex_indicator][:, :first_modality_dim],
         dtype=torch.float32,
@@ -146,7 +154,10 @@ def get_dataset_from_anndata(
         dtype=torch.float32,
     )
     if include_class_labels:
-        labels = torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long)
+        target_name = implemented_hierarchy_levels_to_target_names[
+            target_hierarchy_level
+        ]
+        labels = torch.tensor(data.obs[target_name].cat.codes.values, dtype=torch.long)
         dataset = TensorDataset(first_modality, second_modality, labels)
     else:
         dataset = TensorDataset(first_modality, second_modality)
@@ -156,11 +167,12 @@ def get_dataset_from_anndata(
 
 def get_dataloader_from_anndata(
     data: ad.AnnData,
-    first_modality_dim: int,
-    second_modality_dim: int,
     batch_size: int,
     shuffle: bool = True,
+    first_modality_dim: int = 13953,
+    second_modality_dim: int = 134,
     include_class_labels: bool = False,
+    target_hierarchy_level: int = -1,
 ) -> TensorDataset | DataLoader:
     r"""
     Get a DataLoader object for the given data.
@@ -176,7 +188,11 @@ def get_dataloader_from_anndata(
         The DataLoader object for the given data. With the GEX data first.
     """
     dataset = get_dataset_from_anndata(
-        data, first_modality_dim, second_modality_dim, include_class_labels
+        data,
+        first_modality_dim,
+        second_modality_dim,
+        include_class_labels,
+        target_hierarchy_level,
     )
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
