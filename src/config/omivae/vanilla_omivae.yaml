@@ -33,3 +33,8 @@ early_stopping: False
 min_delta: 0.001
 patience: 5
 # logger: True
+
+# ADDED
+normalize: True
+remove_batch_effect: True
+target_hierarchy_level: -1
