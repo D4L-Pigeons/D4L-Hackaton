@@ -98,10 +98,11 @@ class OmiAE(pl.LightningModule):
         x_snd = self.sndmod_in(x_snd)
         # print("encode 1 passed")
         encoder_out = self.encoder(torch.cat([x_fst, x_snd], dim=-1))
-
+        # print(encoder_out, encoder_out.shape)
         return encoder_out
 
     def _decode(self, z: Tensor) -> Tuple[Tensor]:
+        # print(z.shape)
         x_fst, x_snd = self.decoder(z).split(
             [
                 self.cfg.first_modality_embedding_dim,
@@ -213,7 +214,7 @@ class OmiAE(pl.LightningModule):
             "second_modality_embedding_dim": 10,
             "encoder_hidden_dim": 5000,
             "encoder_out_dim": 40,
-            "decoder_in_dim": 10,
+            "decoder_in_dim": 20,
             "decoder_hidden_dim": 20,
             "recon_loss_coef": 1,
             "c_loss_coef": 1,
@@ -254,6 +255,7 @@ class OmiGMPriorProbabilisticAE(OmiAE):
             x_snd,
             labels,
         ) = batch  # ASSUMPTION THAT ALL LABELS ARE AVAILABLE (the extension to the mix of alebeled + unlabeled is not difficuls, but it is not implemented here as it may not be necessary for the task at hand)
+        # print(x_fst.shape)
         labels = torch.bernoulli(torch.ones_like(labels) * 0.5).long()
         # assert (
         #     False
@@ -306,7 +308,6 @@ class OmiGMPriorProbabilisticAE(OmiAE):
         ), AssertionError(
             f"gmm_likelihood_per_k shape is {gmm_likelihood_per_k.shape}, expected {(self.cfg.no_latent_samples, x_fst.shape[0])}"
         )
-
         x_fst_hat, x_snd_hat = self._decode(z_sample.squeeze(2))
         recon_loss_per_k = F.mse_loss(
             x_fst_hat, x_fst.repeat(self.cfg.no_latent_samples, 1, 1), reduction="none"
@@ -420,26 +421,29 @@ class OmiModel(ModelBase):
         )
 
     def train(self, train_data: AnnData, val_data: AnnData = None) -> None:
+        print("batch_size", self.cfg.batch_size)
         self.trainer.fit(
             model=self.model,
             train_dataloaders=get_dataloader_from_anndata(
                 train_data,
-                self.cfg.first_modality_dim,
-                self.cfg.second_modality_dim,
-                self.cfg.batch_size,
+                batch_size=self.cfg.batch_size,
                 shuffle=True,
+                first_modality_dim=self.cfg.first_modality_dim,
+                second_modality_dim=self.cfg.second_modality_dim,
                 include_class_labels=self.cfg.classification_head
                 or self.cfg.include_class_labels,
+                target_hierarchy_level=self.cfg.target_hierarchy_level,
             ),
             val_dataloaders=(
-                get_dataset_from_anndata(
-                    val_data,
-                    self.cfg.first_modality_dim,
-                    self.cfg.second_modality_dim,
-                    include_class_labels=self.cfg.classification_head,
-                )
-                if val_data is not None
-                else None
+                None
+                # get_dataset_from_anndata(
+                #     val_data,
+                #     self.cfg.first_modality_dim,
+                #     self.cfg.second_modality_dim,
+                #     include_class_labels=self.cfg.classification_head,
+                # )
+                # if val_data is not None
+                # else None
             ),
         )
 

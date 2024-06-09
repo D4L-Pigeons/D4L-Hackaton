@@ -170,6 +170,7 @@ def get_data_dict_from_anndata(
     data: ad.AnnData,
     modalities_cfg: SimpleNamespace,
     include_class_labels: bool = False,
+    target_hierarchy_level: int = -1,
 ) -> Dict[str, torch.Tensor]:
     r"""
     Get a TensorDataset object for the given data.
@@ -186,8 +187,17 @@ def get_data_dict_from_anndata(
         for cfg_name, modality_cfg in vars(modalities_cfg).items()
     }
     if include_class_labels:
-        labels = torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long)
+        if target_hierarchy_level == -1:
+            labels = torch.tensor(
+                data.obs["cell_type"].cat.codes.values, dtype=torch.long
+            )
+        elif target_hierarchy_level == -2:
+            labels = torch.tensor(
+                data.obs["second_hierarchy"].cat.codes.values, dtype=torch.long
+            )
+
         data_dict["labels"] = labels
+        print(labels.unique(), len(labels.unique()))
     return data_dict
 
 
@@ -220,7 +230,9 @@ def get_dataset_from_anndata(
         gex=SimpleNamespace(modality_name=Modality.GEX, dim=first_modality_dim),
         adt=SimpleNamespace(modality_name=Modality.ADT, dim=second_modality_dim),
     )
-    data_dict = get_data_dict_from_anndata(data, modalities_cfg, include_class_labels)
+    data_dict = get_data_dict_from_anndata(
+        data, modalities_cfg, include_class_labels, target_hierarchy_level
+    )
     data_list = [data_dict["gex"], data_dict["adt"]]
     if include_class_labels:
         data_list.append(data_dict["labels"])

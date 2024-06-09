@@ -75,6 +75,7 @@ def main():
         mode=args.mode,
         normalize=config.normalize,
         remove_batch_effect=config.remove_batch_effect,
+        target_hierarchy_level=config.target_hierarchy_level,
         preload_subsample_frac=args.preload_subsample_frac,
     )
 
