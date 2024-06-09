@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 from pytorch_lightning.utilities.types import STEP_OUTPUT
@@ -137,6 +136,7 @@ class SingleModalityVAE(nn.Module):
             f'{cfg_name} modality does not have the attribute "lr"'
         )
 
+
 class VAE(pl.LightningModule):
     def __init__(self, cfg: Namespace):
         super(VAE, self).__init__()
@@ -160,18 +160,19 @@ class VAE(pl.LightningModule):
                         min_delta=cfg.min_delta,
                         patience=cfg.patience,
                         verbose=False,
-                        mode="min"
+                        mode="min",
                     )
                 ]
                 if cfg.early_stopping
                 else []
-            )
+            ),
         )
 
-    def combine_steps(self, batch: Dict[str, Tensor]) -> Tuple[Tensor, Dict[str, Tensor]]:
+    def combine_steps(
+        self, batch: Dict[str, Tensor]
+    ) -> Tuple[Tensor, Dict[str, Tensor]]:
         step_outputs = [
-            model.training_step(*args, **kwargs)
-            for model in self.model.values()
+            model.training_step(*args, **kwargs) for model in self.model.values()
         ]
         losses, losses_dicts = zip(*step_outputs)
         losses_dicts = {k: v for d in losses_dicts for k, v in d.items()}
@@ -210,7 +211,6 @@ class VAE(pl.LightningModule):
             mode="max_size" if train else "sequential",
         )
 
-
     def train(self, train_data: AnnData, val_data: AnnData = None) -> None:
         self.trainer.fit(
             model=self.model,
@@ -220,9 +220,7 @@ class VAE(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizers_dict = {
-            cfg_name: torch.optim.Adam(
-                model.parameters(), lr=model.cfg.lr
-            )
+            cfg_name: torch.optim.Adam(model.parameters(), lr=model.cfg.lr)
             for cfg_name, model in self.model.items()
         }
         return optimizers_dict
@@ -249,4 +247,3 @@ class VAE(pl.LightningModule):
         assert hasattr(cfg, "patience"), AttributeError(
             'cfg does not have the attribute "patience"'
         )
-

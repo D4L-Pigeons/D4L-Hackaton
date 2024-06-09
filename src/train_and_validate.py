@@ -73,7 +73,8 @@ def main():
 
     data = load_anndata(
         mode=args.mode,
-        preprocessing=config.preprocessing,
+        normalize=config.normalize,
+        remove_batch_effect=config.remove_batch_effect,
         preload_subsample_frac=args.preload_subsample_frac,
     )
 
@@ -192,7 +193,7 @@ def cross_validation(
     for i, (train_data, test_data) in enumerate(
         k_folds(data, n_folds, random_state, subsample_frac)
     ):
-        model.train(train_data)
+        model.train(train_data, test_data)
         prediction = model.predict(test_data)
         prediction_probability = model.predict_proba(test_data)
         ground_truth = test_data.obs["cell_type"]
@@ -216,9 +217,9 @@ def cross_validation(
             metric_name: cross_validation_metrics[metric_name].mean()
             for metric_name in metrics_names
         }
-        cross_validation_metrics.loc[len(cross_validation_metrics.index)] = (
-            average_metrics
-        )
+        cross_validation_metrics.loc[
+            len(cross_validation_metrics.index)
+        ] = average_metrics
 
         return cross_validation_metrics
 

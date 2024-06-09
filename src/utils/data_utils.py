@@ -5,9 +5,13 @@ import torch.utils
 from torch.utils.data import DataLoader, TensorDataset
 from typing import Dict
 from types import SimpleNamespace
-
+import os
 from utils.add_hierarchies import add_second_hierarchy
-from utils.paths import RAW_ANNDATA_PATH, PREPROCESSED_ANNDATA_PATH
+from utils.paths import (
+    RAW_ANNDATA_PATH,
+    PREPROCESSED_ANNDATA_PATH,
+    PREPROCESSED_DATA_PATH,
+)
 
 
 class Modality:
@@ -54,7 +58,8 @@ def _preprocess_anndata(remove_batch_effect: bool, normalize: bool) -> ad.AnnDat
             sc.external.pp.bbknn(
                 _data[:, ~gex_indicator], batch_key="Site", use_rep="ADT_X_pca"
             )
-
+        if not os.path.exists(PREPROCESSED_DATA_PATH):
+            os.makedirs(PREPROCESSED_DATA_PATH)
         _data.write(filename=PREPROCESSED_ANNDATA_PATH)
     return _data
 
@@ -64,7 +69,7 @@ def load_anndata(
     plus_iid_holdout: bool = False,
     normalize: bool = True,
     remove_batch_effect: bool = True,
-    add_hierarchy: bool = True,
+    target_hierarchy_level: int = -1,
     preload_subsample_frac: float = 1.0,
 ) -> ad.AnnData:
     r"""
@@ -95,8 +100,12 @@ def load_anndata(
         remove_batch_effect, bool
     ), f"remove_batch_effect must be a boolean, got {remove_batch_effect} instead."
     assert isinstance(
-        add_hierarchy, bool
-    ), f"add_hierarchy must be a boolean, got {add_hierarchy} instead."
+        target_hierarchy_level, int
+    ), f"target_hierarchy_level must be a int, got {target_hierarchy_level} instead."
+    assert target_hierarchy_level in [
+        -1,
+        -2,
+    ], f"target_hierarchy_level must be in [-1, -2], got {target_hierarchy_level} instead."
     filter_set = mode.split("+")  # ['train'] or ['test'] or ['train', 'test']
 
     if plus_iid_holdout:
@@ -105,8 +114,7 @@ def load_anndata(
     # Read and normalize
     _data = _preprocess_anndata(remove_batch_effect, normalize)
 
-    # NEEDS ATTENTION. When the hierarchy was already added, but for unnormalized data then the previous _data output from _preprocess_anndata will be disregarded and unnormalized data will be loaded.
-    if add_hierarchy:
+    if target_hierarchy_level == -2:
         _data = add_second_hierarchy(_data)
 
     if preload_subsample_frac is not None:
@@ -151,7 +159,7 @@ def get_modality_data_from_anndata(
     )
     if torch.isnan(modality_data).any():
         print(
-            f"{torch.isnan(modality_data).sum() / modality_data.numel() * 100}% of the values are nan in {modality} data."
+            f"{torch.isnan(modality_data).sum() / modality_data.numel() * 100}% of the values are nan in {modality_data} data."
         )
     else:
         print(f"There are no nan values in {modality_cfg.modality_name} data.")
