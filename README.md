@@ -1,10 +1,5 @@
 # D4L-Hackaton
 
-### To run training use
-
-```bash
-python .\src\train_and_validate.py --method omivae --config vanilla_omivae 
-```
 ## Setup
 We recommend creating ```venv``` or ```conda``` environment with ```python==3.12```. 
 
