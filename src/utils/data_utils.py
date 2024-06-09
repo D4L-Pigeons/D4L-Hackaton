@@ -5,7 +5,8 @@ import statsmodels.api as sm
 import torch
 import torch.utils
 from torch.utils.data import DataLoader, TensorDataset
-
+from typing import Dict
+from types import SimpleNamespace
 from utils.paths import (
     ANNDATA_PATH,
     LOG1P_ANNDATA_PATH,
@@ -13,6 +14,9 @@ from utils.paths import (
     STD_ANNDATA_PATH,
 )
 
+class Modality:
+    GEX = "GEX"
+    ADT = "ADT"
 
 def fit_negative_binomial(counts):
     """
@@ -101,6 +105,7 @@ def load_anndata(
 
     _data = ad.read_h5ad(ANNDATA_PATH)
     if preload_subsample_frac is not None:
+        print(f"Subsampling anndata with fraction {preload_subsample_frac}...")
         sc.pp.subsample(_data, fraction=preload_subsample_frac)
     if preprocessing == "log1p":
         if not LOG1P_ANNDATA_PATH.exists():
@@ -131,12 +136,72 @@ def load_anndata(
     return data
 
 
+def get_modality_data_from_anndata(
+    data: ad.AnnData,
+    modality_cfg: SimpleNamespace
+) -> torch.Tensor:
+    r"""
+    Get a TensorDataset object for the given modality.
+
+    Arguments:
+    data : anndata.AnnData
+        The data to create a TensorDataset for.
+    modality_cfg : types.SimpleNamespace
+        The configuration for the modality.
+
+    Returns:
+    modality_data : torch.Tensor
+        The TensorDataset object for the given modality.
+    """
+    assert modality_cfg.modality_name in [Modality.GEX, Modality.ADT], (
+        f"modality must be one of [{Modality.GEX}, {Modality.ADT}], got {modality_cfg.modality_name} instead."
+    )
+    modality_indicator = (data.var["feature_types"] == modality_cfg.modality_name).values
+    assert modality_indicator.sum() >= modality_cfg.dim, (
+        f"modality dim must be less than or equal to the number of {modality_cfg.modality_name} features, "
+        f"got {modality_cfg.dim} and {modality_indicator.sum()} instead."
+    )
+    modality_data = torch.tensor(
+        data.layers["counts"].toarray()[:, modality_indicator][:, :modality_cfg.dim],
+        dtype=torch.float32,
+    )
+    if torch.isnan(modality_data).any():
+        print(
+            f"{torch.isnan(modality_data).sum() / modality_data.numel() * 100}% of the values are nan in {modality} data."
+        )
+    else:
+        print(f"There are no nan values in {modality_cfg.modality_name} data.")
+    return modality_data
+
+def get_data_dict_from_anndata(
+    data: ad.AnnData,
+    modalities_cfg: SimpleNamespace,
+    include_class_labels: bool = False,
+    ) -> Dict[str, torch.Tensor]:
+    r"""
+    Get a TensorDataset object for the given data.
+
+    Arguments:
+    data : anndata.AnnData
+        The data to create a TensorDataset for.
+
+    Returns:
+    data_dict : dict of torch.Tensor
+    """
+    data_dict = {
+        cfg_name: get_modality_data_from_anndata(data, modality_cfg)
+        for cfg_name, modality_cfg in vars(modalities_cfg).items()
+    }
+    if include_class_labels:
+        labels = torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long)
+        data_dict["labels"] = labels
+    return data_dict
+
 def get_dataset_from_anndata(
     data: ad.AnnData,
-    first_modality_dim: int = 13953,
-    second_modality_dim: int = 134,
+    first_modality_dim: int,
+    second_modality_dim: int,
     include_class_labels: bool = False,
-    single_modality: Optional[str] = None
 ) -> TensorDataset:
     r"""
     Get a TensorDataset object for the given data.
@@ -149,42 +214,18 @@ def get_dataset_from_anndata(
     dataset : torch.utils.data.TensorDataset
         The TensorDataset object for the given data.
     """
-    gex_indicator = (data.var["feature_types"] == "GEX").values
-    assert gex_indicator.sum() >= first_modality_dim, (
-        f"first_modality_dim must be less than or equal to the number of GEX features, "
-        f"got {first_modality_dim} and {gex_indicator.sum()} instead."
+    modalities_cfg = SimpleNamespace(
+        gex=SimpleNamespace(modality_name=Modality.GEX, dim=first_modality_dim),
+        adt=SimpleNamespace(modality_name=Modality.ADT, dim=second_modality_dim),
     )
-    assert (~gex_indicator).sum() >= second_modality_dim, (
-        f"second_modality_dim must be less than or equal to the number of ADT features, "
-        f"got {second_modality_dim} and {(~gex_indicator).sum()} instead."
-    )
-    first_modality = torch.tensor(
-        data.layers["counts"].toarray()[:, gex_indicator][:, :first_modality_dim],
-        dtype=torch.float32,
-    )
-    second_modality = torch.tensor(
-        data.layers["counts"].toarray()[:, ~gex_indicator][:, :second_modality_dim],
-        dtype=torch.float32,
-    )
-    # print(
-    #     f"There are nan values in the first modality: {torch.isnan(first_modality).any()}"
-    # )
-    # print(
-    #     f"There are nan values in the second modality: {torch.isnan(second_modality).any()}"
-    # )
-    modalities = (
-        [first_modality, second_modality] if single_modality is None else
-        [first_modality] if single_modality == "GEX" else
-        [second_modality]
-    )
+    data_dict = get_data_dict_from_anndata(data, modalities_cfg, include_class_labels)
+    data_list = [data_dict["gex"], data_dict["adt"]]
     if include_class_labels:
-        labels = torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long)
-        dataset = TensorDataset(*modalities, labels)
-    else:
-        dataset = TensorDataset(*modalities)
-
+        data_list.append(data_dict["labels"])
+    dataset = TensorDataset(
+        *data_list
+    )
     return dataset
-
 
 def get_dataloader_from_anndata(
     data: ad.AnnData,
@@ -193,8 +234,7 @@ def get_dataloader_from_anndata(
     batch_size: int,
     shuffle: bool = True,
     include_class_labels: bool = False,
-    single_modality: Optional[str] = None
-) -> TensorDataset | DataLoader:
+) -> DataLoader:
     r"""
     Get a DataLoader object for the given data.
 
@@ -209,11 +249,37 @@ def get_dataloader_from_anndata(
         The DataLoader object for the given data. With the GEX data first.
     """
     dataset = get_dataset_from_anndata(
-        data, first_modality_dim, second_modality_dim, include_class_labels, single_modality
+        data, first_modality_dim, second_modality_dim, include_class_labels
     )
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
-
     return dataloader
+
+def get_dataloader_dict_from_anndata(
+    data: ad.AnnData,
+    modalities_cfg: SimpleNamespace,
+    shuffle: bool = True,
+) -> DataLoader:
+    r"""
+    Get a DataLoader object for the given data.
+
+    Arguments:
+    data : anndata.AnnData
+        The data to create a DataLoader for.
+    batch_size : int
+        The batch size to use for the DataLoader.
+
+    Returns:
+    dataloader : torch.utils.data.DataLoader
+        The DataLoader object for the given data. With the GEX data first.
+    """
+    data_dict = get_data_dict_from_anndata(data, modalities_cfg)
+    dataloader_dict = {
+        cfg_name: DataLoader(
+            TensorDataset(data), batch_size=vars(modalities_cfg)[cfg_name].batch_size, shuffle=shuffle
+        )
+        for cfg_name, data in data_dict.items()
+    }
+    return dataloader_dict
 
 
 # def pearson_residuals_transform

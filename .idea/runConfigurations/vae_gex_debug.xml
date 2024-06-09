@@ -14,7 +14,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/train_and_validate.py" />
-    <option name="PARAMETERS" value="--method=vae --mode=train --n-folds=2 --preload-subsample-frac=0.1 --retrain=False --config=C:\Users\szymo\Desktop\DLILS\D4L-Hackaton\src\config\omivae\vae" />
+    <option name="PARAMETERS" value="--method=vae --mode=train --n-folds=2 --preload-subsample-frac=0.1 --retrain=False --config=vae" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />
