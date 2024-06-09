@@ -204,42 +204,26 @@ class OmiAE(pl.LightningModule):
         return optim.Adam(self.parameters(), lr=self.cfg.lr)
 
     def assert_cfg(self, cfg: Namespace) -> None:
-        assert hasattr(cfg, "max_epochs"), AttributeError(
-            'cfg does not have the attribute "max_epochs"'
-        )
-        assert hasattr(cfg, "log_every_n_steps"), AttributeError(
-            'cfg does not have the attribute "log_every_n_steps"'
-        )
-        assert hasattr(cfg, "first_modality_hidden_dim"), AttributeError(
-            'cfg does not have the attribute "first_modality_hidden_dim"'
-        )
-        assert hasattr(cfg, "second_modality_hidden_dim"), AttributeError(
-            'cfg does not have the attribute "second_modality_hidden_dim"'
-        )
-        assert hasattr(cfg, "first_modality_embedding_dim"), AttributeError(
-            'cfg does not have the attribute "first_modality_embedding_dim"'
-        )
-        assert hasattr(cfg, "second_modality_embedding_dim"), AttributeError(
-            'cfg does not have the attribute "second_modality_embedding_dim"'
-        )
-        assert hasattr(cfg, "encoder_hidden_dim"), AttributeError(
-            'cfg does not have the attribute "encoder_hidden_dim"'
-        )
-        assert hasattr(cfg, "encoder_out_dim"), AttributeError(
-            'cfg does not have the attribute "encoder_out_dim"'
-        )
-        assert hasattr(cfg, "decoder_in_dim"), AttributeError(
-            'cfg does not have the attribute "decoder_in_dim"'
-        )
-        assert hasattr(cfg, "decoder_hidden_dim"), AttributeError(
-            'cfg does not have the attribute "decoder_hidden_dim"'
-        )
-        assert hasattr(cfg, "recon_loss_coef"), AttributeError(
-            'cfg does not have the attribute "recon_loss_coef"'
-        )
-        assert hasattr(cfg, "lr"), AttributeError(
-            'cfg does not have the attribute "lr"'
-        )
+        default_cfg = {
+            "max_epochs": 5,
+            "log_every_n_steps": 1,
+            "first_modality_hidden_dim": 50,
+            "second_modality_hidden_dim": 10,
+            "first_modality_embedding_dim": 50,
+            "second_modality_embedding_dim": 10,
+            "encoder_hidden_dim": 5000,
+            "encoder_out_dim": 40,
+            "decoder_in_dim": 10,
+            "decoder_hidden_dim": 20,
+            "recon_loss_coef": 1,
+            "c_loss_coef": 1,
+            "kld_loss_coef": 1,
+            "lr": 0.001,
+        }
+        for attr, default_value in default_cfg.items():
+            if not hasattr(cfg, attr):
+                setattr(cfg, attr, default_value)
+                print(f"{attr} set as {default_value}")
 
 
 class OmiGMPriorProbabilisticAE(OmiAE):
@@ -379,21 +363,18 @@ class OmiGMPriorProbabilisticAE(OmiAE):
 
     def assert_cfg(self, cfg: Namespace) -> None:
         super(OmiGMPriorProbabilisticAE, self).assert_cfg(cfg)
-        assert hasattr(cfg, "no_components"), AttributeError(
-            'cfg does not have the attribute "no_components"'
-        )
-        assert hasattr(cfg, "components_std"), AttributeError(
-            'cfg does not have the attribute "components_std"'
-        )
-        assert hasattr(cfg, "no_latent_samples"), AttributeError(
-            'cfg does not have the attribute "no_latent_samples"'
-        )
-        assert hasattr(cfg, "gmm_likelihood_loss_coef"), AttributeError(
-            'cfg does not have the attribute "gmm_likelihood_loss_coef"'
-        )
-        assert hasattr(cfg, "entropy_loss_coef"), AttributeError(
-            'cfg does not have the attribute "entropy_loss_coef"'
-        )
+        default_cfg = {
+            "no_components": 2,
+            "components_std": 1,
+            "no_latent_samples": 16,
+            "gmm_likelihood_loss_coef": 0.1,
+            "entropy_loss_coef": 0.1,
+        }
+        for attr, default_value in default_cfg.items():
+            if not hasattr(cfg, attr):
+                setattr(cfg, attr, default_value)
+                print(f"{attr} set as {default_value}")
+
         assert cfg.latent_dim * 2 == cfg.encoder_out_dim, ValueError(
             "The latent dimension must be twice the encoder output dimension"
         )
@@ -479,6 +460,7 @@ class OmiModel(ModelBase):
 
     def assert_cfg(self, cfg: Namespace) -> None:
         self.assert_cfg_general(cfg)
+
         assert hasattr(cfg, "omivae_implementation"), AttributeError(
             'cfg does not have the attribute "omivae_implementation"'
         )
@@ -494,16 +476,17 @@ class OmiModel(ModelBase):
         ], ValueError(
             f"Invalid output modelling type: {cfg.output_modelling_type}. Must be one of ['mse_direct_reconstruction', 'll_neg_binomial']"
         )
-        assert hasattr(cfg, "early_stopping"), AttributeError(
-            'cfg does not have the attribute "early_stopping"'
-        )
+
+        if not hasattr(cfg, "early_stopping"):
+            setattr(cfg, "early_stopping", True)
+            print(f"early_stopping set as True")
         if cfg.early_stopping:
-            assert hasattr(cfg, "min_delta"), AttributeError(
-                'cfg does not have the attribute "min_delta"'
-            )
-            assert hasattr(cfg, "patience"), AttributeError(
-                'cfg does not have the attribute "patience"'
-            )
+            if not hasattr(cfg, "min_delta"):
+                setattr(cfg, "min_delta", 0.001)
+                print(f"min_delta set as 0.001")
+            if not hasattr(cfg, "patience"):
+                setattr(cfg, "patience", 5)
+                print(f"patience set as 5")
 
 
 # class OmiVAE(OmiAE):

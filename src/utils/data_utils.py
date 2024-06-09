@@ -1,17 +1,14 @@
 import anndata as ad
 import numpy as np
 import scanpy as sc
+import scipy.sparse
 import statsmodels.api as sm
 import torch
 import torch.utils
 from torch.utils.data import DataLoader, TensorDataset
 
-from utils.paths import (
-    ANNDATA_PATH,
-    LOG1P_ANNDATA_PATH,
-    PEARSON_RESIDUALS_ANNDATA_PATH,
-    STD_ANNDATA_PATH,
-)
+from utils.add_hierarchies import add_second_hierarchy
+from utils.paths import ANNDATA_PATH, PREPROCESSED_ANNDATA_PATH
 
 
 def fit_negative_binomial(counts):
@@ -45,26 +42,56 @@ def fit_negative_binomial(counts):
 # mean_counts, dispersions = fit_negative_binomial(counts)
 
 
-# def memory_aware_pearson_residuals(data: ad.AnnData) -> ad.AnnData:
-#     r"""
-#     Compute Pearson residuals in a memory-aware way.
+def GEX_preprocessing(_data: ad.AnnData):
+    sc.pp.log1p(_data)
+    sc.pp.scale(_data)
 
-#     Arguments:
-#     data : anndata.AnnData
-#         The data to compute Pearson residuals for.
 
-#     Returns:
-#     data : anndata.AnnData
-#         The data with Pearson residuals computed.
-#     """
-#     # Compute Pearson residuals in an
-#     # n_cols = data.shape[1]
+def ADT_preprocessing(_data: ad.AnnData):
+    sc.pp.scale(_data)
+    # sc.experimental.pp.normalize_pearson_residuals(_data)
+
+    # TODO: consider the following operations
+    # if scipy.sparse.issparse(X):
+    #     mean = X.mean(axis=0).A1
+    #     std = np.sqrt(X.power(2).mean(axis=0).A1 - np.square(mean))
+    #     X = (X.toarray() - mean) / std
+    # else:
+    #     mean = X.mean(axis=0)
+    #     std = np.sqrt(X.square().mean(axis=0) - np.square(mean))
+    #     X = (X - mean) / std
+    # X = X.clip(-10, 10)
+
+
+def preprocess_andata(remove_batch_effect: bool, normalize: bool) -> ad.AnnData:
+    if normalize and PREPROCESSED_ANNDATA_PATH.exists():
+        print("Loading preprocessed data...")
+        return ad.read_h5ad(PREPROCESSED_ANNDATA_PATH)
+
+    _data = ad.read_h5ad(ANNDATA_PATH)
+    print(_data)
+    if normalize:
+        gex_indicator = (_data.var["feature_types"] == "GEX").values
+        GEX_preprocessing(_data.layers["counts"][:, gex_indicator])
+        ADT_preprocessing(_data.layers["counts"][:, ~gex_indicator])
+        if remove_batch_effect:  # Ensure data selection if needed
+            sc.external.pp.bbknn(
+                _data[:, gex_indicator], batch_key="Site", use_rep="GEX_X_pca"
+            )
+            sc.external.pp.bbknn(
+                _data[:, ~gex_indicator], batch_key="Site", use_rep="ADT_X_pca"
+            )
+
+        _data.write(filename=PREPROCESSED_ANNDATA_PATH)
+    return _data
 
 
 def load_anndata(
     mode: str,
     plus_iid_holdout: bool = False,
-    preprocessing: str | None = "log1p",
+    normalize: bool = True,
+    remove_batch_effect: bool = True,
+    add_hierarchy: bool = True,
 ) -> ad.AnnData:
     r"""
     Load the full anndata object for the specified mode.
@@ -87,42 +114,26 @@ def load_anndata(
     assert isinstance(
         plus_iid_holdout, bool
     ), f"plus_iid_holdout must be a boolean, got {plus_iid_holdout} instead."
-    assert preprocessing in [
-        None,
-        "log1p",
-        "standardize",
-        "pearson_residuals",
-    ], f"preprocessing must be one of [None, 'log1p', 'standardize', 'pearson_residuals'], got {preprocessing} instead."
+    assert isinstance(
+        normalize, bool
+    ), f"normalize must be a boolean, got {normalize} instead."
+    assert isinstance(
+        remove_batch_effect, bool
+    ), f"remove_batch_effect must be a boolean, got {remove_batch_effect} instead."
+    assert isinstance(
+        add_hierarchy, bool
+    ), f"add_hierarchy must be a boolean, got {add_hierarchy} instead."
     filter_set = mode.split("+")  # ['train'] or ['test'] or ['train', 'test']
 
     if plus_iid_holdout:
         filter_set.append("iid_holdout")
 
-    _data = ad.read_h5ad(ANNDATA_PATH)
-    if preprocessing == "log1p":
-        if not LOG1P_ANNDATA_PATH.exists():
-            print("Preprocessing with log1p...")
-            sc.pp.log1p(_data)
-            _data.write(filename=LOG1P_ANNDATA_PATH)
-        else:
-            print("Loading precomputed log1p...")
-            _data = ad.read_h5ad(LOG1P_ANNDATA_PATH)
-    elif preprocessing == "standardize":
-        if not STD_ANNDATA_PATH.exists():
-            print("Preprocessing with standardize...")
-            sc.pp.scale(_data)
-            _data.write(filename=STD_ANNDATA_PATH)
-        else:
-            print("Loading precomputed standardize...")
-            _data = ad.read_h5ad(STD_ANNDATA_PATH)
-    # if preprocessing == "pearson_residuals":
-    #     if not PEARSON_RESIDUALS_ANNDATA_PATH.exists():
-    #         print("Normalizing Pearson residuals...")
-    #         sc.experimental.pp.normalize_pearson_residuals(_data)
-    #         _data.write(filename=PEARSON_RESIDUALS_ANNDATA_PATH)
-    #     else:
-    #         print("Loading precomputed Pearson residuals...")
-    #         _data = ad.read_h5ad(PEARSON_RESIDUALS_ANNDATA_PATH)
+    # Read and normalize
+    _data = preprocess_andata(remove_batch_effect, normalize)
+
+    if add_hierarchy:
+        data = add_second_hierarchy(_data)
+
     data = _data[_data.obs["is_train"].apply(lambda x: x in filter_set)]
 
     return data
@@ -145,7 +156,7 @@ def get_dataset_from_anndata(
     dataset : torch.utils.data.TensorDataset
         The TensorDataset object for the given data.
     """
-    gex_indicator = (data.var["feature_types"] == "GEX").values
+    gex_indicator = data.var["feature_types"] == "GEX"
     assert gex_indicator.sum() >= first_modality_dim, (
         f"first_modality_dim must be less than or equal to the number of GEX features, "
         f"got {first_modality_dim} and {gex_indicator.sum()} instead."
@@ -162,12 +173,6 @@ def get_dataset_from_anndata(
         data.layers["counts"].toarray()[:, ~gex_indicator][:, :second_modality_dim],
         dtype=torch.float32,
     )
-    # print(
-    #     f"There are nan values in the first modality: {torch.isnan(first_modality).any()}"
-    # )
-    # print(
-    #     f"There are nan values in the second modality: {torch.isnan(second_modality).any()}"
-    # )
     if include_class_labels:
         labels = torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long)
         dataset = TensorDataset(first_modality, second_modality, labels)
@@ -204,6 +209,3 @@ def get_dataloader_from_anndata(
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
     return dataloader
-
-
-# def pearson_residuals_transform
