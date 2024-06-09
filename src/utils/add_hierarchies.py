@@ -61,8 +61,6 @@ def add_second_hierarchy(
     labels = _data.obs["cell_type"]
     print(labels)
     _data.obs["second_hierarchy"] = labels.map(hierarchies_mapping)
-    # print(np.unique(_data.obs["cell_type"].values))
-    # print(np.unique(_data.obs["second_hierarchy"].values))
     print("Second hierarchy mapping:", _data.obs["second_hierarchy"].head())
 
     _data.write(filename=RAW_ANNDATA_HIERARCHY_PATH)
