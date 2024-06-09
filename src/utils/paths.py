@@ -8,9 +8,9 @@ ANNDATA_PATH: Path = DATA_PATH / ANNDATA_FILENAME
 HIERARCHY_PATH: Path = DATA_PATH / "second_hierarchy.h5ad"  # change data type
 
 # Preprocessed data paths
-PREPROCESSED_ANNDATA_PATH: Path = DATA_PATH / "preprocessed.h5ad"
-
 PREPROCESSED_DATA_PATH: Path = DATA_PATH / "preprocessed"
+PREPROCESSED_ANNDATA_PATH: Path = PREPROCESSED_DATA_PATH / "preprocessed.h5ad"
+
 PEARSON_RESIDUALS_ANNDATA_FILENAME: str = (
     "GSE194122_openproblems_neurips2021_cite_BMMC_processed_pearson_residuals.h5ad"
 )
