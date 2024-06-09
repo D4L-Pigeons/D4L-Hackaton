@@ -9,3 +9,4 @@ __pycache__/
 src/results/*
 # src/config/*
 src/logs/*
+idea/*
