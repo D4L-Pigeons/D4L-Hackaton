@@ -16,6 +16,7 @@ from models.ModelBase import ModelBase
 from models.omivae import OmiModel
 from utils.data_utils import load_anndata
 from utils.paths import CONFIG_PATH, RESULTS_PATH
+from utils.data_utils import get_dataloader_from_anndata, get_dataset_from_anndata
 
 
 def main():
@@ -134,6 +135,7 @@ def create_model(args, config) -> ModelBase:
 def cross_validation(
     data: ad.AnnData,
     model: ModelBase,
+    cfg,
     classification_metrics: bool,
     random_state: int = 42,
     n_folds: int = 5,
@@ -167,7 +169,18 @@ def cross_validation(
     for i, (train_data, test_data) in enumerate(
         k_folds(data, n_folds, random_state, subsample_frac)
     ):
-        model.train(train_data)
+        train_dataloaders, num_classes = get_dataloader_from_anndata(
+            train_data,
+            batch_size=cfg.batch_size,
+            shuffle=True,
+            first_modality_dim=cfg.first_modality_dim,
+            second_modality_dim=cfg.second_modality_dim,
+            include_class_labels=cfg.classification_head
+            or cfg.include_class_labels,
+            target_hierarchy_level=cfg.target_hierarchy_level)
+        
+
+        model.train(train_dataloaders=train_dataloaders, val_dataloaders=None)
         prediction = model.predict(test_data)
         prediction_probability = model.predict_proba(test_data)
         ground_truth = test_data.obs["cell_type"]

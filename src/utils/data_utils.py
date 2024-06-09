@@ -121,7 +121,7 @@ def get_dataset_from_anndata(
     second_modality_dim: int = 134,
     include_class_labels: bool = True,
     target_hierarchy_level: int = -1,
-) -> TensorDataset:
+) -> tuple[TensorDataset, int | None]:
     r"""
     Get a TensorDataset object for the given data.
 
@@ -139,6 +139,7 @@ def get_dataset_from_anndata(
     Returns:
     dataset : torch.utils.data.TensorDataset
         The TensorDataset object for the given data.
+    number of classes to predict: int
     """
     gex_indicator = data.var["feature_types"] == "GEX"
     assert gex_indicator.sum() >= first_modality_dim, (
@@ -170,11 +171,11 @@ def get_dataset_from_anndata(
             target_hierarchy_level
         ]
         labels = torch.tensor(data.obs[target_name].cat.codes.values, dtype=torch.long)
-        dataset = TensorDataset(first_modality, second_modality, labels)
-    else:
-        dataset = TensorDataset(first_modality, second_modality)
+        num_classes = len(data.obs[target_name].unique())
+        return TensorDataset(first_modality, second_modality, labels), num_classes
 
-    return dataset
+    return TensorDataset(first_modality, second_modality), None
+
 
 
 def get_dataloader_from_anndata(
@@ -185,7 +186,7 @@ def get_dataloader_from_anndata(
     second_modality_dim: int = 134,
     include_class_labels: bool = True,
     target_hierarchy_level: int = -1,
-) -> TensorDataset | DataLoader:
+) -> tuple[TensorDataset | DataLoader, int | None]:
     r"""
     Get a DataLoader object for the given data.
 
@@ -199,7 +200,7 @@ def get_dataloader_from_anndata(
     dataloader : torch.utils.data.DataLoader
         The DataLoader object for the given data starting with the GEX data.
     """
-    dataset = get_dataset_from_anndata(
+    dataset, num_classes = get_dataset_from_anndata(
         data,
         first_modality_dim,
         second_modality_dim,
@@ -208,4 +209,18 @@ def get_dataloader_from_anndata(
     )
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
-    return dataloader
+    return dataloader, num_classes
+
+
+def load_anndata_and_get_dataloader(
+    mode: str,
+    batch_size: int,
+    shuffle: bool = True,
+    first_modality_dim: int = 13953,
+    second_modality_dim: int = 134,
+    include_class_labels: bool = True,
+    plus_iid_holdout: bool = False,
+    normalize: bool = True,
+    remove_batch_effect: bool = True,
+    target_hierarchy_level: int = -1,
+) -> ad.AnnData:
