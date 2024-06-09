@@ -1,5 +1,5 @@
-import numpy as np
 import anndata as ad
+import numpy as np
 
 from utils.paths import RAW_ANNDATA_HIERARCHY_PATH
 
@@ -55,9 +55,6 @@ default_hierarchies_mapping = {
 def add_second_hierarchy(
     _data, hierarchies_mapping: dict = default_hierarchies_mapping
 ):
-    if RAW_ANNDATA_HIERARCHY_PATH.exists():
-        return ad.read_h5ad(RAW_ANNDATA_HIERARCHY_PATH)
-
     labels = _data.obs["cell_type"]
     print(labels)
     _data.obs["second_hierarchy"] = labels.map(hierarchies_mapping)

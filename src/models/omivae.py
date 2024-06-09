@@ -424,12 +424,13 @@ class OmiModel(ModelBase):
             model=self.model,
             train_dataloaders=get_dataloader_from_anndata(
                 train_data,
-                self.cfg.first_modality_dim,
-                self.cfg.second_modality_dim,
-                self.cfg.batch_size,
+                batch_size=self.cfg.batch_size,
                 shuffle=True,
+                first_modality_dim=self.cfg.first_modality_dim,
+                second_modality_dim=self.cfg.second_modality_dim,
                 include_class_labels=self.cfg.classification_head
                 or self.cfg.include_class_labels,
+                target_hierarchy_level=self.cfg.target_hierarchy_level,
             ),
             val_dataloaders=(
                 get_dataset_from_anndata(

@@ -38,3 +38,4 @@ early_stopping: False
 min_delta: 0.00001
 patience: 5
 # logger: True
+target_hierarchy_level: -1

@@ -61,7 +61,9 @@ def main():
     config = load_config(args)
     model = create_model(args, config)
 
-    data = load_anndata(mode=args.mode)
+    data = load_anndata(
+        mode=args.mode, target_hierarchy_level=config.target_hierarchy_level
+    )
 
     cross_validation_metrics = cross_validation(
         data,
