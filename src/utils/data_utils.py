@@ -59,7 +59,7 @@ def fit_negative_binomial(counts):
 def load_anndata(
     mode: str,
     plus_iid_holdout: bool = False,
-    preprocessing: str | None = "pearson_residuals",
+    preprocessing: str | None = "log1p",
 ) -> ad.AnnData:
     r"""
     Load the full anndata object for the specified mode.

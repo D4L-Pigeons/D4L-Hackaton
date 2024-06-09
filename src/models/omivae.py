@@ -267,9 +267,9 @@ class OmiGMPriorProbabilisticAE(OmiAE):
             batch  # ASSUMPTION THAT ALL LABELS ARE AVAILABLE (the extension to the mix of alebeled + unlabeled is not difficuls, but it is not implemented here as it may not be necessary for the task at hand)
         )
         labels = torch.bernoulli(torch.ones_like(labels) * 0.5).long()
-        assert (
-            False
-        ), "The labels are random for now, this should be changed to the actual labels"
+        # assert (
+        #     False
+        # ), "The labels are random for now, this should be changed to the actual labels"
         z_means, z_stds = self._encode(x_fst, x_snd).chunk(2, dim=1)
         z_stds = self._var_transformation(z_stds)
         normal_rv = self._make_normal_rv(z_means, z_stds)
