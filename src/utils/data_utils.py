@@ -1,53 +1,24 @@
 import anndata as ad
-import numpy as np
 import scanpy as sc
-import scipy.sparse
 import statsmodels.api as sm
 import torch
 import torch.utils
 from torch.utils.data import DataLoader, TensorDataset
 
 from utils.add_hierarchies import add_second_hierarchy
-from utils.paths import ANNDATA_PATH, PREPROCESSED_ANNDATA_PATH
+from utils.paths import (
+    RAW_ANNDATA_PATH,
+    RAW_ANNDATA_HIERARCHY_PATH,
+    PREPROCESSED_ANNDATA_PATH,
+)
 
 
-def fit_negative_binomial(counts):
-    """
-    Fit a negative binomial model to each gene and estimate the dispersion parameter.
-
-    Parameters:
-    counts (numpy.ndarray): The count matrix with genes as rows and cells as columns.
-
-    Returns:
-    tuple: A tuple containing the mean counts and dispersion parameters for each gene.
-    """
-    n_genes, n_cells = counts.shape
-    mean_counts = np.mean(counts, axis=1)
-    dispersions = np.zeros(n_genes)
-
-    for i in range(n_genes):
-        y = counts[i, :]
-        X = np.ones((n_cells, 1))  # Design matrix with intercept only
-
-        # Fit the negative binomial model
-        model = sm.GLM(y, X, family=sm.families.NegativeBinomial())
-        results = model.fit()
-
-        # Extract the dispersion parameter
-        dispersions[i] = results.scale
-
-    return mean_counts, dispersions
-
-
-# mean_counts, dispersions = fit_negative_binomial(counts)
-
-
-def GEX_preprocessing(_data: ad.AnnData):
+def _GEX_preprocessing(_data: ad.AnnData):
     sc.pp.log1p(_data)
     sc.pp.scale(_data)
 
 
-def ADT_preprocessing(_data: ad.AnnData):
+def _ADT_preprocessing(_data: ad.AnnData):
     sc.pp.scale(_data)
     # sc.experimental.pp.normalize_pearson_residuals(_data)
 
@@ -63,17 +34,17 @@ def ADT_preprocessing(_data: ad.AnnData):
     # X = X.clip(-10, 10)
 
 
-def preprocess_andata(remove_batch_effect: bool, normalize: bool) -> ad.AnnData:
+def _preprocess_anndata(remove_batch_effect: bool, normalize: bool) -> ad.AnnData:
     if normalize and PREPROCESSED_ANNDATA_PATH.exists():
         print("Loading preprocessed data...")
         return ad.read_h5ad(PREPROCESSED_ANNDATA_PATH)
 
-    _data = ad.read_h5ad(ANNDATA_PATH)
-    print(_data)
+    _data = ad.read_h5ad(RAW_ANNDATA_PATH)
+
     if normalize:
         gex_indicator = (_data.var["feature_types"] == "GEX").values
-        GEX_preprocessing(_data.layers["counts"][:, gex_indicator])
-        ADT_preprocessing(_data.layers["counts"][:, ~gex_indicator])
+        _GEX_preprocessing(_data.layers["counts"][:, gex_indicator])
+        _ADT_preprocessing(_data.layers["counts"][:, ~gex_indicator])
         if remove_batch_effect:  # Ensure data selection if needed
             sc.external.pp.bbknn(
                 _data[:, gex_indicator], batch_key="Site", use_rep="GEX_X_pca"
@@ -129,10 +100,11 @@ def load_anndata(
         filter_set.append("iid_holdout")
 
     # Read and normalize
-    _data = preprocess_andata(remove_batch_effect, normalize)
+    _data = _preprocess_anndata(remove_batch_effect, normalize)
 
+    # NEEDS ATTENTION. When the hierarchy was already added, but for unnormalized data then the previous _data output from _preprocess_anndata will be disregarded and unnormalized data will be loaded.
     if add_hierarchy:
-        data = add_second_hierarchy(_data)
+        _data = add_second_hierarchy(_data)
 
     data = _data[_data.obs["is_train"].apply(lambda x: x in filter_set)]
 
