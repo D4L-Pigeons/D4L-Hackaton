@@ -2,10 +2,8 @@ from argparse import Namespace
 from itertools import cycle
 
 import matplotlib.pyplot as plt
-import numpy as np
 import seaborn as sns
 import torch
-from sklearn.decomposition import PCA
 from sklearn.metrics import (
     accuracy_score,
     adjusted_rand_score,
@@ -134,7 +132,7 @@ def apply_classification_head(model, cfg: Namespace, data):
             hidden_size=cfg.num_classes * 2,
             batch_norm=cfg.batch_norm,
         )
-        logits = classification_head(mu)
+        logits = classification_head(data)
     else:
         logits = model._predict(data)
     pass

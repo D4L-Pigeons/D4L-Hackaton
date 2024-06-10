@@ -116,7 +116,7 @@ def main():
     # Retrain and save model
     if args.retrain:
         print("Retraining model...")
-        model.train(data)
+        model.fit(data)
         saved_model_path = model.save(str(results_path / "saved_model"))
         print(f"Model saved to: {saved_model_path}")
 
@@ -187,7 +187,7 @@ def cross_validation(
     for i, (train_data, test_data) in enumerate(
         k_folds(data, n_folds, random_state, subsample_frac)
     ):
-        model.train(train_data)
+        model.fit(train_data)
         prediction = model.predict(test_data)
         prediction_probability = model.predict_proba(test_data)
         ground_truth = test_data.obs["cell_type"]

@@ -42,6 +42,8 @@ subsample_frac: 0.001 # 1 # | MAY BE CHANGED FOR DEBUGGING
 preprocessing: "standardize" # "log1p", "standardize", "pearson_residuals", null -> None
 include_class_labels: False
 
+
+predict_batch_size: 128
 # classification specific configuration
 classification_head: False
 num_classes: 0

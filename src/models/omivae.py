@@ -438,7 +438,7 @@ class OmiModel(ModelBase):
             ),
         )
 
-    def train(self, train_data: AnnData, val_data: AnnData = None) -> None:
+    def fit(self, train_data: AnnData, val_data: AnnData = None) -> None:
         self.trainer.fit(
             model=self.model,
             train_dataloaders=get_dataloader_from_anndata(
