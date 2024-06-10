@@ -156,7 +156,8 @@ def get_modality_data_from_anndata(
     assert modality_cfg.modality_name in [Modality.GEX, Modality.ADT], (
         f"modality must be one of [{Modality.GEX}, {Modality.ADT}], got {modality_cfg.modality_name} instead."
     )
-    modality_indicator = (data.var["feature_types"] == modality_cfg.modality_name).values
+    modality_indicator = (data.var["feature_types"] == modality_cfg.modality_name)
+    modality_indicator = modality_indicator.values
     assert modality_indicator.sum() >= modality_cfg.dim, (
         f"modality dim must be less than or equal to the number of {modality_cfg.modality_name} features, "
         f"got {modality_cfg.dim} and {modality_indicator.sum()} instead."

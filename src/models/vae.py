@@ -142,6 +142,7 @@ class VAE(pl.LightningModule):
         super(VAE, self).__init__()
         self.assert_cfg(cfg)
         self.cfg = cfg
+        self.automatic_optimization = False
         self.model = nn.ModuleDict(
             {
                 cfg_name: SingleModalityVAE(cfg_name, modality_cfg)
@@ -180,6 +181,9 @@ class VAE(pl.LightningModule):
 
     def training_step(self, *args: Any, **kwargs: Any) -> STEP_OUTPUT:
         loss, losses_dicts = self.combine_steps(*args, **kwargs)
+        loss.backward()
+        for optimizer in self.optimizers():
+            optimizer.step()
         self.log_dict(
             losses_dicts,
             on_step=True,
@@ -213,19 +217,19 @@ class VAE(pl.LightningModule):
 
     def train(self, train_data: AnnData, val_data: AnnData = None) -> None:
         self.trainer.fit(
-            model=self.model,
+            model=self,
             train_dataloaders=self.get_dataloader(train_data, train=True),
-            val_dataloaders=self.get_dataloader(val_data, train=False),
+            val_dataloaders=self.get_dataloader(val_data, train=False) if val_data is not None else None,
         )
 
     def configure_optimizers(self):
-        optimizers_dict = {
-            cfg_name: torch.optim.Adam(
-                model.parameters(), lr=model.cfg.lr
+        optimizers = [
+            torch.optim.Adam(
+                model.parameters(), lr=model.modality_cfg.lr
             )
-            for cfg_name, model in self.model.items()
-        }
-        return optimizers_dict
+            for model in self.model.values()
+        ]
+        return optimizers
 
     def assert_cfg(self, cfg: Namespace) -> None:
         assert hasattr(cfg, "model_name"), AttributeError(
