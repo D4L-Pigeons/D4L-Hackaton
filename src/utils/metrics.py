@@ -2,8 +2,10 @@ from argparse import Namespace
 from itertools import cycle
 
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
 import torch
+from sklearn.decomposition import PCA
 from sklearn.metrics import (
     accuracy_score,
     adjusted_rand_score,

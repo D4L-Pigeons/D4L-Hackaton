@@ -1,10 +1,10 @@
-import anndata as ad
-import torch
+import sys
 
-from utils.data_utils import load_anndata
+import anndata as ad
+
 from utils.paths import HIERARCHY_PATH
 
-hierarchies_mapping = {
+default_hierarchies_mapping = {
     "CD14+ Mono": "Monocytes",
     "CD16+ Mono": "Monocytes",
     "CD4+ T activated": "T Cells",
@@ -50,20 +50,28 @@ hierarchies_mapping = {
     "Normoblast": "Erythroid Lineage",
     "ILC": "Innate Lymphoid Cells",
     "ILC1": "Innate Lymphoid Cells",
-    # Add any other categories and mappings here
 }
 
 
-def add_second_hierarchy(mode: str = "train"):
-    data = load_anndata(mode=mode)
-    print(data.obs["cell_type"].unique())
-    labels = torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long)
-    data.obs["second_hierarchy"] = hierarchies_mapping[labels]
-    ad.save_h5ad(HIERARCHY_PATH)
+def add_second_hierarchy(
+    _data, hierarchies_mapping: dict = default_hierarchies_mapping, mode: str = "train"
+):
+    if HIERARCHY_PATH.exists():
+        return ad.read_h5ad(HIERARCHY_PATH)
+
+    labels = _data.obs["cell_type"]
+    print(labels)
+    _data.obs["second_hierarchy"] = labels.map(hierarchies_mapping)
+    print(_data.obs["cell_type"].values.unique())
+    print(_data.obs["second_hierarchy"].values.unique())
+    print("Second hierarchy mapping:", _data.obs["second_hierarchy"].head())
+
+    _data.write(filename=HIERARCHY_PATH)
+    return _data
 
 
 def main():
-    add_second_hierarchy()
+    add_second_hierarchy(default_hierarchies_mapping)
 
 
 if __name__ == "__main__":

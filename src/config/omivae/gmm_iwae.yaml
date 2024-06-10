@@ -2,7 +2,6 @@
 first_modality_dim: 13953 # GEX | max 13953 | MAY BE CHANGED FOR DEBUGGING
 second_modality_dim: 134 # ADT | max 134 | MAY BE CHANGED FOR DEBUGGING
 subsample_frac: 1 # | MAY BE CHANGED FOR DEBUGGING
-preprocessing: "log1p" # "log1p", "standardize", "pearson_residuals", null -> None
 include_class_labels: True
 # architecture configuration
 omivae_implementation: "OmiGMPriorProbabilisticAE"

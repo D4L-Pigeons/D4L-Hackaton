@@ -2,7 +2,7 @@ import argparse
 import datetime
 import json
 import os
-from pathlib import Path
+from types import SimpleNamespace
 
 import anndata as ad
 import numpy as np
@@ -18,7 +18,6 @@ from models.omivae import OmiModel
 from models.vae import VAE
 from utils.data_utils import load_anndata
 from utils.paths import CONFIG_PATH, RESULTS_PATH
-from types import SimpleNamespace
 
 
 def main():
@@ -130,12 +129,6 @@ def load_config(args) -> SimpleNamespace:
     config_namespace = json.loads(json.dumps(config_dict), object_hook=load_object)
     return config_namespace
 
-def load_config_debug(config_name):
-    with open(CONFIG_PATH / "vae" / f"{config_name}.yaml" ) as file:
-        config = yaml.safe_load(file)
-    # parse nested dictionaries into argparse.Namespace
-
-    return argparse.Namespace(**config)
 
 def create_model(args, config) -> ModelBase:
     if args.method == "omivae":
