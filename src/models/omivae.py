@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from argparse import Namespace
+from cmath import inf, log
 from typing import Dict, Optional, Tuple, Union
 
 import anndata as ad
@@ -183,20 +184,13 @@ class OmiAE(pl.LightningModule):
         for k, v in loss_components.items():
             self.log(f"Val {k}", v, on_epoch=True, prog_bar=True)
 
-    def _predict(self, x: Tensor) -> Tensor:
-        if not self.classification_head:
-            raise ValueError("Model does not have a classification head")
-        mu, _ = self._encode(x)
-        logits = self.classification_head(mu)
-
-        return logits
-
-    def _predict_proba(self, data: AnnData):
+    def predict(self, data: AnnData) -> Tensor:
+        print("Predict phase...")
         if not self.classification_head:
             raise ValueError("Model does not have a classification head")
         mu, _ = self._encode(data)
         logits = self.classification_head(mu)
-        return torch.softmax(logits, dim=1)
+        return logits
 
     def _get_decoder_jacobian(self, z: Tensor) -> Tensor:
         return torch.autograd.functional.jacobian(self.decoder, z)
@@ -264,6 +258,8 @@ class OmiGMPriorProbabilisticAE(OmiAE):
         z_stds = self._var_transformation(z_stds)
         normal_rv = self._make_normal_rv(z_means, z_stds)
         entropy_per_batch_sample = normal_rv.entropy().sum(dim=1).unsqueeze(0)  # [1, B]
+        # entropy_per_batch_sample = torch.nan_to_num(entropy_per_batch_sample, posinf=1e4, neginf=-1e4)
+        # print("normal entropy_per_batch_sample", entropy_per_batch_sample[entropy_per_batch_sample == inf])
         assert entropy_per_batch_sample.shape == (1, x_fst.shape[0]), AssertionError(
             f"Entropy shape is {entropy_per_batch_sample.shape}, expected {(1, x_fst.shape[0])}"
         )
@@ -302,6 +298,9 @@ class OmiGMPriorProbabilisticAE(OmiAE):
             f"component_indicator shape is {component_indicator.shape}, expected {(x_fst.shape[0], self.cfg.no_components)}"
         )
         gmm_likelihood_per_k = per_component_logprob[:, component_indicator]  # [K, B]
+        # gmm_likelihood_per_k = torch.nan_to_num(gmm_likelihood_per_k, posinf=10, neginf=-10)
+
+        # print(gmm_likelihood_per_k)
         assert gmm_likelihood_per_k.shape == (
             self.cfg.no_latent_samples,
             x_fst.shape[0],
@@ -316,6 +315,7 @@ class OmiGMPriorProbabilisticAE(OmiAE):
         ).mean(
             dim=-1
         )  # [K, B]
+        # recon_loss_per_k = torch.nan_to_num(recon_loss_per_k, posinf=1e4, neginf=-1e4)
         assert recon_loss_per_k.shape == (
             self.cfg.no_latent_samples,
             x_fst.shape[0],
@@ -349,6 +349,8 @@ class OmiGMPriorProbabilisticAE(OmiAE):
                 metrics["acc"] = acc
                 metrics["bac"] = bac
             total_loss += self.cfg.c_loss_coef * c_loss
+
+        # print(metrics)
 
         return total_loss, metrics
 
@@ -448,10 +450,24 @@ class OmiModel(ModelBase):
         )
 
     def predict(self, data: AnnData):
-        pass
+        predictions = self.trainer.predict(
+            model=self.model,
+            dataloaders=get_dataloader_from_anndata(
+                data,
+                batch_size=self.cfg.batch_size,
+                shuffle=True,
+                first_modality_dim=self.cfg.first_modality_dim,
+                second_modality_dim=self.cfg.second_modality_dim,
+                include_class_labels=self.cfg.classification_head
+                or self.cfg.include_class_labels,
+                target_hierarchy_level=self.cfg.target_hierarchy_level,
+            ),
+        )
+        return predictions
 
     def predict_proba(self, data: AnnData):
-        pass
+        logits = self.predict(data)
+        return torch.softmax(torch.Tensor(logits), dim=1)
 
     def save(self, file_path: str):
         save_path = file_path + ".ckpt"

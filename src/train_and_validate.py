@@ -197,6 +197,7 @@ def cross_validation(
         model.train(train_data, test_data)
         prediction = model.predict(test_data)
         prediction_probability = model.predict_proba(test_data)
+        print(prediction, prediction_probability)
         ground_truth = test_data.obs["cell_type"]
 
         if classification_metrics:

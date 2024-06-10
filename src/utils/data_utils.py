@@ -19,12 +19,9 @@ class Modality:
     ADT = "ADT"
 
 
-def _GEX_preprocessing(_data: ad.AnnData):
-    sc.pp.log1p(_data)
-    sc.pp.scale(_data)
-
-
-def _ADT_preprocessing(_data: ad.AnnData):
+def _preprocess_modality(_data: ad.AnnData, modality_type: Modality):
+    if modality_type == Modality.GEX:
+        sc.pp.log1p(_data)
     sc.pp.scale(_data)
     # sc.experimental.pp.normalize_pearson_residuals(_data)
 
@@ -49,8 +46,8 @@ def _preprocess_anndata(remove_batch_effect: bool, normalize: bool) -> ad.AnnDat
 
     if normalize:
         gex_indicator = (_data.var["feature_types"] == "GEX").values
-        _GEX_preprocessing(_data.layers["counts"][:, gex_indicator])
-        _ADT_preprocessing(_data.layers["counts"][:, ~gex_indicator])
+        _preprocess_modality(_data.X[:, gex_indicator], Modality.GEX)
+        _preprocess_modality(_data.X[:, ~gex_indicator], Modality.ADT)
         if remove_batch_effect:  # Ensure data selection if needed
             sc.external.pp.bbknn(
                 _data[:, gex_indicator], batch_key="Site", use_rep="GEX_X_pca"
@@ -154,7 +151,7 @@ def get_modality_data_from_anndata(
         f"got {modality_cfg.dim} and {modality_indicator.sum()} instead."
     )
     modality_data = torch.tensor(
-        data.layers["counts"].toarray()[:, modality_indicator][:, : modality_cfg.dim],
+        data.X.toarray()[:, modality_indicator][:, : modality_cfg.dim],
         dtype=torch.float32,
     )
     if torch.isnan(modality_data).any():
@@ -197,7 +194,6 @@ def get_data_dict_from_anndata(
             )
 
         data_dict["labels"] = labels
-        print(labels.unique(), len(labels.unique()))
     return data_dict
 
 

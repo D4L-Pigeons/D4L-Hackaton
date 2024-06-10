@@ -17,8 +17,8 @@ second_modality_hidden_dim: 10 #128
 second_modality_embedding_dim: 10 #64
 output_modelling_type: "mse_direct_reconstruction" # "mse_direct_reconstruction", "ll_neg_binomial"
 # classification specific configuration
-classification_head: False
-num_classes: 0
+classification_head: True
+num_classes: 45
 class_weights: null
 # loss configuration
 recon_loss_coef: 1
@@ -27,7 +27,7 @@ c_loss_coef: 1
 # training configuration
 batch_size: 128
 lr: 0.001
-max_epochs: 5
+max_epochs: 2
 log_every_n_steps: 1
 early_stopping: False
 min_delta: 0.001
