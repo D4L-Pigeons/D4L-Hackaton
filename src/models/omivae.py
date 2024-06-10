@@ -184,14 +184,6 @@ class OmiAE(pl.LightningModule):
         for k, v in loss_components.items():
             self.log(f"Val {k}", v, on_epoch=True, prog_bar=True)
 
-    def predict(self, data: AnnData) -> Tensor:
-        print("Predict phase...")
-        if not self.classification_head:
-            raise ValueError("Model does not have a classification head")
-        mu, _ = self._encode(data)
-        logits = self.classification_head(mu)
-        return logits
-
     def _get_decoder_jacobian(self, z: Tensor) -> Tensor:
         return torch.autograd.functional.jacobian(self.decoder, z)
 
@@ -463,11 +455,12 @@ class OmiModel(ModelBase):
                 target_hierarchy_level=self.cfg.target_hierarchy_level,
             ),
         )
-        return predictions
+        return torch.tensor([loss for loss, _ in predictions], dtype=torch.float32)
 
     def predict_proba(self, data: AnnData):
         logits = self.predict(data)
-        return torch.softmax(torch.Tensor(logits), dim=1)
+        proba = torch.softmax(logits, dim=0)
+        return proba
 
     def save(self, file_path: str):
         save_path = file_path + ".ckpt"
