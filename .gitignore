@@ -10,3 +10,4 @@ src/results/*
 # src/config/*
 src/logs/*
 idea/*
+src/lightning_logs/*
