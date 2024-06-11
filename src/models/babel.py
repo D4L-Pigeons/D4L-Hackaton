@@ -68,3 +68,60 @@ class Decoder(nn.Module):
     def forward(self, z):
         decoded = self.decoder(z)
         return decoded
+
+
+class OmiModel(ModelBase):
+    def __init__(self, cfg):
+        super(OmiModel, self).__init__()
+        self.cfg = cfg
+        self.model = _OMIIVAE_IMPLEMENTATIONS[cfg.omivae_implementation](cfg)
+        self.trainer = pl.Trainer(
+            max_epochs=cfg.max_epochs,
+            logger=pl.loggers.TensorBoardLogger(LOGS_PATH, name=cfg.model_name),
+        )
+
+    def train(self, train_anndata: AnnData, val_anndata: AnnData | None = None):
+        train_loader = get_dataloader_from_anndata(
+            data=train_anndata,
+            batch_size=self.cfg.batch_size,
+            shuffle=True,
+            first_modality_dim=self.cfg.first_modality_dim,
+            second_modality_dim=self.cfg.second_modality_dim,
+            include_class_labels=self.cfg.include_class_labels,
+            target_hierarchy_level=self.cfg.target_hierarchy_level,
+        )
+        val_loader = (
+            get_dataloader_from_anndata(
+                data=val_anndata,
+                batch_size=self.cfg.batch_size,
+                shuffle=False,
+                first_modality_dim=self.cfg.first_modality_dim,
+                second_modality_dim=self.cfg.second_modality_dim,
+                include_class_labels=self.cfg.include_class_labels,
+                target_hierarchy_level=self.cfg.target_hierarchy_level,
+            )
+            if val_anndata is not None
+            else None
+        )
+
+        self.trainer.fit(
+            model=self.model, train_dataloaders=train_loader, val_dataloaders=val_loader
+        )
+
+    def predict(self, anndata: AnnData) -> AnnData:
+        pass
+
+    def predict_proba(self, anndata: AnnData) -> Tensor:
+        pass
+
+    def save(self, file_path: str):
+        save_path = file_path + ".ckpt"
+        torch.save(self.model.state_dict(), save_path)
+        return save_path
+
+    def load(self, file_path: str):
+        load_path = file_path + ".ckpt"
+        self.model.load_state_dict(torch.load(load_path))
+
+    def assert_cfg(self, cfg: Namespace) -> None:
+        pass

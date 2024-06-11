@@ -255,7 +255,7 @@ class OmiModel(ModelBase):
             logger=pl.loggers.TensorBoardLogger(LOGS_PATH, name=cfg.model_name),
         )
 
-    def train(self, train_anndata: AnnData, val_anndata: AnnData | None = None):
+    def fit(self, train_anndata: AnnData, val_anndata: AnnData | None = None):
         train_loader = get_dataloader_from_anndata(
             data=train_anndata,
             batch_size=self.cfg.batch_size,
