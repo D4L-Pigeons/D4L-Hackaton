@@ -1,3 +1,6 @@
+from types import SimpleNamespace
+from typing import Dict
+
 import anndata as ad
 import scanpy as sc
 import torch
@@ -274,8 +277,8 @@ def get_dataloader_from_anndata(
 
 def get_dataloader_dict_from_anndata(
     data: ad.AnnData,
-    modalities_cfg: SimpleNamespace,
-    shuffle: bool = True,
+    cfg: SimpleNamespace,
+    train: bool = True,
 ) -> DataLoader:
     r"""
     Get a DataLoader object for the given data.
@@ -290,12 +293,20 @@ def get_dataloader_dict_from_anndata(
     dataloader : torch.utils.data.DataLoader
         The DataLoader object for the given data. With the GEX data first.
     """
+    modalities_cfg = cfg.modalities
     data_dict = get_data_dict_from_anndata(data, modalities_cfg)
+    predict_batch_size = None
+    if train:
+        predict_batch_size = cfg.predict_batch_size
     dataloader_dict = {
         cfg_name: DataLoader(
             TensorDataset(data),
-            batch_size=vars(modalities_cfg)[cfg_name].batch_size,
-            shuffle=shuffle,
+            batch_size=(
+                predict_batch_size
+                if predict_batch_size is not None
+                else vars(modalities_cfg)[cfg_name].batch_size
+            ),
+            shuffle=train,
         )
         for cfg_name, data in data_dict.items()
     }

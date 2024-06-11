@@ -43,6 +43,8 @@ normalize: True # "log1p", "standardize", "pearson_residuals", null -> None
 remove_batch_effect: True
 include_class_labels: False
 
+
+predict_batch_size: 128
 # classification specific configuration
 classification_head: False
 num_classes: 0

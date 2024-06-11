@@ -134,7 +134,7 @@ def apply_classification_head(model, cfg: Namespace, data):
             hidden_size=cfg.num_classes * 2,
             batch_norm=cfg.batch_norm,
         )
-        logits = classification_head(mu)
+        logits = classification_head(data)
     else:
         logits = model._predict(data)
     pass

@@ -9,7 +9,7 @@ from torch import Tensor
 
 class ModelBase(ABC):
     @abstractmethod
-    def train(self, data: AnnData) -> None:
+    def fit(self, data: AnnData) -> None:
         pass
 
     @abstractmethod

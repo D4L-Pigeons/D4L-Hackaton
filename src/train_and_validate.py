@@ -2,7 +2,7 @@ import argparse
 import datetime
 import json
 import os
-from pathlib import Path
+from types import SimpleNamespace
 
 import anndata as ad
 import numpy as np
@@ -18,7 +18,6 @@ from models.omivae_simple import OmiModel
 from models.vae import VAE
 from utils.data_utils import load_anndata
 from utils.paths import CONFIG_PATH, RESULTS_PATH
-from types import SimpleNamespace
 
 
 def main():
@@ -121,7 +120,7 @@ def main():
     # Retrain and save model
     if args.retrain:
         print("Retraining model...")
-        model.train(data)
+        model.fit(data)
         saved_model_path = model.save(str(results_path / "saved_model"))
         print(f"Model saved to: {saved_model_path}")
 
@@ -134,14 +133,6 @@ def load_config(args) -> SimpleNamespace:
         config_dict = yaml.safe_load(file)
     config_namespace = json.loads(json.dumps(config_dict), object_hook=load_object)
     return config_namespace
-
-
-def load_config_debug(config_name):
-    with open(CONFIG_PATH / "vae" / f"{config_name}.yaml") as file:
-        config = yaml.safe_load(file)
-    # parse nested dictionaries into argparse.Namespace
-
-    return argparse.Namespace(**config)
 
 
 def create_model(args, config) -> ModelBase:
@@ -194,7 +185,7 @@ def cross_validation(
     for i, (train_data, test_data) in enumerate(
         k_folds(data, n_folds, random_state, subsample_frac)
     ):
-        model.train(train_data, test_data)
+        model.fit(train_data)
         prediction = model.predict(test_data)
 
         prediction_probability = torch.softmax(prediction, dim=0)

@@ -615,6 +615,10 @@ class OmiModel(ModelBase):
         if not hasattr(cfg, "early_stopping"):
             setattr(cfg, "early_stopping", True)
             print(f"early_stopping set as True")
+
+        if not hasattr(cfg, "early_stopping"):
+            setattr(cfg, "early_stopping", True)
+            print(f"early_stopping set as True")
         if cfg.early_stopping:
             if not hasattr(cfg, "min_delta"):
                 setattr(cfg, "min_delta", 0.001)

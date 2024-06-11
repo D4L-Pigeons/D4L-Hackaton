@@ -7,10 +7,12 @@ import pytorch_lightning as pl
 from pytorch_lightning.utilities.combined_loader import CombinedLoader
 from argparse import Namespace
 from anndata import AnnData
+from tqdm import tqdm
 
 from models.building_blocks import Block, ShortcutBlock
 from utils.paths import LOGS_PATH
 from utils.data_utils import get_dataloader_dict_from_anndata
+from models.ModelBase import ModelBase
 
 
 class SingleModalityVAE(nn.Module):
@@ -75,7 +77,7 @@ class SingleModalityVAE(nn.Module):
         return -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
     def training_step(self, batch: Tensor) -> Tuple[Tensor, Dict[str, Tensor]]:
-        x = batch
+        (x,) = batch
         x_hat, mu, logvar = self(x)
         reconstruction_loss = self.loss(x_hat, x)
         kld_loss = self.kld_weight * self.kld(mu, logvar)
@@ -89,7 +91,7 @@ class SingleModalityVAE(nn.Module):
         return loss, losses_dict
 
     def validation_step(self, batch: Tensor) -> Tuple[Tensor, Dict[str, Tensor]]:
-        x = batch
+        (x,) = batch
         x_hat, mu, logvar = self(x)
         reconstruction_loss = self.loss(x_hat, x)
         kld_loss = self.kld_weight * self.kld(mu, logvar)
@@ -101,6 +103,12 @@ class SingleModalityVAE(nn.Module):
             f"val_{self.cfg_name}_kld_loss": kld_loss,
         }
         return loss, losses_dict
+
+    def predict(self, batch: Tensor) -> Tensor:
+        (x,) = batch
+        x = self.mod_in(x)
+        mu = self.mu(x)
+        return mu
 
     def assert_modality_cfg(self, cfg_name: str, modality_cfg: Namespace) -> None:
         print(modality_cfg)
@@ -137,11 +145,12 @@ class SingleModalityVAE(nn.Module):
         )
 
 
-class VAE(pl.LightningModule):
+class VAE(pl.LightningModule, ModelBase):
     def __init__(self, cfg: Namespace):
         super(VAE, self).__init__()
         self.assert_cfg(cfg)
         self.cfg = cfg
+        self.automatic_optimization = False
         self.model = nn.ModuleDict(
             {
                 cfg_name: SingleModalityVAE(cfg_name, modality_cfg)
@@ -169,18 +178,22 @@ class VAE(pl.LightningModule):
         )
 
     def combine_steps(
-        self, batch: Dict[str, Tensor]
+        self, batch: Dict[str, Tensor], batch_idx: int
     ) -> Tuple[Tensor, Dict[str, Tensor]]:
         step_outputs = [
-            model.training_step(*args, **kwargs) for model in self.model.values()
+            model.training_step(batch[cfg_name])
+            for cfg_name, model in self.model.items()
         ]
         losses, losses_dicts = zip(*step_outputs)
         losses_dicts = {k: v for d in losses_dicts for k, v in d.items()}
         loss = sum(losses)
         return loss, losses_dicts
 
-    def training_step(self, *args: Any, **kwargs: Any) -> STEP_OUTPUT:
-        loss, losses_dicts = self.combine_steps(*args, **kwargs)
+    def training_step(self, batch: Dict[str, Tensor], batch_idx: int) -> STEP_OUTPUT:
+        loss, losses_dicts = self.combine_steps(batch, batch_idx)
+        loss.backward()
+        for optimizer in self.optimizers():
+            optimizer.step()
         self.log_dict(
             losses_dicts,
             on_step=True,
@@ -190,8 +203,8 @@ class VAE(pl.LightningModule):
         )
         return loss
 
-    def validation_step(self, batch: Tuple[Tensor, Tensor]) -> Tensor:
-        loss, losses_dicts = self.combine_steps(batch)
+    def validation_step(self, *args: Any, **kwargs: Any) -> Tensor:
+        loss, losses_dicts = self.combine_steps(*args, **kwargs)
         self.log_dict(
             losses_dicts,
             on_step=True,
@@ -205,27 +218,59 @@ class VAE(pl.LightningModule):
         return CombinedLoader(
             get_dataloader_dict_from_anndata(
                 data,
-                self.cfg.modalities,
-                shuffle=train,
+                self.cfg,
+                train=train,
             ),
-            mode="max_size" if train else "sequential",
+            mode="max_size",  # if train else "sequential",
         )
 
-    def train(self, train_data: AnnData, val_data: AnnData = None) -> None:
+    def fit(self, train_data: AnnData, val_data: AnnData = None) -> None:
         self.trainer.fit(
-            model=self.model,
+            model=self,
             train_dataloaders=self.get_dataloader(train_data, train=True),
-            val_dataloaders=self.get_dataloader(val_data, train=False),
+            val_dataloaders=(
+                self.get_dataloader(val_data, train=False)
+                if val_data is not None
+                else None
+            ),
         )
 
-    def configure_optimizers(self):
-        optimizers_dict = {
-            cfg_name: torch.optim.Adam(model.parameters(), lr=model.cfg.lr)
+    def predict_batch(self, batch):
+        predict_results = {
+            cfg_name: model.predict(batch[cfg_name])
             for cfg_name, model in self.model.items()
         }
-        return optimizers_dict
+        return torch.dstack(list(predict_results.values()))
 
-    def assert_cfg(self, cfg: Namespace) -> None:
+    def predict(self, data: AnnData) -> Tensor:
+        self.eval()
+        results = []
+        with torch.no_grad():
+            dataloader = self.get_dataloader(data, train=False)
+            for batch in tqdm(iter(dataloader)):
+                results.append(self.predict_batch(batch))
+        return torch.vstack(results)
+
+    def predict_proba(self, data: AnnData) -> Tensor:
+        pass
+
+    def save(self, file_path: str) -> str:
+        save_path = file_path + ".ckpt"
+        torch.save(self.model.state_dict(), save_path)
+        return save_path
+
+    def load(self, file_path: str) -> None:
+        self.load_state_dict(torch.load(file_path))
+
+    def configure_optimizers(self):
+        optimizers = [
+            torch.optim.Adam(model.parameters(), lr=model.modality_cfg.lr)
+            for model in self.model.values()
+        ]
+        return optimizers
+
+    @staticmethod
+    def assert_cfg_general(cfg: Namespace) -> None:
         assert hasattr(cfg, "model_name"), AttributeError(
             'cfg does not have the attribute "model_name"'
         )
@@ -247,3 +292,37 @@ class VAE(pl.LightningModule):
         assert hasattr(cfg, "patience"), AttributeError(
             'cfg does not have the attribute "patience"'
         )
+
+    def assert_cfg(self, cfg: Namespace) -> None:
+        self.assert_cfg_general(cfg)
+        for cfg_name, modality_cfg in vars(cfg.modalities).items():
+            assert hasattr(modality_cfg, "modality_name"), AttributeError(
+                f'{cfg_name} modality cfg does not have the attribute "modality_name"'
+            )
+            assert hasattr(modality_cfg, "dim"), AttributeError(
+                f'{cfg_name} modality cfg does not have the attribute "dim"'
+            )
+            assert hasattr(modality_cfg, "embedding_dim"), AttributeError(
+                f'{cfg_name} modality cfg does not have the attribute "embedding_dim"'
+            )
+            assert hasattr(modality_cfg, "hidden_dim"), AttributeError(
+                f'{cfg_name} modality cfg does not have the attribute "hidden_dim"'
+            )
+            assert hasattr(modality_cfg, "latent_dim"), AttributeError(
+                f'{cfg_name} modality cfg does not have the attribute "latent_dim"'
+            )
+            assert hasattr(modality_cfg, "latent_hidden_dim"), AttributeError(
+                f'{cfg_name} modality cfg does not have the attribute "latent_hidden_dim"'
+            )
+            assert hasattr(modality_cfg, "batch_norm"), AttributeError(
+                f'{cfg_name} modality cfg does not have the attribute "batch_norm"'
+            )
+            assert hasattr(modality_cfg, "kld_weight"), AttributeError(
+                f'{cfg_name} modality cfg does not have the attribute "kld_weight"'
+            )
+            assert hasattr(modality_cfg, "batch_size"), AttributeError(
+                f'{cfg_name} modality does not have the attribute "batch_size"'
+            )
+            assert hasattr(modality_cfg, "lr"), AttributeError(
+                f'{cfg_name} modality does not have the attribute "lr"'
+            )
