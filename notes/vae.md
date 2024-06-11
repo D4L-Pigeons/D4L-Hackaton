@@ -27,19 +27,23 @@ Calculating $\mathcal{L}_\text{ELBO}(x;\phi, \theta)$ is intractable as it requi
 
 $\mathcal{L}_{\text{ELBO}}(x; \phi, \theta) = \underbrace{-\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)]}_{\text{this is where we use analytical form}} + \underbrace{\mathbb{E}_{q_\phi(z | x)}[\log p_\theta(x | z)]}_{\log \text{likelihood } \approx \text{ reconstructions loss}}$
 
-Second term is approximated with one sample.
+$\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)] = \overbrace{\underbrace{\int_z q_\phi(z | x) \cdot \log q_\phi(z | x) dz}_{ -\mathcal{H}(q_\phi(z | x)) }}^{\text{streaches } q(z | x) \ : \ \sigma\uparrow} - \overbrace{\int_z q_\phi(z | x) \cdot \log p(z) dz}^{\text{mode seeking } \rightarrow \text{ squeezes } q(z | x) \ : \ \sigma\downarrow}$
+
+So the $\text{ELBO}$ effectively balances a different interests: reconstruction, squeezing and streaching "forces".
+
+Second term of $\text{ELBO}$ is approximated with one sample.
 
 $\nabla_\theta\mathcal{L}_{\text{ELBO}}(x; \phi, \theta) = \nabla_\theta\mathbb{E}_{q_\phi(z | x)}[\log p_\theta(x | z)] = \mathbb{E}_{q_\phi(z | x)}[\nabla_\theta \log p_\theta(x | z)]$
 
 $\nabla_\phi\mathcal{L}_{\text{ELBO}}(x; \phi, \theta) = \nabla_\phi \underbrace{-\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)]}_{\text{this is where we use analytical form}} + \underbrace{\nabla_\phi\mathbb{E}_{q_\phi(z | x)}[\log p(x | z)]}_{\text{problem with finding an unbiased estimator}}$
 
-## Gaussian Prior $p(z)$ and posterior $q_\phi(z | x)$
+## Gaussian prior $p(z)$ and posterior $q_\phi(z | x)$
 
 $q_\phi(z | x) = \mathcal{N}(\mu_\phi(x), \Sigma_\phi(x)) = \frac{1}{(2\pi)^{d/2} |\Sigma_\phi|^{1/2}} \exp \left( -\frac{1}{2} (z - \mu_\phi(x))^\top \Sigma^{-1}_\phi (z - \mu_\phi(x)) \right) \leftarrow \text{with } \Sigma_\phi = \text{diag}(\sigma^2_\phi(x))$
 
 $p(z) = \mathcal{N}(0, \mathbb{I}) = \frac{1}{(2\pi)^{d/2}} \exp \left( -\frac{1}{2} z^\top z \right)$
 
-$\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)] = \overbrace{\underbrace{\int_z q_\phi(z | x) \cdot \log q_\phi(z | x) dz}_{ -\mathcal{H}(q_\phi(z | x)) }}^{\text{streaches } q(z | x)} - \overbrace{\int_z q_\phi(z | x) \cdot \log p(z) dz}^{\text{mode seeking } \rightarrow \text{ squeezes } q(z | x)}$
+$\mathbb{D}_{\text{KL}}[q_\phi(z | x) || p(z)] = \overbrace{\underbrace{\int_z q_\phi(z | x) \cdot \log q_\phi(z | x) dz}_{ -\mathcal{H}(q_\phi(z | x)) }}^{\text{streaches } q(z | x) \ : \ \sigma\downarrow} - \overbrace{\int_z q_\phi(z | x) \cdot \log p(z) dz}^{\text{mode seeking } \rightarrow \text{ squeezes } q(z | x) \ : \ \sigma\uparrow}$
 
 The second term may be simplified
 
@@ -66,11 +70,27 @@ The posterior stays the same as above.
 
 When the cluster assignment is unknown the GM prior is used with mode seeking behaviour and possibililty of attraction to suboptimal cluster. Likely though the simmilar examples will be clustered in the same area even in fully unlabeled case. The analytical form is not as clean as in the Gaussian case. The log of the GM may be seen as logsumexp because of exp in the gaussian formula and it is dependent od the likelihood of being in each cluster separately.
 
-Gumbel somftmax may be useful when sampling from GM prior.
+# **TBD ...**
+### Gaussing Mixture prior and posterior
+The reparametrisation is two-fold gumbel softmax trics followed by standard reparametrisation for the chosen Gaussian Mixture component. How to compare the prior to posterior? should we compare just one component? or like NALEŚNIK "run the sample through" all clusters how then match the corresponding clusters with the prior ones? (perhaps the same way as in the Gaussian posterior case)
 
 <!-- One could do $\pi$ weighted sampling from GM and get logsumexp in the logs  -->
 
+## it reduces batch effect...? with respecto to Gaussian?
+
 # **TBD** ...
+### Hierarchical prior GMM -> GMM (with the upper level GMM having the mu = (mu_leftchild + mu_rightchild) / 2)
+
+We may specify hierarchy over the clusters II) $\frac{\mu_a + \mu_b}{2}$ one gaussian III) $\mu_a$ $\mu_b$ two GM components. The $\sigma$ may be set to $1$.
+
+In the usual case the mu's are pulled to 0 because of the prior (the mus from the encoder)
+
+Here if the example is from mu_a then it is pulled towards mu_a and the higher level mu effectively pulling the example to the second mu as well. the pulling is from both sides so the mus are pulled to the example as well (even the mu from the other cluster because of of pulling of the higher level cluster mean incorporationg it).
+![alt text](image.png)
+
+
+# When matching two latents we may do it with the common trainable GM priors and do e. g. BABEL (what about other approaches?)
+
 <!-- ### Non-factorized prior & posterior
 ... -->
 

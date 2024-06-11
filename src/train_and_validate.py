@@ -1,7 +1,8 @@
 import argparse
 import datetime
+import json
 import os
-from pathlib import Path
+from types import SimpleNamespace
 
 import anndata as ad
 import numpy as np
@@ -14,6 +15,7 @@ from sklearn.model_selection import KFold
 
 from models.ModelBase import ModelBase
 from models.omivae import OmiModel
+from models.vae import VAE
 from utils.data_utils import load_anndata
 from utils.paths import CONFIG_PATH, RESULTS_PATH
 
@@ -22,7 +24,7 @@ def main():
     parser = argparse.ArgumentParser(description="Validate model")
     parser.add_argument(
         "--method",
-        choices=["omivae", "babel", "advae"],
+        choices=["omivae", "babel", "advae", "vae"],
         help="Name of the method to use.",
     )
     parser.add_argument(
@@ -45,11 +47,18 @@ def main():
         "--cv-seed", default=42, help="Seed used to make k folds for cross validation."
     )
     parser.add_argument(
-        "--n-folds", default=5, help="Number of folds in cross validation."
+        "--n-folds", default=5, type=int, help="Number of folds in cross validation."
+    )
+    parser.add_argument(
+        "--preload-subsample-frac",
+        default=None,
+        type=float,
+        help="Fraction of the data to load. If None, use all data. Don't use subsample-frac with this option."
     )
     parser.add_argument(
         "--subsample-frac",
         default=None,
+        type=float,
         help="Fraction of the data to use for cross validation. If None, use all data.",
     )
     parser.add_argument(
@@ -61,7 +70,8 @@ def main():
     config = load_config(args)
     model = create_model(args, config)
 
-    data = load_anndata(mode=args.mode, preprocessing=config.preprocessing)
+    data = load_anndata(mode=args.mode, preprocessing=config.preprocessing,
+                        preload_subsample_frac=args.preload_subsample_frac)
 
     cross_validation_metrics = cross_validation(
         data,
@@ -105,16 +115,19 @@ def main():
     # Retrain and save model
     if args.retrain:
         print("Retraining model...")
-        model.train(data)
+        model.fit(data)
         saved_model_path = model.save(str(results_path / "saved_model"))
         print(f"Model saved to: {saved_model_path}")
 
 
-def load_config(args) -> argparse.Namespace:
-    with open(CONFIG_PATH / args.method / f"{args.config}.yaml") as file:
-        config = yaml.safe_load(file)
+def load_config(args) -> SimpleNamespace:
+    def load_object(dct):
+        return SimpleNamespace(**dct)
 
-    return argparse.Namespace(**config)
+    with open(CONFIG_PATH / args.method / f"{args.config}.yaml") as file:
+        config_dict = yaml.safe_load(file)
+    config_namespace = json.loads(json.dumps(config_dict), object_hook=load_object)
+    return config_namespace
 
 
 def create_model(args, config) -> ModelBase:
@@ -125,6 +138,8 @@ def create_model(args, config) -> ModelBase:
         raise NotImplementedError(f"{args.method} method not implemented.")
     elif args.method == "advae":
         raise NotImplementedError(f"{args.method} method not implemented.")
+    elif args.method == "vae":
+        return VAE(config)
     else:
         raise NotImplementedError(f"{args.method} method not implemented.")
 
@@ -165,7 +180,7 @@ def cross_validation(
     for i, (train_data, test_data) in enumerate(
         k_folds(data, n_folds, random_state, subsample_frac)
     ):
-        model.train(train_data)
+        model.fit(train_data)
         prediction = model.predict(test_data)
         prediction_probability = model.predict_proba(test_data)
         ground_truth = test_data.obs["cell_type"]

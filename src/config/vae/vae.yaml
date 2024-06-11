@@ -1,0 +1,62 @@
+model_name: "vae"
+modalities:
+  gex:
+    # data configuration
+    modality_name: "GEX"
+    dim: 13953 # max 13953 | MAY BE CHANGED FOR DEBUGGING
+    # architecture configuration
+    # shortcut
+    embedding_dim: 64
+    hidden_dim: 128
+    #encoder
+    latent_dim: 10
+    latent_hidden_dim: 128
+    #other
+    batch_norm: true
+    kld_weight: 1
+    # training configuration
+    batch_size: 128
+    lr: 0.001
+
+  adt:
+    # data configuration
+    modality_name: "ADT"
+    dim: 134 # max 134 | MAY BE CHANGED FOR DEBUGGING
+
+    # architecture configuration
+    # shortcut
+    embedding_dim: 64
+    hidden_dim: 128
+    #encoder
+    latent_dim: 10
+    latent_hidden_dim: 128
+    #other
+    batch_norm: true
+    kld_weight: 1
+    # training configuration
+    batch_size: 128
+    lr: 0.001
+
+# data configuration
+subsample_frac: 0.001 # 1 # | MAY BE CHANGED FOR DEBUGGING
+preprocessing: "standardize" # "log1p", "standardize", "pearson_residuals", null -> None
+include_class_labels: False
+
+
+predict_batch_size: 128
+# classification specific configuration
+classification_head: False
+num_classes: 0
+class_weights: null
+# loss configuration
+recon_loss_coef: 1
+kld_loss_coef: 1
+c_loss_coef: 1
+
+# training configuration
+max_epochs: 5
+log_every_n_steps: 1
+early_stopping: False
+min_delta: 0.001
+patience: 5
+# logger: True

@@ -9,7 +9,7 @@ from torch import Tensor
 
 class ModelBase(ABC):
     @abstractmethod
-    def train(self, data: AnnData) -> None:
+    def fit(self, data: AnnData) -> None:
         pass
 
     @abstractmethod
@@ -30,24 +30,20 @@ class ModelBase(ABC):
 
     @staticmethod
     def assert_cfg_general(cfg: Namespace) -> None:
-        assert hasattr(cfg, "first_modality_dim"), AttributeError(
-            'cfg does not have the attribute "first_modality_dim"'
-        )
-        assert hasattr(cfg, "second_modality_dim"), AttributeError(
-            'cfg does not have the attribute "second_modality_dim"'
-        )
-        assert hasattr(cfg, "hidden_dim"), AttributeError(
-            'cfg does not have the attribute "hidden_dim"'
-        )
-        assert hasattr(cfg, "latent_dim"), AttributeError(
-            'cfg does not have the attribute "latent_dim"'
-        )
-        assert hasattr(cfg, "batch_size"), AttributeError(
-            'cfg does not have the attribute "batch_size"'
-        )
-        assert hasattr(cfg, "batch_norm"), AttributeError(
-            'cfg does not have the attribute "batch_norm"'
-        )
+        default_cfg = {
+            "first_modality_dim": 13953,
+            "second_modality_dim": 134,
+            "latent_dim": 20,
+            "batch_size": 128,
+            "batch_norm": False,
+            "include_class_labels": True,
+        }
+
+        # Use getattr with default values
+        for attr, default_value in default_cfg.items():
+            if not hasattr(cfg, attr):
+                setattr(cfg, attr, default_value)
+                print(f"{attr} set as {default_value}")
 
     @abstractmethod
     def assert_cfg(self, cfg: Namespace) -> None:

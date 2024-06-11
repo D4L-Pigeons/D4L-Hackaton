@@ -6,12 +6,22 @@ import numpy as np
 import seaborn as sns
 import torch
 from sklearn.decomposition import PCA
-from sklearn.metrics import (accuracy_score, adjusted_rand_score, auc,
-                             classification_report, confusion_matrix, f1_score,
-                             mean_absolute_error, mean_squared_error,
-                             normalized_mutual_info_score, precision_score,
-                             recall_score, roc_auc_score, roc_curve,
-                             silhouette_score)
+from sklearn.metrics import (
+    accuracy_score,
+    adjusted_rand_score,
+    auc,
+    classification_report,
+    confusion_matrix,
+    f1_score,
+    mean_absolute_error,
+    mean_squared_error,
+    normalized_mutual_info_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+    roc_curve,
+    silhouette_score,
+)
 from sklearn.preprocessing import label_binarize
 
 from models.building_blocks import Block
@@ -124,7 +134,7 @@ def apply_classification_head(model, cfg: Namespace, data):
             hidden_size=cfg.num_classes * 2,
             batch_norm=cfg.batch_norm,
         )
-        logits = classification_head(mu)
+        logits = classification_head(data)
     else:
         logits = model._predict(data)
     pass
