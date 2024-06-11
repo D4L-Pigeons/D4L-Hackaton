@@ -109,7 +109,10 @@ def load_anndata(
         filter_set.append("iid_holdout")
 
     # Read and normalize
-    _data = _preprocess_anndata(remove_batch_effect, normalize)
+    _data = ad.read_h5ad(RAW_ANNDATA_PATH)
+    if normalize:
+        sc.pp.log1p(_data)
+    # _data = _preprocess_anndata(remove_batch_effect, normalize)
 
     if target_hierarchy_level == -2:
         _data = add_second_hierarchy(_data)
@@ -151,7 +154,7 @@ def get_modality_data_from_anndata(
         f"got {modality_cfg.dim} and {modality_indicator.sum()} instead."
     )
     modality_data = torch.tensor(
-        data.X.toarray()[:, modality_indicator][:, : modality_cfg.dim],
+        data[:, modality_indicator][:, : modality_cfg.dim].X.toarray(),
         dtype=torch.float32,
     )
     if torch.isnan(modality_data).any():

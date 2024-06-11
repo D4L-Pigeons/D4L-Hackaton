@@ -14,7 +14,7 @@ import yaml
 from sklearn.model_selection import KFold
 
 from models.ModelBase import ModelBase
-from models.omivae import OmiModel
+from models.omivae_simple import OmiModel
 from models.vae import VAE
 from utils.data_utils import load_anndata
 from utils.paths import CONFIG_PATH, RESULTS_PATH
@@ -222,9 +222,9 @@ def cross_validation(
             metric_name: cross_validation_metrics[metric_name].mean()
             for metric_name in metrics_names
         }
-        cross_validation_metrics.loc[
-            len(cross_validation_metrics.index)
-        ] = average_metrics
+        cross_validation_metrics.loc[len(cross_validation_metrics.index)] = (
+            average_metrics
+        )
 
         return cross_validation_metrics
 
