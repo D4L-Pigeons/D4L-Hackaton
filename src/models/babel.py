@@ -70,17 +70,25 @@ class Decoder(nn.Module):
         return decoded
 
 
-class OmiModel(ModelBase):
+_BABEL_IMPLEMENTATIONS = {
+    "Babel": {
+        "encoder": Encoder,
+        "decoder": Decoder,
+    }
+}
+
+
+class BabelModel(ModelBase):
     def __init__(self, cfg):
-        super(OmiModel, self).__init__()
+        super(BabelModel, self).__init__()
         self.cfg = cfg
-        self.model = _OMIIVAE_IMPLEMENTATIONS[cfg.omivae_implementation](cfg)
+        self.model = _BABEL_IMPLEMENTATIONS[cfg.babel_implementation](cfg)
         self.trainer = pl.Trainer(
             max_epochs=cfg.max_epochs,
             logger=pl.loggers.TensorBoardLogger(LOGS_PATH, name=cfg.model_name),
         )
 
-    def train(self, train_anndata: AnnData, val_anndata: AnnData | None = None):
+    def fit(self, train_anndata: AnnData, val_anndata: AnnData | None = None):
         train_loader = get_dataloader_from_anndata(
             data=train_anndata,
             batch_size=self.cfg.batch_size,
