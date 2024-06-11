@@ -1,7 +1,13 @@
 .DS_Store
 data/*
+!data/processed
+data/processed/*
+!data/raw
+data/raw/*
 __pycache__/
 .vscode
 src/results/*
 # src/config/*
 src/logs/*
+idea/*
+src/lightning_logs/*

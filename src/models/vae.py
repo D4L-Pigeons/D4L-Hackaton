@@ -1,4 +1,3 @@
-
 import torch
 import torch.nn as nn
 from pytorch_lightning.utilities.types import STEP_OUTPUT
@@ -78,7 +77,7 @@ class SingleModalityVAE(nn.Module):
         return -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
 
     def training_step(self, batch: Tensor) -> Tuple[Tensor, Dict[str, Tensor]]:
-        x,  = batch
+        (x,) = batch
         x_hat, mu, logvar = self(x)
         reconstruction_loss = self.loss(x_hat, x)
         kld_loss = self.kld_weight * self.kld(mu, logvar)
@@ -92,7 +91,7 @@ class SingleModalityVAE(nn.Module):
         return loss, losses_dict
 
     def validation_step(self, batch: Tensor) -> Tuple[Tensor, Dict[str, Tensor]]:
-        x,  = batch
+        (x,) = batch
         x_hat, mu, logvar = self(x)
         reconstruction_loss = self.loss(x_hat, x)
         kld_loss = self.kld_weight * self.kld(mu, logvar)
@@ -106,7 +105,7 @@ class SingleModalityVAE(nn.Module):
         return loss, losses_dict
 
     def predict(self, batch: Tensor) -> Tensor:
-        x, = batch
+        (x,) = batch
         x = self.mod_in(x)
         mu = self.mu(x)
         return mu
@@ -170,15 +169,17 @@ class VAE(pl.LightningModule, ModelBase):
                         min_delta=cfg.min_delta,
                         patience=cfg.patience,
                         verbose=False,
-                        mode="min"
+                        mode="min",
                     )
                 ]
                 if cfg.early_stopping
                 else []
-            )
+            ),
         )
 
-    def combine_steps(self, batch: Dict[str, Tensor], batch_idx: int) -> Tuple[Tensor, Dict[str, Tensor]]:
+    def combine_steps(
+        self, batch: Dict[str, Tensor], batch_idx: int
+    ) -> Tuple[Tensor, Dict[str, Tensor]]:
         step_outputs = [
             model.training_step(batch[cfg_name])
             for cfg_name, model in self.model.items()
@@ -220,14 +221,18 @@ class VAE(pl.LightningModule, ModelBase):
                 self.cfg,
                 train=train,
             ),
-            mode="max_size" # if train else "sequential",
+            mode="max_size",  # if train else "sequential",
         )
 
     def fit(self, train_data: AnnData, val_data: AnnData = None) -> None:
         self.trainer.fit(
             model=self,
             train_dataloaders=self.get_dataloader(train_data, train=True),
-            val_dataloaders=self.get_dataloader(val_data, train=False) if val_data is not None else None,
+            val_dataloaders=(
+                self.get_dataloader(val_data, train=False)
+                if val_data is not None
+                else None
+            ),
         )
 
     def predict_batch(self, batch):
@@ -245,6 +250,7 @@ class VAE(pl.LightningModule, ModelBase):
             for batch in tqdm(iter(dataloader)):
                 results.append(self.predict_batch(batch))
         return torch.vstack(results)
+
     def predict_proba(self, data: AnnData) -> Tensor:
         pass
 
@@ -258,9 +264,7 @@ class VAE(pl.LightningModule, ModelBase):
 
     def configure_optimizers(self):
         optimizers = [
-            torch.optim.Adam(
-                model.parameters(), lr=model.modality_cfg.lr
-            )
+            torch.optim.Adam(model.parameters(), lr=model.modality_cfg.lr)
             for model in self.model.values()
         ]
         return optimizers

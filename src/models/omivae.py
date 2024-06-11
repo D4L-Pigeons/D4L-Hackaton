@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from argparse import Namespace
+from cmath import inf, log
 from typing import Dict, Optional, Tuple, Union
 
 import anndata as ad
@@ -98,10 +99,11 @@ class OmiAE(pl.LightningModule):
         x_snd = self.sndmod_in(x_snd)
         # print("encode 1 passed")
         encoder_out = self.encoder(torch.cat([x_fst, x_snd], dim=-1))
-
+        # print(encoder_out, encoder_out.shape)
         return encoder_out
 
     def _decode(self, z: Tensor) -> Tuple[Tensor]:
+        # print(z.shape)
         x_fst, x_snd = self.decoder(z).split(
             [
                 self.cfg.first_modality_embedding_dim,
@@ -182,20 +184,118 @@ class OmiAE(pl.LightningModule):
         for k, v in loss_components.items():
             self.log(f"Val {k}", v, on_epoch=True, prog_bar=True)
 
-    def _predict(self, x: Tensor) -> Tensor:
-        if not self.classification_head:
-            raise ValueError("Model does not have a classification head")
-        mu, _ = self._encode(x)
-        logits = self.classification_head(mu)
+    def _get_decoder_jacobian(self, z: Tensor) -> Tensor:
+        return torch.autograd.functional.jacobian(self.decoder, z)
 
-        return logits
+    def configure_optimizers(self):
+        return optim.Adam(self.parameters(), lr=self.cfg.lr)
 
-    def _predict_proba(self, data: AnnData):
-        if not self.classification_head:
-            raise ValueError("Model does not have a classification head")
-        mu, _ = self._encode(data)
-        logits = self.classification_head(mu)
-        return torch.softmax(logits, dim=1)
+    def assert_cfg(self, cfg: Namespace) -> None:
+        default_cfg = {
+            "max_epochs": 5,
+            "log_every_n_steps": 1,
+            "first_modality_hidden_dim": 50,
+            "second_modality_hidden_dim": 10,
+            "first_modality_embedding_dim": 50,
+            "second_modality_embedding_dim": 10,
+            "encoder_hidden_dim": 5000,
+            "encoder_out_dim": 40,
+            "decoder_in_dim": 20,
+            "decoder_hidden_dim": 20,
+            "recon_loss_coef": 1,
+            "c_loss_coef": 1,
+            "kld_loss_coef": 1,
+            "lr": 0.001,
+        }
+        for attr, default_value in default_cfg.items():
+            if not hasattr(cfg, attr):
+                setattr(cfg, attr, default_value)
+                print(f"{attr} set as {default_value}")
+
+
+class OmiAESimple(pl.LightningModule):
+    def __init__(self, cfg: Namespace):
+        super(OmiAESimple, self).__init__()
+        self.assert_cfg(cfg)
+        self.cfg = cfg
+        self.encoder = nn.Sequential(
+            nn.Linear(
+                cfg.first_modality_dim + cfg.second_modality_dim, cfg.encoder_hidden_dim
+            ),
+            nn.BatchNorm1d(cfg.encoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
+            nn.ReLU(),
+            nn.Dropout(p=cfg.dropout),
+            nn.Linear(cfg.encoder_hidden_dim, cfg.encoder_hidden_dim),
+            nn.BatchNorm1d(cfg.encoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
+            nn.ReLU(),
+            nn.Dropout(p=cfg.dropout),
+            nn.Linear(cfg.encoder_hidden_dim, cfg.encoder_hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(p=cfg.dropout),
+            nn.Linear(cfg.encoder_hidden_dim, cfg.encoder_out_dim),
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(cfg.latent_dim, cfg.decoder_hidden_dim),
+            nn.BatchNorm1d(cfg.decoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
+            nn.ReLU(),
+            nn.Dropout(p=cfg.dropout),
+            nn.Linear(cfg.decoder_hidden_dim, cfg.decoder_hidden_dim),
+            nn.BatchNorm1d(cfg.decoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
+            nn.ReLU(),
+            nn.Dropout(p=cfg.dropout),
+            nn.Linear(
+                cfg.decoder_hidden_dim, cfg.first_modality_dim + cfg.second_modality_dim
+            ),
+        )
+        if cfg.classification_head:
+            self.classification_head = nn.Linear(cfg.encoder_out_dim, cfg.num_classes)
+
+    def _encode(self, x) -> Tensor:
+        encoder_out = self.encoder(x)
+        return encoder_out
+
+    def _decode(self, z: Tensor) -> Tuple[Tensor]:
+        decoder_out = self.decoder(z)
+        return decoder_out
+
+    def _classification_processing(
+        self, latent_representation: Tensor, y: Tensor, compute_accuracy: bool
+    ) -> Tuple[Tensor, Optional[Tensor], Optional[Tensor]]:
+        logits = self.classification_head(latent_representation)
+        c_loss = F.cross_entropy(logits, y, weight=self.cfg.class_weights)
+        if compute_accuracy:
+            acc = ((torch.argmax(logits, dim=1) == y).float().mean()).item()
+            bac = balanced_accuracy_score(
+                y.cpu().numpy(), torch.argmax(logits, dim=1).cpu().numpy()
+            )
+            return c_loss, acc, bac
+
+        return c_loss, None, None
+
+    def forward(
+        self, batch: Tuple[Tensor], compute_accuracy: bool = False
+    ) -> Tuple[Tensor, Dict[str, float]]:
+        metrics = {}
+        total_loss = 0.0
+        z = self._encode(batch)
+        x_hat = self._decode(z)
+        recon_loss = F.mse_loss(x_hat, batch)
+        metrics["recon_loss"] = recon_loss.item()
+        total_loss += self.cfg.recon_loss_coef * recon_loss
+
+        return total_loss, metrics
+
+    def training_step(self, batch: Tensor) -> Tensor:
+        loss, loss_components = self(batch)
+        self.log("Train loss", loss, on_epoch=True, prog_bar=True)
+        for k, v in loss_components.items():
+            self.log(f"Train {k}", v, on_epoch=True, prog_bar=True)
+
+    def validation_step(self, batch: Tensor) -> Tensor:
+        loss, loss_components = self(batch)
+        self.log("Val loss", loss, on_epoch=True, prog_bar=True)
+        for k, v in loss_components.items():
+            self.log(f"Val {k}", v, on_epoch=True, prog_bar=True)
 
     def _get_decoder_jacobian(self, z: Tensor) -> Tensor:
         return torch.autograd.functional.jacobian(self.decoder, z)
@@ -213,7 +313,7 @@ class OmiAE(pl.LightningModule):
             "second_modality_embedding_dim": 10,
             "encoder_hidden_dim": 5000,
             "encoder_out_dim": 40,
-            "decoder_in_dim": 10,
+            "decoder_in_dim": 20,
             "decoder_hidden_dim": 20,
             "recon_loss_coef": 1,
             "c_loss_coef": 1,
@@ -254,14 +354,17 @@ class OmiGMPriorProbabilisticAE(OmiAE):
             x_snd,
             labels,
         ) = batch  # ASSUMPTION THAT ALL LABELS ARE AVAILABLE (the extension to the mix of alebeled + unlabeled is not difficuls, but it is not implemented here as it may not be necessary for the task at hand)
+        # print(x_fst.shape)
         labels = torch.bernoulli(torch.ones_like(labels) * 0.5).long()
-        assert (
-            False
-        ), "The labels are random for now, this should be changed to the actual labels"
+        # assert (
+        #     False
+        # ), "The labels are random for now, this should be changed to the actual labels"
         z_means, z_stds = self._encode(x_fst, x_snd).chunk(2, dim=1)
         z_stds = self._var_transformation(z_stds)
         normal_rv = self._make_normal_rv(z_means, z_stds)
         entropy_per_batch_sample = normal_rv.entropy().sum(dim=1).unsqueeze(0)  # [1, B]
+        # entropy_per_batch_sample = torch.nan_to_num(entropy_per_batch_sample, posinf=1e4, neginf=-1e4)
+        # print("normal entropy_per_batch_sample", entropy_per_batch_sample[entropy_per_batch_sample == inf])
         assert entropy_per_batch_sample.shape == (1, x_fst.shape[0]), AssertionError(
             f"Entropy shape is {entropy_per_batch_sample.shape}, expected {(1, x_fst.shape[0])}"
         )
@@ -300,13 +403,15 @@ class OmiGMPriorProbabilisticAE(OmiAE):
             f"component_indicator shape is {component_indicator.shape}, expected {(x_fst.shape[0], self.cfg.no_components)}"
         )
         gmm_likelihood_per_k = per_component_logprob[:, component_indicator]  # [K, B]
+        # gmm_likelihood_per_k = torch.nan_to_num(gmm_likelihood_per_k, posinf=10, neginf=-10)
+
+        # print(gmm_likelihood_per_k)
         assert gmm_likelihood_per_k.shape == (
             self.cfg.no_latent_samples,
             x_fst.shape[0],
         ), AssertionError(
             f"gmm_likelihood_per_k shape is {gmm_likelihood_per_k.shape}, expected {(self.cfg.no_latent_samples, x_fst.shape[0])}"
         )
-
         x_fst_hat, x_snd_hat = self._decode(z_sample.squeeze(2))
         recon_loss_per_k = F.mse_loss(
             x_fst_hat, x_fst.repeat(self.cfg.no_latent_samples, 1, 1), reduction="none"
@@ -315,6 +420,7 @@ class OmiGMPriorProbabilisticAE(OmiAE):
         ).mean(
             dim=-1
         )  # [K, B]
+        # recon_loss_per_k = torch.nan_to_num(recon_loss_per_k, posinf=1e4, neginf=-1e4)
         assert recon_loss_per_k.shape == (
             self.cfg.no_latent_samples,
             x_fst.shape[0],
@@ -348,6 +454,8 @@ class OmiGMPriorProbabilisticAE(OmiAE):
                 metrics["acc"] = acc
                 metrics["bac"] = bac
             total_loss += self.cfg.c_loss_coef * c_loss
+
+        # print(metrics)
 
         return total_loss, metrics
 
@@ -388,6 +496,7 @@ class OmiGMPriorProbabilisticAE(OmiAE):
 
 _OMIVAE_IMPLEMENTATIONS = {
     "OmiAE": OmiAE,
+    "OmiAESimple": OmiAESimple,
     "OmiGMPriorProbabilisticAE": OmiGMPriorProbabilisticAE,
 }
 
@@ -419,35 +528,61 @@ class OmiModel(ModelBase):
             ),
         )
 
-    def fit(self, train_data: AnnData, val_data: AnnData = None) -> None:
+    def train(self, train_data: AnnData, val_data: AnnData = None) -> None:
+        print("batch_size", self.cfg.batch_size)
+        train_data = torch.tensor(train_data.X.toarray()).float()
+        from torch.utils.data import DataLoader
+
+        train_loader = DataLoader(
+            train_data, batch_size=self.cfg.batch_size, shuffle=True
+        )
+
         self.trainer.fit(
             model=self.model,
-            train_dataloaders=get_dataloader_from_anndata(
-                train_data,
-                self.cfg.first_modality_dim,
-                self.cfg.second_modality_dim,
-                self.cfg.batch_size,
-                shuffle=True,
-                include_class_labels=self.cfg.classification_head
-                or self.cfg.include_class_labels,
-            ),
+            train_dataloaders=train_loader,
+            # train_dataloaders=get_dataloader_from_anndata(
+            #     train_data,
+            #     batch_size=self.cfg.batch_size,
+            #     shuffle=True,
+            #     first_modality_dim=self.cfg.first_modality_dim,
+            #     second_modality_dim=self.cfg.second_modality_dim,
+            #     include_class_labels=self.cfg.classification_head
+            #     or self.cfg.include_class_labels,
+            #     target_hierarchy_level=self.cfg.target_hierarchy_level,
+            # ),
             val_dataloaders=(
-                get_dataset_from_anndata(
-                    val_data,
-                    self.cfg.first_modality_dim,
-                    self.cfg.second_modality_dim,
-                    include_class_labels=self.cfg.classification_head,
-                )
-                if val_data is not None
-                else None
+                None
+                # get_dataset_from_anndata(
+                #     val_data,
+                #     self.cfg.first_modality_dim,
+                #     self.cfg.second_modality_dim,
+                #     include_class_labels=self.cfg.classification_head,
+                # )
+                # if val_data is not None
+                # else None
             ),
         )
 
     def predict(self, data: AnnData):
-        pass
+        predictions = self.trainer.predict(
+            model=self.model,
+            dataloaders=get_dataloader_from_anndata(
+                data,
+                batch_size=self.cfg.batch_size,
+                shuffle=True,
+                first_modality_dim=self.cfg.first_modality_dim,
+                second_modality_dim=self.cfg.second_modality_dim,
+                include_class_labels=self.cfg.classification_head
+                or self.cfg.include_class_labels,
+                target_hierarchy_level=self.cfg.target_hierarchy_level,
+            ),
+        )
+        return torch.tensor([loss for loss, _ in predictions], dtype=torch.float32)
 
     def predict_proba(self, data: AnnData):
-        pass
+        logits = self.predict(data)
+        proba = torch.softmax(logits, dim=0)
+        return proba
 
     def save(self, file_path: str):
         save_path = file_path + ".ckpt"
@@ -476,6 +611,10 @@ class OmiModel(ModelBase):
         ], ValueError(
             f"Invalid output modelling type: {cfg.output_modelling_type}. Must be one of ['mse_direct_reconstruction', 'll_neg_binomial']"
         )
+
+        if not hasattr(cfg, "early_stopping"):
+            setattr(cfg, "early_stopping", True)
+            print(f"early_stopping set as True")
 
         if not hasattr(cfg, "early_stopping"):
             setattr(cfg, "early_stopping", True)

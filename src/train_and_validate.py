@@ -14,7 +14,7 @@ import yaml
 from sklearn.model_selection import KFold
 
 from models.ModelBase import ModelBase
-from models.omivae import OmiModel
+from models.omivae_simple import OmiModel
 from models.vae import VAE
 from utils.data_utils import load_anndata
 from utils.paths import CONFIG_PATH, RESULTS_PATH
@@ -53,7 +53,7 @@ def main():
         "--preload-subsample-frac",
         default=None,
         type=float,
-        help="Fraction of the data to load. If None, use all data. Don't use subsample-frac with this option."
+        help="Fraction of the data to load. If None, use all data. Don't use subsample-frac with this option.",
     )
     parser.add_argument(
         "--subsample-frac",
@@ -70,8 +70,13 @@ def main():
     config = load_config(args)
     model = create_model(args, config)
 
-    data = load_anndata(mode=args.mode, preprocessing=config.preprocessing,
-                        preload_subsample_frac=args.preload_subsample_frac)
+    data = load_anndata(
+        mode=args.mode,
+        normalize=config.normalize,
+        remove_batch_effect=config.remove_batch_effect,
+        target_hierarchy_level=config.target_hierarchy_level,
+        preload_subsample_frac=args.preload_subsample_frac,
+    )
 
     cross_validation_metrics = cross_validation(
         data,
@@ -182,7 +187,11 @@ def cross_validation(
     ):
         model.fit(train_data)
         prediction = model.predict(test_data)
-        prediction_probability = model.predict_proba(test_data)
+
+        prediction_probability = torch.softmax(prediction, dim=0)
+
+        print("Prediction:", prediction, "Proba:", prediction_probability)
+
         ground_truth = test_data.obs["cell_type"]
 
         if classification_metrics:
@@ -204,9 +213,9 @@ def cross_validation(
             metric_name: cross_validation_metrics[metric_name].mean()
             for metric_name in metrics_names
         }
-        cross_validation_metrics.loc[
-            len(cross_validation_metrics.index)
-        ] = average_metrics
+        cross_validation_metrics.loc[len(cross_validation_metrics.index)] = (
+            average_metrics
+        )
 
         return cross_validation_metrics
 
