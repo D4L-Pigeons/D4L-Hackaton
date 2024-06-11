@@ -6,28 +6,28 @@ include_class_labels: False
 # architecture configuration
 omivae_implementation: "OmiAE"
 batch_norm: True #False
-encoder_hidden_dim: 100 #512
+encoder_hidden_dim: 200 #512
 encoder_out_dim: 10 #128
 latent_dim: 10
 decoder_in_dim: 10 #128
-decoder_hidden_dim: 20 #512
-first_modality_hidden_dim: 100 #512
-first_modality_embedding_dim: 50 #512
-second_modality_hidden_dim: 10 #128
-second_modality_embedding_dim: 10 #64
+decoder_hidden_dim: 200 #512
+first_modality_hidden_dim: 200 #512
+first_modality_embedding_dim: 200 #512
+second_modality_hidden_dim: 30 #128
+second_modality_embedding_dim: 30 #64
 output_modelling_type: "mse_direct_reconstruction" # "mse_direct_reconstruction", "ll_neg_binomial"
 # classification specific configuration
-classification_head: True
+classification_head: False
 num_classes: 45
 class_weights: null
 # loss configuration
 recon_loss_coef: 1
 kld_loss_coef: 1
-c_loss_coef: 1
+c_loss_coef: 0.01
 # training configuration
 batch_size: 128
-lr: 0.001
-max_epochs: 2
+lr: 0.01
+max_epochs: 50
 log_every_n_steps: 1
 early_stopping: False
 min_delta: 0.001
