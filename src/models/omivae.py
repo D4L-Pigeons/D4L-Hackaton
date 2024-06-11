@@ -213,6 +213,119 @@ class OmiAE(pl.LightningModule):
                 print(f"{attr} set as {default_value}")
 
 
+class OmiAESimple(pl.LightningModule):
+    def __init__(self, cfg: Namespace):
+        super(OmiAESimple, self).__init__()
+        self.assert_cfg(cfg)
+        self.cfg = cfg
+        self.encoder = nn.Sequential(
+            nn.Linear(
+                cfg.first_modality_dim + cfg.second_modality_dim, cfg.encoder_hidden_dim
+            ),
+            nn.BatchNorm1d(cfg.encoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
+            nn.ReLU(),
+            nn.Dropout(p=cfg.dropout),
+            nn.Linear(cfg.encoder_hidden_dim, cfg.encoder_hidden_dim),
+            nn.BatchNorm1d(cfg.encoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
+            nn.ReLU(),
+            nn.Dropout(p=cfg.dropout),
+            nn.Linear(cfg.encoder_hidden_dim, cfg.encoder_hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(p=cfg.dropout),
+            nn.Linear(cfg.encoder_hidden_dim, cfg.encoder_out_dim),
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(cfg.latent_dim, cfg.decoder_hidden_dim),
+            nn.BatchNorm1d(cfg.decoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
+            nn.ReLU(),
+            nn.Dropout(p=cfg.dropout),
+            nn.Linear(cfg.decoder_hidden_dim, cfg.decoder_hidden_dim),
+            nn.BatchNorm1d(cfg.decoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
+            nn.ReLU(),
+            nn.Dropout(p=cfg.dropout),
+            nn.Linear(
+                cfg.decoder_hidden_dim, cfg.first_modality_dim + cfg.second_modality_dim
+            ),
+        )
+        if cfg.classification_head:
+            self.classification_head = nn.Linear(cfg.encoder_out_dim, cfg.num_classes)
+
+    def _encode(self, x) -> Tensor:
+        encoder_out = self.encoder(x)
+        return encoder_out
+
+    def _decode(self, z: Tensor) -> Tuple[Tensor]:
+        decoder_out = self.decoder(z)
+        return decoder_out
+
+    def _classification_processing(
+        self, latent_representation: Tensor, y: Tensor, compute_accuracy: bool
+    ) -> Tuple[Tensor, Optional[Tensor], Optional[Tensor]]:
+        logits = self.classification_head(latent_representation)
+        c_loss = F.cross_entropy(logits, y, weight=self.cfg.class_weights)
+        if compute_accuracy:
+            acc = ((torch.argmax(logits, dim=1) == y).float().mean()).item()
+            bac = balanced_accuracy_score(
+                y.cpu().numpy(), torch.argmax(logits, dim=1).cpu().numpy()
+            )
+            return c_loss, acc, bac
+
+        return c_loss, None, None
+
+    def forward(
+        self, batch: Tuple[Tensor], compute_accuracy: bool = False
+    ) -> Tuple[Tensor, Dict[str, float]]:
+        metrics = {}
+        total_loss = 0.0
+        z = self._encode(batch)
+        x_hat = self._decode(z)
+        recon_loss = F.mse_loss(x_hat, batch)
+        metrics["recon_loss"] = recon_loss.item()
+        total_loss += self.cfg.recon_loss_coef * recon_loss
+
+        return total_loss, metrics
+
+    def training_step(self, batch: Tensor) -> Tensor:
+        loss, loss_components = self(batch)
+        self.log("Train loss", loss, on_epoch=True, prog_bar=True)
+        for k, v in loss_components.items():
+            self.log(f"Train {k}", v, on_epoch=True, prog_bar=True)
+
+    def validation_step(self, batch: Tensor) -> Tensor:
+        loss, loss_components = self(batch)
+        self.log("Val loss", loss, on_epoch=True, prog_bar=True)
+        for k, v in loss_components.items():
+            self.log(f"Val {k}", v, on_epoch=True, prog_bar=True)
+
+    def _get_decoder_jacobian(self, z: Tensor) -> Tensor:
+        return torch.autograd.functional.jacobian(self.decoder, z)
+
+    def configure_optimizers(self):
+        return optim.Adam(self.parameters(), lr=self.cfg.lr)
+
+    def assert_cfg(self, cfg: Namespace) -> None:
+        default_cfg = {
+            "max_epochs": 5,
+            "log_every_n_steps": 1,
+            "first_modality_hidden_dim": 50,
+            "second_modality_hidden_dim": 10,
+            "first_modality_embedding_dim": 50,
+            "second_modality_embedding_dim": 10,
+            "encoder_hidden_dim": 5000,
+            "encoder_out_dim": 40,
+            "decoder_in_dim": 20,
+            "decoder_hidden_dim": 20,
+            "recon_loss_coef": 1,
+            "c_loss_coef": 1,
+            "kld_loss_coef": 1,
+            "lr": 0.001,
+        }
+        for attr, default_value in default_cfg.items():
+            if not hasattr(cfg, attr):
+                setattr(cfg, attr, default_value)
+                print(f"{attr} set as {default_value}")
+
+
 class OmiGMPriorProbabilisticAE(OmiAE):
     def __init__(self, cfg: Namespace):
         super(OmiGMPriorProbabilisticAE, self).__init__(cfg)
@@ -383,6 +496,7 @@ class OmiGMPriorProbabilisticAE(OmiAE):
 
 _OMIVAE_IMPLEMENTATIONS = {
     "OmiAE": OmiAE,
+    "OmiAESimple": OmiAESimple,
     "OmiGMPriorProbabilisticAE": OmiGMPriorProbabilisticAE,
 }
 
@@ -416,18 +530,26 @@ class OmiModel(ModelBase):
 
     def train(self, train_data: AnnData, val_data: AnnData = None) -> None:
         print("batch_size", self.cfg.batch_size)
+        train_data = torch.tensor(train_data.X.toarray()).float()
+        from torch.utils.data import DataLoader
+
+        train_loader = DataLoader(
+            train_data, batch_size=self.cfg.batch_size, shuffle=True
+        )
+
         self.trainer.fit(
             model=self.model,
-            train_dataloaders=get_dataloader_from_anndata(
-                train_data,
-                batch_size=self.cfg.batch_size,
-                shuffle=True,
-                first_modality_dim=self.cfg.first_modality_dim,
-                second_modality_dim=self.cfg.second_modality_dim,
-                include_class_labels=self.cfg.classification_head
-                or self.cfg.include_class_labels,
-                target_hierarchy_level=self.cfg.target_hierarchy_level,
-            ),
+            train_dataloaders=train_loader,
+            # train_dataloaders=get_dataloader_from_anndata(
+            #     train_data,
+            #     batch_size=self.cfg.batch_size,
+            #     shuffle=True,
+            #     first_modality_dim=self.cfg.first_modality_dim,
+            #     second_modality_dim=self.cfg.second_modality_dim,
+            #     include_class_labels=self.cfg.classification_head
+            #     or self.cfg.include_class_labels,
+            #     target_hierarchy_level=self.cfg.target_hierarchy_level,
+            # ),
             val_dataloaders=(
                 None
                 # get_dataset_from_anndata(
