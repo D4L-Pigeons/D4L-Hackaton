@@ -239,7 +239,7 @@ class OmiGMPriorProbabilisticAE(pl.LightningModule):
         return optimizer
 
 
-_OMIIVAE_IMPLEMENTATIONS = {
+_OMIVAE_IMPLEMENTATIONS = {
     "OmiAE": OmiAE,
     "OmiGMPriorProbabilisticAE": OmiGMPriorProbabilisticAE,
 }
@@ -249,7 +249,7 @@ class OmiModel(ModelBase):
     def __init__(self, cfg):
         super(OmiModel, self).__init__()
         self.cfg = cfg
-        self.model = _OMIIVAE_IMPLEMENTATIONS[cfg.omivae_implementation](cfg)
+        self.model = _OMIVAE_IMPLEMENTATIONS[cfg.omivae_implementation](cfg)
         self.trainer = pl.Trainer(
             max_epochs=cfg.max_epochs,
             logger=pl.loggers.TensorBoardLogger(LOGS_PATH, name=cfg.model_name),
