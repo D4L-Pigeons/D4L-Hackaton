@@ -108,7 +108,9 @@ class SingleModalityVAE(nn.Module):
         (x,) = batch
         x = self.mod_in(x)
         mu = self.mu(x)
-        return mu
+        logvar = self.logvar(x)
+        z = self.reparameterize(mu, logvar)
+        return z
 
     def assert_modality_cfg(self, cfg_name: str, modality_cfg: Namespace) -> None:
         print(modality_cfg)
@@ -250,9 +252,6 @@ class VAE(pl.LightningModule, ModelBase):
             for batch in tqdm(iter(dataloader)):
                 results.append(self.predict_batch(batch))
         return torch.vstack(results)
-
-    def predict_proba(self, data: AnnData) -> Tensor:
-        pass
 
     def save(self, file_path: str) -> str:
         save_path = file_path + ".ckpt"
