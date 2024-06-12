@@ -184,6 +184,11 @@ class OmiAE(pl.LightningModule):
         for k, v in loss_components.items():
             self.log(f"Val {k}", v, on_epoch=True, prog_bar=True)
 
+    def predict_step(self, batch: Tensor) -> Tensor:
+        x_fst, x_snd, *packed_labels_potentially = batch
+        z = self._encode(x_fst, x_snd)
+        return z
+
     def _get_decoder_jacobian(self, z: Tensor) -> Tensor:
         return torch.autograd.functional.jacobian(self.decoder, z)
 
@@ -296,6 +301,10 @@ class OmiAESimple(pl.LightningModule):
         self.log("Val loss", loss, on_epoch=True, prog_bar=True)
         for k, v in loss_components.items():
             self.log(f"Val {k}", v, on_epoch=True, prog_bar=True)
+
+    def predict_step(self, batch: Tensor) -> Tensor:
+        print("prediction_step")
+        return self._encode(batch)
 
     def _get_decoder_jacobian(self, z: Tensor) -> Tensor:
         return torch.autograd.functional.jacobian(self.decoder, z)
@@ -564,12 +573,13 @@ class OmiModel(ModelBase):
         )
 
     def predict(self, data: AnnData):
-        predictions = self.trainer.predict(
+        print("predict in omivae module")
+        latent_representation = self.trainer.predict(
             model=self.model,
             dataloaders=get_dataloader_from_anndata(
                 data,
                 batch_size=self.cfg.batch_size,
-                shuffle=True,
+                shuffle=False,
                 first_modality_dim=self.cfg.first_modality_dim,
                 second_modality_dim=self.cfg.second_modality_dim,
                 include_class_labels=self.cfg.classification_head
@@ -577,12 +587,7 @@ class OmiModel(ModelBase):
                 target_hierarchy_level=self.cfg.target_hierarchy_level,
             ),
         )
-        return torch.tensor([loss for loss, _ in predictions], dtype=torch.float32)
-
-    def predict_proba(self, data: AnnData):
-        logits = self.predict(data)
-        proba = torch.softmax(logits, dim=0)
-        return proba
+        return latent_representation
 
     def save(self, file_path: str):
         save_path = file_path + ".ckpt"

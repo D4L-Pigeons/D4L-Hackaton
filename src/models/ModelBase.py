@@ -17,10 +17,6 @@ class ModelBase(ABC):
         pass
 
     @abstractmethod
-    def predict_proba(self, data: AnnData) -> Tensor:
-        pass
-
-    @abstractmethod
     def save(self, file_path: str) -> None:
         pass
 
