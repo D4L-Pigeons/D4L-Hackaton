@@ -16,7 +16,7 @@ modalities:
     recon_loss_coef: 1
     kld_loss_coef: 0.1
     # training configuration
-    batch_size: 128
+    # batch_size: 128
     # lr: 0.001
     # loss configuration
     # recon_loss_coef: 1
@@ -37,7 +37,7 @@ modalities:
     recon_loss_coef: 1
     kld_loss_coef: 0.1
     # training configuration
-    batch_size: 128
+    # batch_size: 128
     # lr: 0.001
     # loss configuration
     # recon_loss_coef: 1
@@ -61,3 +61,4 @@ classification_head: False
 lr: 0.001
 recon_loss_coef: 1
 kld_loss_coef: 1
+batch_size: 128

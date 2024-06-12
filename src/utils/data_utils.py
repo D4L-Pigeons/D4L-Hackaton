@@ -306,7 +306,7 @@ def get_dataloader_dict_from_anndata(
                 else TensorDataset(data_dict[cfg_modality_name])
             ),
             batch_size=cfg_modality.batch_size,
-            shuffle=train,
+            shuffle=False,  # train,
         )
         for cfg_modality_name, cfg_modality in vars(cfg.modalities).items()
     }

@@ -14,7 +14,10 @@ from torch import Tensor
 from typing import Dict, Optional, Tuple, Union
 
 from utils.paths import LOGS_PATH
-from utils.data_utils import get_dataloader_dict_from_anndata
+from utils.data_utils import (
+    get_dataloader_dict_from_anndata,
+    get_dataloader_from_anndata,
+)
 from models.ModelBase import ModelBase
 from pytorch_lightning.utilities.combined_loader import CombinedLoader
 
@@ -121,25 +124,38 @@ class BabelVAE(pl.LightningModule):
         )
 
     def training_step(
-        self, batch: Dict[str, Tuple[Tensor]]
+        self, batch: Tuple[Tensor], batch_idx: int
     ) -> Tuple[Tensor, Dict[str, float]]:
         total_loss = 0.0
         full_losses_dict = {}
-        for encoding_modality_name, encoding_model in self.model.items():
-            for decoding_modality_name, decoding_model in self.model.items():
-                (x_enc,) = batch[encoding_modality_name]
-                (x_dec,) = batch[decoding_modality_name]
-                encoded, mu, std = encoding_model.encode(x_enc)
+        # for encoding_modality_name, encoding_model in self.model.items():
+        #     (x_enc,) = batch[encoding_modality_name]
+        #     encoded, mu, std = encoding_model.encode(x_enc)
+        #     kld_loss = self.kld_divergence(mu, std)
+        #     full_losses_dict[f"{encoding_modality_name}_kld"] = kld_loss.detach().item()
+        #     total_loss += self.cfg.kld_loss_coef * kld_loss
+
+        #     for decoding_modality_name, decoding_model in self.model.items():
+        #         (x_dec,) = batch[decoding_modality_name]
+        #         decoded = decoding_model.decode(encoded)
+        #         recon_loss = F.mse_loss(decoded, x_dec)
+        #         total_loss += self.cfg.recon_loss_coef * recon_loss
+        #         full_losses_dict[
+        #             f"{encoding_modality_name}_{decoding_modality_name}_recon"
+        #         ] = recon_loss.detach().item()
+        for x_enc, (encoding_modality_name, encoding_model) in zip(
+            batch, self.model.items()
+        ):
+            encoded, mu, std = encoding_model.encode(x_enc)
+            kld_loss = self.kld_divergence(mu, std)
+            full_losses_dict[f"{encoding_modality_name}_kld"] = kld_loss.detach().item()
+            total_loss += self.cfg.kld_loss_coef * kld_loss
+            for x_dec, (decoding_modality_name, decoding_model) in zip(
+                batch, self.model.items()
+            ):
                 decoded = decoding_model.decode(encoded)
-                kld_loss = self.kld_divergence(mu, std)
                 recon_loss = F.mse_loss(decoded, x_dec)
-                total_loss += (
-                    self.cfg.recon_loss_coef * recon_loss
-                    + self.cfg.kld_loss_coef * kld_loss
-                )
-                full_losses_dict[
-                    f"{encoding_modality_name}_{decoding_modality_name}_kld"
-                ] = kld_loss.detach().item()
+                total_loss += self.cfg.recon_loss_coef * recon_loss
                 full_losses_dict[
                     f"{encoding_modality_name}_{decoding_modality_name}_recon"
                 ] = recon_loss.detach().item()
@@ -193,12 +209,21 @@ class BabelModel(ModelBase):
         )
 
     def fit(self, train_anndata: AnnData, val_anndata: AnnData | None = None):
-        train_loader = get_dataloader_dict_from_anndata(
-            data=train_anndata, cfg=self.cfg, train=True
+        # train_loader = get_dataloader_dict_from_anndata(
+        #     data=train_anndata, cfg=self.cfg, train=True
+        # )
+        train_loader = get_dataloader_from_anndata(
+            data=train_anndata,
+            batch_size=self.cfg.batch_size,
+            shuffle=True,
+            include_class_labels=False,
         )
         val_loader = (
-            get_dataloader_dict_from_anndata(
-                data=val_anndata, cfg=self.cfg, train=False
+            get_dataloader_from_anndata(
+                data=val_anndata,
+                batch_size=self.cfg.batch_size,
+                shuffle=False,
+                include_class_labels=False,
             )
             if val_anndata is not None
             else None
