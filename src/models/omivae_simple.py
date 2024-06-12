@@ -92,6 +92,12 @@ class OmiAE(pl.LightningModule):
         self.log("Train loss", loss, on_epoch=True, prog_bar=True)
         return loss
 
+    def predict_step(self, batch: Tensor) -> Tensor:
+        x1, x2 = batch
+        x = torch.cat((x1, x2), dim=-1)
+        z = self.encoder(x)
+        return z
+
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.cfg.lr)
         return optimizer
@@ -221,6 +227,13 @@ class OmiGMPriorProbabilisticAE(pl.LightningModule):
 
         return total_loss
 
+    def predict_step(self, batch: Tensor) -> Tensor:
+        print("gmm omiwae predict step DONT USE YET...")
+        x1, x2 = batch
+        x = torch.cat((x1, x2), dim=-1)
+        z = self.encoder(x)
+        return z
+
     def _var_transformation(self, std: Tensor) -> Tensor:
         return F.softplus(std) + 1e-6
 
@@ -283,11 +296,22 @@ class OmiModel(ModelBase):
             model=self.model, train_dataloaders=train_loader, val_dataloaders=val_loader
         )
 
-    def predict(self, anndata: AnnData) -> AnnData:
-        pass
-
-    def predict_proba(self, anndata: AnnData) -> Tensor:
-        pass
+    def predict(self, data: AnnData) -> Tensor:
+        print("predict in omivae module")
+        latent_representation = self.trainer.predict(
+            model=self.model,
+            dataloaders=get_dataloader_from_anndata(
+                data,
+                batch_size=self.cfg.batch_size,
+                shuffle=False,
+                first_modality_dim=self.cfg.first_modality_dim,
+                second_modality_dim=self.cfg.second_modality_dim,
+                include_class_labels=self.cfg.classification_head
+                or self.cfg.include_class_labels,
+                target_hierarchy_level=self.cfg.target_hierarchy_level,
+            ),
+        )
+        return torch.cat(latent_representation, dim=0)
 
     def save(self, file_path: str):
         save_path = file_path + ".ckpt"
