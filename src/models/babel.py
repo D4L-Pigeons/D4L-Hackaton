@@ -127,10 +127,12 @@ class BabelVAE(pl.LightningModule):
         full_losses_dict = {}
         for encoding_modality_name, encoding_model in self.model.items():
             for decoding_modality_name, decoding_model in self.model.items():
-                encoded, mu, std = encoding_model.encode(batch[encoding_modality_name])
+                (x_enc,) = batch[encoding_modality_name]
+                (x_dec,) = batch[decoding_modality_name]
+                encoded, mu, std = encoding_model.encode(x_enc)
                 decoded = decoding_model.decode(encoded)
                 kld_loss = self.kld_divergence(mu, std)
-                recon_loss = F.mse_loss(decoded, batch[decoding_modality_name])
+                recon_loss = F.mse_loss(decoded, x_dec)
                 total_loss += (
                     self.cfg.recon_loss_coef * recon_loss
                     + self.cfg.kld_loss_coef * kld_loss
@@ -144,15 +146,10 @@ class BabelVAE(pl.LightningModule):
         self.log_dict(
             full_losses_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
-        opt1, opt2 = self.optimizers()
-        opt1.zero_grad()
-        opt2.zero_grad()
-        self.manual_backward(total_loss)
-        opt1.step()
-        opt2.step()
+        return total_loss
 
     def kld_divergence(self, mu, std):
-        return 0.5 * torch.sum(std**2 + mu**2 - torch.log(std) - 1)
+        return -0.5 * torch.sum(2 * torch.log(std) - std**2 - mu**2 + 1)
 
     def validation_step(self, batch: Dict[str, Tuple[Tensor]]) -> Dict[str, float]:
         full_losses_dict = {}
@@ -169,13 +166,7 @@ class BabelVAE(pl.LightningModule):
         )
 
     def configure_optimizers(self):
-        optimizers = [
-            optim.Adam(model.parameters(), lr=modality_cfg.lr)
-            for model, modality_cfg in zip(
-                self.model.values(), vars(self.cfg.modalities).values()
-            )
-        ]
-        return optimizers
+        return optim.Adam(self.parameters(), lr=self.cfg.lr)
 
 
 class BabelModel(ModelBase):

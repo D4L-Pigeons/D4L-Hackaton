@@ -17,10 +17,10 @@ modalities:
     kld_loss_coef: 0.1
     # training configuration
     batch_size: 128
-    lr: 0.001
+    # lr: 0.001
     # loss configuration
-    recon_loss_coef: 1
-    kld_loss_coef: 1
+    # recon_loss_coef: 1
+    # kld_loss_coef: 1
   adt:
     # data configuration
     modality_name: "ADT"
@@ -38,10 +38,10 @@ modalities:
     kld_loss_coef: 0.1
     # training configuration
     batch_size: 128
-    lr: 0.001
+    # lr: 0.001
     # loss configuration
-    recon_loss_coef: 1
-    kld_loss_coef: 1
+    # recon_loss_coef: 1
+    # kld_loss_coef: 1
 
 # data configuration
 subsample_frac: 1 # 1 # | MAY BE CHANGED FOR DEBUGGING
@@ -58,3 +58,6 @@ patience: 5
 # logger: True
 
 classification_head: False
+lr: 0.001
+recon_loss_coef: 1
+kld_loss_coef: 1
