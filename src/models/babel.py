@@ -14,17 +14,16 @@ from torch import Tensor
 from typing import Dict, Optional, Tuple, Union
 
 from utils.paths import LOGS_PATH
-from utils.data_utils import get_dataloader_from_anndata
+from utils.data_utils import get_dataloader_dict_from_anndata
 from models.ModelBase import ModelBase
+from pytorch_lightning.utilities.combined_loader import CombinedLoader
 
 
 class Encoder(nn.Module):
     def __init__(self, cfg):
         super(Encoder, self).__init__()
         self.encoder = nn.Sequential(
-            nn.Linear(
-                cfg.first_modality_dim + cfg.second_modality_dim, cfg.encoder_hidden_dim
-            ),
+            nn.Linear(cfg.dim, cfg.encoder_hidden_dim),
             nn.BatchNorm1d(cfg.encoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
             nn.ReLU(),
             nn.Dropout(p=cfg.dropout_rate),
@@ -60,9 +59,7 @@ class Decoder(nn.Module):
             nn.BatchNorm1d(cfg.decoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
             nn.ReLU(),
             nn.Dropout(p=cfg.dropout_rate),
-            nn.Linear(
-                cfg.decoder_hidden_dim, cfg.first_modality_dim + cfg.second_modality_dim
-            ),
+            nn.Linear(cfg.decoder_hidden_dim, cfg.dim),
         )
 
     def forward(self, z):
@@ -70,43 +67,147 @@ class Decoder(nn.Module):
         return decoded
 
 
-_BABEL_IMPLEMENTATIONS = {
-    "Babel": {
-        "encoder": Encoder,
-        "decoder": Decoder,
-    }
-}
+class SingleModalityVAE(nn.Module):
+    def __init__(self, cfg):
+        super(SingleModalityVAE, self).__init__()
+        self.encoder = Encoder(cfg)
+        self.decoder = Decoder(cfg)
+        self.normal_dist = td.Normal(0, 1)
+
+    def encode(self, x):
+        mu, log_var = self.encoder(x).chunk(2, dim=-1)
+        std = torch.exp(0.5 * log_var)
+        eps = self.normal_dist.sample(std.size()).to(mu.device)
+        z = mu + eps * std
+        return z, mu, std
+
+    def decode(self, z):
+        return self.decoder(z)
+
+    def forward(self, x):
+        z, mu, std = self.encode(x)
+        decoded = self.decode(z)
+        return decoded, mu, std
+
+
+class BabelVAE(pl.LightningModule):
+    def __init__(self, cfg):
+        super(BabelVAE, self).__init__()
+        self.cfg = cfg
+        self.model = nn.ModuleDict(
+            {
+                cfg_name: SingleModalityVAE(modality_cfg)
+                for cfg_name, modality_cfg in vars(cfg.modalities).items()
+            }
+        )
+
+        self.trainer = pl.Trainer(
+            max_epochs=cfg.max_epochs,
+            log_every_n_steps=cfg.log_every_n_steps,
+            logger=pl.loggers.TensorBoardLogger(LOGS_PATH, name=cfg.model_name),
+            callbacks=(
+                [
+                    pl.callbacks.EarlyStopping(
+                        monitor="val_loss",
+                        min_delta=cfg.min_delta,
+                        patience=cfg.patience,
+                        verbose=False,
+                        mode="min",
+                    )
+                ]
+                if cfg.early_stopping
+                else []
+            ),
+        )
+
+    def training_step(
+        self, batch: Dict[str, Tuple[Tensor]]
+    ) -> Tuple[Tensor, Dict[str, float]]:
+        total_loss = 0.0
+        full_losses_dict = {}
+        for encoding_modality_name, encoding_model in self.model.items():
+            for decoding_modality_name, decoding_model in self.model.items():
+                encoded, mu, std = encoding_model.encode(batch[encoding_modality_name])
+                decoded = decoding_model.decode(encoded)
+                kld_loss = self.kld_divergence(mu, std)
+                recon_loss = F.mse_loss(decoded, batch[decoding_modality_name])
+                total_loss += (
+                    self.cfg.recon_loss_coef * recon_loss
+                    + self.cfg.kld_loss_coef * kld_loss
+                )
+                full_losses_dict[
+                    f"{encoding_modality_name}_{decoding_modality_name}_kld"
+                ] = kld_loss.detach().item()
+                full_losses_dict[
+                    f"{encoding_modality_name}_{decoding_modality_name}_recon"
+                ] = recon_loss.detach().item()
+        self.log_dict(
+            full_losses_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
+        opt1, opt2 = self.optimizers()
+        opt1.zero_grad()
+        opt2.zero_grad()
+        self.manual_backward(total_loss)
+        opt1.step()
+        opt2.step()
+
+    def kld_divergence(self, mu, std):
+        return 0.5 * torch.sum(std**2 + mu**2 - torch.log(std) - 1)
+
+    def validation_step(self, batch: Dict[str, Tuple[Tensor]]) -> Dict[str, float]:
+        full_losses_dict = {}
+        for modality_name, model in self.model.items():
+            losses_dict = model.validation_step(batch[modality_name])
+            full_losses_dict.update(losses_dict)
+        self.log_dict(
+            full_losses_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        )
+
+    def get_dataloader(self, data: AnnData, train: bool) -> CombinedLoader:
+        return CombinedLoader(
+            get_dataloader_dict_from_anndata(data=data, cfg=self.cfg, train=train)
+        )
+
+    def configure_optimizers(self):
+        optimizers = [
+            optim.Adam(model.parameters(), lr=modality_cfg.lr)
+            for model, modality_cfg in zip(
+                self.model.values(), vars(self.cfg.modalities).values()
+            )
+        ]
+        return optimizers
 
 
 class BabelModel(ModelBase):
     def __init__(self, cfg):
         super(BabelModel, self).__init__()
         self.cfg = cfg
-        self.model = _BABEL_IMPLEMENTATIONS[cfg.babel_implementation](cfg)
+        self.model = BabelVAE(cfg)
         self.trainer = pl.Trainer(
             max_epochs=cfg.max_epochs,
             logger=pl.loggers.TensorBoardLogger(LOGS_PATH, name=cfg.model_name),
+            callbacks=(
+                [
+                    pl.callbacks.EarlyStopping(
+                        monitor="val_loss",
+                        min_delta=cfg.min_delta,
+                        patience=cfg.patience,
+                        verbose=False,
+                        mode="min",
+                    )
+                ]
+                if cfg.early_stopping
+                else []
+            ),
         )
 
     def fit(self, train_anndata: AnnData, val_anndata: AnnData | None = None):
-        train_loader = get_dataloader_from_anndata(
-            data=train_anndata,
-            batch_size=self.cfg.batch_size,
-            shuffle=True,
-            first_modality_dim=self.cfg.first_modality_dim,
-            second_modality_dim=self.cfg.second_modality_dim,
-            include_class_labels=self.cfg.include_class_labels,
-            target_hierarchy_level=self.cfg.target_hierarchy_level,
+        train_loader = get_dataloader_dict_from_anndata(
+            data=train_anndata, cfg=self.cfg, train=True
         )
         val_loader = (
-            get_dataloader_from_anndata(
-                data=val_anndata,
-                batch_size=self.cfg.batch_size,
-                shuffle=False,
-                first_modality_dim=self.cfg.first_modality_dim,
-                second_modality_dim=self.cfg.second_modality_dim,
-                include_class_labels=self.cfg.include_class_labels,
-                target_hierarchy_level=self.cfg.target_hierarchy_level,
+            get_dataloader_dict_from_anndata(
+                data=val_anndata, cfg=self.cfg, train=False
             )
             if val_anndata is not None
             else None

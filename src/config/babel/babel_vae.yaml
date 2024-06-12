@@ -56,3 +56,5 @@ early_stopping: False
 min_delta: 0.001
 patience: 5
 # logger: True
+
+classification_head: False
