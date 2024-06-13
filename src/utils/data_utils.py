@@ -279,7 +279,7 @@ def get_dataloader_dict_from_anndata(
     data: ad.AnnData,
     cfg: SimpleNamespace,
     train: bool = True,
-) -> DataLoader:
+) -> Dict[str, DataLoader]:
     r"""
     Get a DataLoader object for the given data.
 
@@ -294,21 +294,21 @@ def get_dataloader_dict_from_anndata(
         The DataLoader object for the given data. With the GEX data first.
     """
     modalities_cfg = cfg.modalities
-    data_dict = get_data_dict_from_anndata(data, modalities_cfg)
-    predict_batch_size = None
-    if train:
-        predict_batch_size = cfg.predict_batch_size
+    data_dict = get_data_dict_from_anndata(
+        data, modalities_cfg, cfg.include_class_labels, cfg.target_hierarchy_level
+    )
+
     dataloader_dict = {
-        cfg_name: DataLoader(
-            TensorDataset(data),
-            batch_size=(
-                predict_batch_size
-                if predict_batch_size is not None
-                else vars(modalities_cfg)[cfg_name].batch_size
+        cfg_modality_name: DataLoader(
+            (
+                TensorDataset(data_dict[cfg_modality_name], data_dict["labels"])
+                if cfg.include_class_labels
+                else TensorDataset(data_dict[cfg_modality_name])
             ),
-            shuffle=train,
+            batch_size=cfg_modality.batch_size,
+            shuffle=False,  # train,
         )
-        for cfg_name, data in data_dict.items()
+        for cfg_modality_name, cfg_modality in vars(cfg.modalities).items()
     }
     return dataloader_dict
 

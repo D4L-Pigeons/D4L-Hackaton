@@ -13,6 +13,7 @@ from sklearn.model_selection import KFold
 
 from models.ModelBase import ModelBase
 from models.omivae_simple import OmiModel
+from models.babel import BabelModel
 from models.vae import VAE
 from utils.data_utils import load_anndata
 from utils.paths import CONFIG_PATH, RESULTS_PATH
@@ -151,7 +152,8 @@ def create_model(args, config) -> ModelBase:
         model = OmiModel(config)
         return model
     elif args.method == "babel":
-        raise NotImplementedError(f"{args.method} method not implemented.")
+        model = BabelModel(config)
+        return model
     elif args.method == "advae":
         raise NotImplementedError(f"{args.method} method not implemented.")
     elif args.method == "vae":
