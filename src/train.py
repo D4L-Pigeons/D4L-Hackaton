@@ -12,7 +12,7 @@ import yaml
 
 from models.babel import BabelModel
 from models.ModelBase import ModelBase
-from models.omivae_simple import OmiModel
+from models.omivae import OmiModel
 from models.vae import VAE
 from utils.data_utils import load_anndata
 from utils.paths import CONFIG_PATH, RESULTS_PATH
