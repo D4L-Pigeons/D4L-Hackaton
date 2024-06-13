@@ -1,4 +1,6 @@
 from argparse import Namespace
+from typing import Dict, Optional, Tuple, Union
+
 import anndata as ad
 import pytorch_lightning as pl
 import torch
@@ -6,20 +8,18 @@ import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import DataLoader
-from torch import Tensor
 from anndata import AnnData
+from pytorch_lightning.utilities.combined_loader import CombinedLoader
 from sklearn.metrics import balanced_accuracy_score
 from torch import Tensor
-from typing import Dict, Optional, Tuple, Union
+from torch.utils.data import DataLoader
 
-from utils.paths import LOGS_PATH
+from models.ModelBase import ModelBase
 from utils.data_utils import (
     get_dataloader_dict_from_anndata,
     get_dataloader_from_anndata,
 )
-from models.ModelBase import ModelBase
-from pytorch_lightning.utilities.combined_loader import CombinedLoader
+from utils.paths import LOGS_PATH
 
 
 class Encoder(nn.Module):

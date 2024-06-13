@@ -9,8 +9,8 @@ import numpy as np
 import pandas as pd
 import torch
 import yaml
-from sklearn.model_selection import KFold
 
+from models.babel import BabelModel
 from models.ModelBase import ModelBase
 from models.omivae_simple import OmiModel
 from models.vae import VAE
@@ -60,16 +60,8 @@ def main():
         target_hierarchy_level=config.target_hierarchy_level,
         preload_subsample_frac=args.preload_subsample_frac,
     )
-    # test_data = load_anndata(
-    #     mode="test",
-    #     normalize=config.normalize,
-    #     remove_batch_effect=config.remove_batch_effect,
-    #     target_hierarchy_level=config.target_hierarchy_level,
-    #     preload_subsample_frac=args.preload_subsample_frac,
-    # )
 
     model.fit(train_data)
-    # latent_metrics(model, val_data)
 
     # Save results
     current_time = datetime.datetime.now()
@@ -112,7 +104,8 @@ def create_model(args, config) -> ModelBase:
         model = OmiModel(config)
         return model
     elif args.method == "babel":
-        raise NotImplementedError(f"{args.method} method not implemented.")
+        model = BabelModel(config)
+        return model
     elif args.method == "advae":
         raise NotImplementedError(f"{args.method} method not implemented.")
     elif args.method == "vae":
