@@ -39,7 +39,8 @@ modalities:
 
 # data configuration
 subsample_frac: 0.001 # 1 # | MAY BE CHANGED FOR DEBUGGING
-preprocessing: "standardize" # "log1p", "standardize", "pearson_residuals", null -> None
+normalize: True # "log1p", "standardize", "pearson_residuals", null -> None
+remove_batch_effect: True
 include_class_labels: False
 
 
@@ -60,3 +61,4 @@ early_stopping: False
 min_delta: 0.001
 patience: 5
 # logger: True
+target_hierarchy_level: -1
