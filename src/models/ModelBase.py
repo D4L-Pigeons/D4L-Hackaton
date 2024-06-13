@@ -9,15 +9,11 @@ from torch import Tensor
 
 class ModelBase(ABC):
     @abstractmethod
-    def train(self, data: AnnData) -> None:
+    def fit(self, data: AnnData) -> None:
         pass
 
     @abstractmethod
     def predict(self, data: AnnData) -> Tensor:
-        pass
-
-    @abstractmethod
-    def predict_proba(self, data: AnnData) -> Tensor:
         pass
 
     @abstractmethod

@@ -1,8 +1,9 @@
 import sys
 
+import numpy as np
 import anndata as ad
 
-from utils.paths import HIERARCHY_PATH
+from utils.paths import RAW_ANNDATA_HIERARCHY_PATH
 
 default_hierarchies_mapping = {
     "CD14+ Mono": "Monocytes",
@@ -54,19 +55,14 @@ default_hierarchies_mapping = {
 
 
 def add_second_hierarchy(
-    _data, hierarchies_mapping: dict = default_hierarchies_mapping, mode: str = "train"
+    _data, hierarchies_mapping: dict = default_hierarchies_mapping
 ):
-    if HIERARCHY_PATH.exists():
-        return ad.read_h5ad(HIERARCHY_PATH)
-
     labels = _data.obs["cell_type"]
     print(labels)
     _data.obs["second_hierarchy"] = labels.map(hierarchies_mapping)
-    print(_data.obs["cell_type"].values.unique())
-    print(_data.obs["second_hierarchy"].values.unique())
     print("Second hierarchy mapping:", _data.obs["second_hierarchy"].head())
 
-    _data.write(filename=HIERARCHY_PATH)
+    _data.write(filename=RAW_ANNDATA_HIERARCHY_PATH)
     return _data
 
 

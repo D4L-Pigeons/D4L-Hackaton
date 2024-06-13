@@ -7,50 +7,165 @@ import seaborn as sns
 import torch
 from sklearn.decomposition import PCA
 from sklearn.metrics import (
-    accuracy_score,
     adjusted_rand_score,
     auc,
-    classification_report,
-    confusion_matrix,
-    f1_score,
-    mean_absolute_error,
-    mean_squared_error,
     normalized_mutual_info_score,
-    precision_score,
-    recall_score,
-    roc_auc_score,
     roc_curve,
     silhouette_score,
 )
 from sklearn.preprocessing import label_binarize
 
 from models.building_blocks import Block
+import sklearn
+
+from torch import nn
+from torch.nn import functional as F
+from pytorch_lightning import LightningModule
+
+import pytorch_lightning as pl
 
 
-def evaluate_classification(y_true, y_pred, y_proba=None):
-    accuracy = accuracy_score(y_true, y_pred)
-    precision = precision_score(y_true, y_pred, average="weighted")
-    recall = recall_score(y_true, y_pred, average="weighted")
-    f1 = f1_score(y_true, y_pred, average="weighted")
-    class_report = classification_report(y_true, y_pred)
-    conf_matrix = confusion_matrix(y_true, y_pred)
-    mse = mean_squared_error(y_true, y_pred)
-    mae = mean_absolute_error(y_true, y_pred)
-    roc_auc = roc_auc_score(y_true, y_pred)
+class ClassificationModel(pl.LightningModule):
+    def __init__(self, latent_dim, num_classes, do_batch_norm=False):
+        super().__init__()
+        self.classification_head = Block(
+            input_size=latent_dim,
+            output_size=num_classes,
+            hidden_size=num_classes * 2,
+            batch_norm=do_batch_norm,
+        )
+        self.loss = nn.CrossEntropyLoss()  # Adjust
+
+    def forward(self, z):
+        return self.classification_head(z)
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self.forward(x)
+        loss = self.loss(y_hat, y)
+        self.log(
+            "train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
+        )
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self.forward(x)
+        loss = self.loss(y_hat, y)
+        self.log(
+            "val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        )
+        # Calculate metrics here
+        # preds = F.softmax(y_hat, dim=1)  # Adjust for other activation functions
+        # self.log("val_accuracy", accuracy, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+        return loss
+
+    def predict(self, z):
+        y_hat = self.classification_head(z)
+        return y_hat
+
+    def configure_optimizers(self):
+        # Define optimizer here
+        optimizer = torch.optim.Adam(
+            self.parameters(), lr=0.001
+        )  # Adjust learning rate
+        return optimizer
+
+
+from torch.utils.data import DataLoader, TensorDataset
+
+
+def train_classification_head(model, data):
+    print("train_classification_head...")
+    latent_representation = model.predict(data)
+    print(latent_representation.shape)
+    latent_dim = latent_representation.shape[1]
+    num_classes = len(data.obs["cell_type"].cat.categories)
+    print("Number of classes is:", num_classes)
+    print("Init classification head...")
+    classification_head = ClassificationModel(latent_dim, num_classes)
+    print("Train classification head...")
+    # Create trainer here
+    trainer = pl.Trainer(max_epochs=10)  # Adjust epochs as needed
+    print(torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long))
+    curr_dataset = TensorDataset(
+        latent_representation,
+        torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long),
+    )
+    dataloader = DataLoader(curr_dataset, batch_size=128, shuffle=False)
+    trainer.fit(classification_head, dataloader)  # Pass data as a PyTorch DataLoader
+    return classification_head
+
+
+def get_predictions_gt_classes(model, classification_head, data):
+    test_latent_representation = model.predict(data)
+    prediction = classification_head.predict(test_latent_representation)
+
+    prediction_probability = torch.softmax(prediction, dim=1)
+    ground_truth = data.obs["cell_type"].cat.codes.values
+    classes = data.obs["cell_type"].cat.categories
+    return prediction, prediction_probability, ground_truth, classes
+
+
+def evaluate_clustering(y_true, y_pred, data):
+    silhouette = silhouette_score(data, y_pred)  # figure out what data is
+    ari = adjusted_rand_score(y_true, y_pred)
+    nmi = normalized_mutual_info_score(y_true, y_pred)
     metrics = {
-        "accuracy": accuracy,
-        "precision": precision,
-        "recall": recall,
-        "f1_score": f1,
-        "class_report": class_report,
-        "conf_matrix": conf_matrix,
-        "mse": mse,
-        "mae": mae,
-        "roc_auc": roc_auc,
+        "silhouette_score": silhouette,
+        "adjusted_rand_index": ari,
+        "normalized_mutual_info": nmi,
     }
-
     print(metrics)
+    plot_clustering(data, y_pred)
     return metrics
+
+
+def get_metrics(model, classification_head, test_data):
+    (
+        prediction,
+        prediction_probability,
+        ground_truth,
+        classes,
+    ) = get_predictions_gt_classes(model, classification_head, test_data)
+    metrics = evaluate_clustering(ground_truth, prediction, test_data)
+
+    metrics["f1_score_per_cell_type"] = sklearn.metrics.f1_score(
+        ground_truth, prediction, labels=classes, average=None
+    )
+    metrics["f1_score"] = sklearn.metrics.f1_score(
+        ground_truth, prediction, labels=classes, average="macro"
+    )
+    metrics["accuracy"] = sklearn.metrics.accuracy_score(ground_truth, prediction)
+    metrics[
+        "average_precision_per_cell_type"
+    ] = sklearn.metrics.average_precision_score(
+        ground_truth, prediction_probability, average=None
+    )
+    metrics["roc_auc_per_cell_type"] = sklearn.metrics.roc_auc_score(
+        ground_truth,
+        prediction_probability,
+        multi_class="ovr",
+        average=None,
+        labels=classes,
+    )
+    plot_roc_auc(ground_truth, prediction_probability, len(classes))
+    metrics["confusion_matrix"] = sklearn.metrics.confusion_matrix(
+        ground_truth, prediction, labels=classes
+    )
+    return metrics
+
+
+def calculate_metrics(model, train_data, test_data):
+    classification_head = train_classification_head(model, train_data)
+    metrics = get_metrics(model, classification_head, test_data)
+    return metrics
+
+
+def latent_metrics(model, test_data):
+    latent_representation = model.predict(test_data)
+    ground_truth = test_data.obs["cell_type"]
+    # todo: umap + clustering
 
 
 def plot_roc_auc(y_true, y_pred, num_classes):  # what to do with this?
@@ -88,53 +203,3 @@ def plot_clustering(data, y_pred):
     sns.scatterplot(x=data[:, 0], y=data[:, 1], hue=y_pred, palette="viridis")
     plt.title("Clustering Results")
     plt.show()
-
-
-def evaluate_clustering(y_true, y_pred, data):
-    silhouette = silhouette_score(data, y_pred)  # figure out what data is
-    ari = adjusted_rand_score(y_true, y_pred)
-    nmi = normalized_mutual_info_score(y_true, y_pred)
-    metrics = {
-        "silhouette_score": silhouette,
-        "adjusted_rand_index": ari,
-        "normalized_mutual_info": nmi,
-    }
-    print(metrics)
-    plot_clustering(data, y_pred)
-    return metrics
-
-
-def evaluate_model(model, test_loader):
-    model.eval()
-    y_true = []
-    y_pred = []
-    data = []
-
-    with torch.no_grad():
-        for batch in test_loader:
-            x_fst, x_snd, labels = batch
-            data.append(
-                torch.cat([x_fst, x_snd], dim=1)
-            )  # check this and if matches labels
-            logits = model.predict(x_fst, x_snd)
-            predictions = torch.argmax(logits, dim=1)
-            y_true.extend(labels.cpu().numpy())
-            y_pred.extend(predictions.cpu().numpy())
-
-    classification_metrics = evaluate_classification(y_true, y_pred)
-    clustering_metrics = evaluate_clustering(y_true, y_pred, data)
-    # plot_roc_auc(y_true, y_proba)
-
-
-def apply_classification_head(model, cfg: Namespace, data):
-    if not cfg.classification_head:
-        classification_head = Block(
-            input_size=cfg.latent_dim,
-            output_size=cfg.num_classes,
-            hidden_size=cfg.num_classes * 2,
-            batch_norm=cfg.batch_norm,
-        )
-        logits = classification_head(mu)
-    else:
-        logits = model._predict(data)
-    pass
