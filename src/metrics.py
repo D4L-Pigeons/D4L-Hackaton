@@ -84,7 +84,7 @@ def train_classification_head(model, data):
     classification_head = ClassificationModel(latent_dim, num_classes)
     print("Train classification head...")
     # Create trainer here
-    trainer = pl.Trainer(max_epochs=10)  # Adjust epochs as needed
+    trainer = pl.Trainer(max_epochs=1)  # Adjust epochs as needed
     print(torch.tensor(data.obs["cell_type"].cat.codes.values, dtype=torch.long))
     curr_dataset = TensorDataset(
         latent_representation,
@@ -156,6 +156,7 @@ def get_metrics(model, classification_head, test_data):
 
 def calculate_metrics(model, train_data, test_data):
     classification_head = train_classification_head(model, train_data)
+    print("Finished training classification head.")
     metrics = get_metrics(model, classification_head, test_data)
     return metrics
 
@@ -237,7 +238,7 @@ def main():
         normalize=config.normalize,
         remove_batch_effect=config.remove_batch_effect,
         target_hierarchy_level=config.target_hierarchy_level,
-        preload_subsample_frac=args.preload_subsample_frac,
+        preload_subsample_frac=None,
     )
 
     test_data = load_anndata(

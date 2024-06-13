@@ -232,11 +232,11 @@ class OmiGMPriorProbabilisticAE(pl.LightningModule):
         return total_loss
 
     def predict_step(self, batch: Tensor) -> Tensor:
-        print("gmm omiwae predict step DONT USE YET...")
+        # print("gmm omiwae predict step...")
         x1, x2 = batch
         x = torch.cat((x1, x2), dim=-1)
-        z = self.encoder(x)
-        return z
+        z_means, _ = self.encoder(x).chunk(2, dim=-1)
+        return z_means
 
     def _var_transformation(self, std: Tensor) -> Tensor:
         return F.softplus(std) + 1e-6
@@ -310,8 +310,7 @@ class OmiModel(ModelBase):
                 shuffle=False,
                 first_modality_dim=self.cfg.first_modality_dim,
                 second_modality_dim=self.cfg.second_modality_dim,
-                include_class_labels=self.cfg.classification_head
-                or self.cfg.include_class_labels,
+                include_class_labels=False,
                 target_hierarchy_level=self.cfg.target_hierarchy_level,
             ),
         )
