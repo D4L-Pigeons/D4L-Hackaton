@@ -93,10 +93,7 @@ class SingleModalityVAE(nn.Module):
         return decoded, mu, std
 
     def predict(self, x):
-        encoded_dict = {}
-        for modality_name, modality_data in x.items():
-            encoded_dict[modality_name] = self.encode(modality_data)[1]  # mu
-        return encoded_dict
+        return self.encode(x)[1]  # mu
 
 
 class BabelVAE(pl.LightningModule):
@@ -181,6 +178,14 @@ class BabelVAE(pl.LightningModule):
         self.log_dict(
             full_losses_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True
         )
+
+    def predict_step(self, batch: Dict[str, Tuple[Tensor]]) -> Dict[str, Tensor]:
+        latent_representation_dict = {}
+        for modality_name, model in self.model.items():
+            latent_representation_dict[modality_name] = model.predict(
+                batch[modality_name]
+            )
+        return latent_representation_dict
 
     def get_dataloader(self, data: AnnData, train: bool) -> CombinedLoader:
         return CombinedLoader(
