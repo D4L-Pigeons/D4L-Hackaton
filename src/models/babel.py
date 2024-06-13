@@ -1,4 +1,6 @@
 from argparse import Namespace
+from typing import Dict, Optional, Tuple, Union
+
 import anndata as ad
 import pytorch_lightning as pl
 import torch
@@ -6,20 +8,18 @@ import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import DataLoader
-from torch import Tensor
 from anndata import AnnData
+from pytorch_lightning.utilities.combined_loader import CombinedLoader
 from sklearn.metrics import balanced_accuracy_score
 from torch import Tensor
-from typing import Dict, Optional, Tuple, Union
+from torch.utils.data import DataLoader
 
-from utils.paths import LOGS_PATH
+from models.ModelBase import ModelBase
 from utils.data_utils import (
     get_dataloader_dict_from_anndata,
     get_dataloader_from_anndata,
 )
-from models.ModelBase import ModelBase
-from pytorch_lightning.utilities.combined_loader import CombinedLoader
+from utils.paths import LOGS_PATH
 
 
 class Encoder(nn.Module):
@@ -91,6 +91,12 @@ class SingleModalityVAE(nn.Module):
         z, mu, std = self.encode(x)
         decoded = self.decode(z)
         return decoded, mu, std
+
+    def predict(self, x):
+        encoded_dict = {}
+        for modality_name, modality_data in x.items():
+            encoded_dict[modality_name] = self.encode(modality_data)[1]  # mu
+        return encoded_dict
 
 
 class BabelVAE(pl.LightningModule):
@@ -233,11 +239,26 @@ class BabelModel(ModelBase):
             model=self.model, train_dataloaders=train_loader, val_dataloaders=val_loader
         )
 
-    def predict(self, anndata: AnnData) -> AnnData:
-        pass
-
-    def predict_proba(self, anndata: AnnData) -> Tensor:
-        pass
+    def predict(self, data: AnnData) -> Dict[str, Tensor]:
+        print("predict in omivae module")
+        latent_representation_dict = self.trainer.predict(
+            model=self.model,
+            dataloaders=get_dataloader_from_anndata(
+                data,
+                batch_size=self.cfg.batch_size,
+                shuffle=False,
+                first_modality_dim=self.cfg.first_modality_dim,
+                second_modality_dim=self.cfg.second_modality_dim,
+                include_class_labels=self.cfg.classification_head
+                or self.cfg.include_class_labels,
+                target_hierarchy_level=self.cfg.target_hierarchy_level,
+            ),
+        )
+        for modality_name, latent_representation in latent_representation_dict.items():
+            latent_representation_dict[modality_name] = torch.cat(
+                latent_representation, dim=0
+            )
+        return latent_representation_dict
 
     def save(self, file_path: str):
         save_path = file_path + ".ckpt"

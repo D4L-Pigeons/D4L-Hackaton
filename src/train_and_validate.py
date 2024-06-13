@@ -11,13 +11,13 @@ import torch
 import yaml
 from sklearn.model_selection import KFold
 
+from models.babel import BabelModel
 from models.ModelBase import ModelBase
 from models.omivae_simple import OmiModel
-from models.babel import BabelModel
 from models.vae import VAE
 from utils.data_utils import load_anndata
-from utils.paths import CONFIG_PATH, RESULTS_PATH
 from utils.metrics import calculate_metrics, latent_metrics
+from utils.paths import CONFIG_PATH, RESULTS_PATH
 
 
 def main():

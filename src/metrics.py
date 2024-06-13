@@ -3,8 +3,11 @@ from itertools import cycle
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytorch_lightning as pl
 import seaborn as sns
+import sklearn
 import torch
+from pytorch_lightning import LightningModule
 from sklearn.decomposition import PCA
 from sklearn.metrics import (
     adjusted_rand_score,
@@ -14,15 +17,10 @@ from sklearn.metrics import (
     silhouette_score,
 )
 from sklearn.preprocessing import label_binarize
-
-from models.building_blocks import Block
-import sklearn
-
 from torch import nn
 from torch.nn import functional as F
-from pytorch_lightning import LightningModule
 
-import pytorch_lightning as pl
+from models.building_blocks import Block
 
 
 class ClassificationModel(pl.LightningModule):
@@ -203,3 +201,56 @@ def plot_clustering(data, y_pred):
     sns.scatterplot(x=data[:, 0], y=data[:, 1], hue=y_pred, palette="viridis")
     plt.title("Clustering Results")
     plt.show()
+
+
+import argparse
+from utils.data_utils import load_anndata
+from train import load_config, create_model
+import pandas as pd
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Validate model")
+    parser.add_argument(
+        "--path",
+        help="Path to load config from.",
+    )
+    parser.add_argument(
+        "--method",
+        choices=["omivae", "babel", "advae", "vae"],
+        help="Name of the method to use.",
+    )
+    parser.add_argument(
+        "--config",
+        default="standard",
+        help="Name of a configuration in src/config/{method}.yaml.",
+    )
+    args = parser.parse_args()
+
+    config = load_config(args)
+    model = create_model(args, config)
+
+    model.load(args.path)
+
+    train_data = load_anndata(
+        mode="train",
+        normalize=config.normalize,
+        remove_batch_effect=config.remove_batch_effect,
+        target_hierarchy_level=config.target_hierarchy_level,
+        preload_subsample_frac=args.preload_subsample_frac,
+    )
+
+    test_data = load_anndata(
+        mode="test",
+        normalize=config.normalize,
+        remove_batch_effect=config.remove_batch_effect,
+        target_hierarchy_level=config.target_hierarchy_level,
+        preload_subsample_frac=None,
+    )
+
+    metrics_dict = calculate_metrics(model, train_data, test_data)
+    pd.DataFrame.from_dict(metrics_dict).to_csv(args.path + "metrics.csv")
+
+
+if __name__ == "__main__":
+    main()
