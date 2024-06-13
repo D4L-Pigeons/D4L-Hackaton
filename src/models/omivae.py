@@ -129,10 +129,14 @@ class OmiGMPriorProbabilisticAE(pl.LightningModule):
         x = torch.cat((x1, x2), dim=-1)
         z_means, z_stds = self.encoder(x).chunk(2, dim=-1)
         z_stds = self._var_transformation(z_stds)
+        # print(z_stds)
         normal_rv = self._make_normal_rv(z_means, z_stds)
         entropy_per_batch_sample = (
             normal_rv.entropy().sum(dim=-1).unsqueeze(0)
         )  # (1, batch_size)
+
+        # print(normal_rv.entropy().shape, normal_rv.entropy().sum(dim=-1))
+
         assert entropy_per_batch_sample.shape == (
             1,
             batch_size,
@@ -198,14 +202,14 @@ class OmiGMPriorProbabilisticAE(pl.LightningModule):
         if self.cfg.no_latent_samples > 1:  # IWAE with multiple samples
             total_loss = torch.logsumexp(
                 self.cfg.gmm_likelihood_loss_coef * gmm_likelihood_per_k
-                + self.cfg.entropy_loss_coef * entropy_per_batch_sample
+                - self.cfg.entropy_loss_coef * entropy_per_batch_sample
                 + self.cfg.recon_loss_coef * recon_loss_per_k,
                 dim=0,
             ).mean()
         else:  # IWAE reduces to VAE with single sample
             total_loss = (
                 self.cfg.gmm_likelihood_loss_coef * gmm_likelihood_per_k
-                + self.cfg.entropy_loss_coef * entropy_per_batch_sample
+                - self.cfg.entropy_loss_coef * entropy_per_batch_sample
                 + self.cfg.recon_loss_coef * recon_loss_per_k
             ).mean()
         self.log("Train loss", total_loss, on_epoch=True, prog_bar=True)
@@ -214,13 +218,13 @@ class OmiGMPriorProbabilisticAE(pl.LightningModule):
         )
         self.log(
             "GMM likelihood loss",
-            gmm_likelihood_per_k.mean(),
+            self.cfg.gmm_likelihood_loss_coef * gmm_likelihood_per_k.mean(),
             on_epoch=True,
             prog_bar=True,
         )
         self.log(
             "Entropy loss",
-            entropy_per_batch_sample.mean(),
+            -self.cfg.entropy_loss_coef * entropy_per_batch_sample.mean(),
             on_epoch=True,
             prog_bar=True,
         )
