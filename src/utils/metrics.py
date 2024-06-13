@@ -3,8 +3,11 @@ from itertools import cycle
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pytorch_lightning as pl
 import seaborn as sns
+import sklearn
 import torch
+from pytorch_lightning import LightningModule
 from sklearn.decomposition import PCA
 from sklearn.metrics import (
     adjusted_rand_score,
@@ -14,15 +17,10 @@ from sklearn.metrics import (
     silhouette_score,
 )
 from sklearn.preprocessing import label_binarize
-
-from models.building_blocks import Block
-import sklearn
-
 from torch import nn
 from torch.nn import functional as F
-from pytorch_lightning import LightningModule
 
-import pytorch_lightning as pl
+from models.building_blocks import Block
 
 
 class ClassificationModel(pl.LightningModule):

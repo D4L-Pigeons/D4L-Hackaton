@@ -1,18 +1,19 @@
+from argparse import Namespace
+from typing import Any, Dict, Tuple
+
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
+from anndata import AnnData
+from pytorch_lightning.utilities.combined_loader import CombinedLoader
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import Tensor
-from typing import Tuple, Dict, Any
-import pytorch_lightning as pl
-from pytorch_lightning.utilities.combined_loader import CombinedLoader
-from argparse import Namespace
-from anndata import AnnData
 from tqdm import tqdm
 
 from models.building_blocks import Block, ShortcutBlock
-from utils.paths import LOGS_PATH
-from utils.data_utils import get_dataloader_dict_from_anndata
 from models.ModelBase import ModelBase
+from utils.data_utils import get_dataloader_dict_from_anndata
+from utils.paths import LOGS_PATH
 
 
 class SingleModalityVAE(nn.Module):

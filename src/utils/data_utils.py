@@ -1,3 +1,4 @@
+import os
 from types import SimpleNamespace
 from typing import Dict
 
@@ -6,14 +7,12 @@ import scanpy as sc
 import torch
 import torch.utils
 from torch.utils.data import DataLoader, TensorDataset
-from typing import Dict
-from types import SimpleNamespace
-import os
+
 from utils.add_hierarchies import add_second_hierarchy
 from utils.paths import (
-    RAW_ANNDATA_PATH,
     PREPROCESSED_ANNDATA_PATH,
     PREPROCESSED_DATA_PATH,
+    RAW_ANNDATA_PATH,
 )
 
 

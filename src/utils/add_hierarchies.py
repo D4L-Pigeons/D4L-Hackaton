@@ -1,7 +1,7 @@
 import sys
 
-import numpy as np
 import anndata as ad
+import numpy as np
 
 from utils.paths import RAW_ANNDATA_HIERARCHY_PATH
 
