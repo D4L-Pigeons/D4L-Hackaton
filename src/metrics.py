@@ -59,7 +59,7 @@ class ClassificationModel(pl.LightningModule):
         return loss
 
     def predict(self, z):
-        y_hat = self.classification_head(z)
+        y_hat = self(z)
         return y_hat
 
     def configure_optimizers(self):
@@ -96,23 +96,28 @@ def train_classification_head(model, data):
 
 
 def get_predictions_gt_classes(model, classification_head, data):
+    print("Predict latent")
     test_latent_representation = model.predict(data)
+    print("Predict classification head")
     prediction = classification_head.predict(test_latent_representation)
-
+    print("Finished prediction")
     prediction_probability = torch.softmax(prediction, dim=1)
     ground_truth = data.obs["cell_type"].cat.codes.values
     classes = data.obs["cell_type"].cat.categories
-    return prediction, prediction_probability, ground_truth, classes
+    return prediction, prediction_probability, ground_truth, classes, test_latent_representation
 
 
 def evaluate_clustering(y_true, y_pred, data):
     silhouette = silhouette_score(data, y_pred)  # figure out what data is
-    ari = adjusted_rand_score(y_true, y_pred)
-    nmi = normalized_mutual_info_score(y_true, y_pred)
+    print("Silhouette finished")
+    # ari = adjusted_rand_score(y_true, y_pred)
+    # print("Ari finished")
+    # nmi = normalized_mutual_info_score(y_true, y_pred)
+    # print("Normalized MI finished")
     metrics = {
         "silhouette_score": silhouette,
-        "adjusted_rand_index": ari,
-        "normalized_mutual_info": nmi,
+        # "adjusted_rand_index": ari,
+        # "normalized_mutual_info": nmi,
     }
     print(metrics)
     plot_clustering(data, y_pred)
@@ -125,8 +130,9 @@ def get_metrics(model, classification_head, test_data):
         prediction_probability,
         ground_truth,
         classes,
+        test_latent_representation,
     ) = get_predictions_gt_classes(model, classification_head, test_data)
-    metrics = evaluate_clustering(ground_truth, prediction, test_data)
+    metrics = evaluate_clustering(ground_truth, prediction, test_latent_representation)
 
     metrics["f1_score_per_cell_type"] = sklearn.metrics.f1_score(
         ground_truth, prediction, labels=classes, average=None
