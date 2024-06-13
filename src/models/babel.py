@@ -92,6 +92,12 @@ class SingleModalityVAE(nn.Module):
         decoded = self.decode(z)
         return decoded, mu, std
 
+    def predict(self, x):
+        encoded_dict = {}
+        for modality_name, modality_data in x.items():
+            encoded_dict[modality_name] = self.encode(modality_data)[1]  # mu
+        return encoded_dict
+
 
 class BabelVAE(pl.LightningModule):
     def __init__(self, cfg):
@@ -233,11 +239,26 @@ class BabelModel(ModelBase):
             model=self.model, train_dataloaders=train_loader, val_dataloaders=val_loader
         )
 
-    def predict(self, anndata: AnnData) -> AnnData:
-        pass
-
-    def predict_proba(self, anndata: AnnData) -> Tensor:
-        pass
+    def predict(self, data: AnnData) -> Dict[str, Tensor]:
+        print("predict in omivae module")
+        latent_representation_dict = self.trainer.predict(
+            model=self.model,
+            dataloaders=get_dataloader_from_anndata(
+                data,
+                batch_size=self.cfg.batch_size,
+                shuffle=False,
+                first_modality_dim=self.cfg.first_modality_dim,
+                second_modality_dim=self.cfg.second_modality_dim,
+                include_class_labels=self.cfg.classification_head
+                or self.cfg.include_class_labels,
+                target_hierarchy_level=self.cfg.target_hierarchy_level,
+            ),
+        )
+        for modality_name, latent_representation in latent_representation_dict.items():
+            latent_representation_dict[modality_name] = torch.cat(
+                latent_representation, dim=0
+            )
+        return latent_representation_dict
 
     def save(self, file_path: str):
         save_path = file_path + ".ckpt"
