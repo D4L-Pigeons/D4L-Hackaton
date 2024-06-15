@@ -4,15 +4,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="05135b18-2632-4d50-8580-e76a88fe9491" name="Changes" comment="Merge main">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="05135b18-2632-4d50-8580-e76a88fe9491" name="Changes" comment="manual optimization">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/analyse_pbmc5k.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/analyse_pbmc5k.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/pp-eda.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/pp-eda.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/config/omivae/gmm_iwae.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/config/omivae/gmm_iwae.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/config/omivae/vanilla_omivae.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/config/omivae/vanilla_omivae.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/models/omivae.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/models/omivae.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/metrics.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/notebooks/ab-experiments-normal.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ab-experiments-normal.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/notebooks/pp-architecture-tries.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/pp-architecture-tries.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/notebooks/pp-try-out.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/pp-try-out.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/models/vae.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/models/vae.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -46,23 +43,25 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python.train_and_validate.executor&quot;: &quot;Run&quot;,
-    &quot;Python.vae_gex_debug.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;lukass/vae&quot;,
-    &quot;ignore.virus.scanning.warn.message&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/szymo/Desktop/DLILS/D4L-Hackaton/src/config/omivae/vae.yaml&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python.train.executor": "Run",
+    "Python.train_and_validate.executor": "Run",
+    "Python.vae_gex_debug.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "git-widget-placeholder": "lukass/vae-latent",
+    "ignore.virus.scanning.warn.message": "true",
+    "last_opened_file_path": "C:/Users/szymo/Desktop/DLILS/D4L-Hackaton/src/config/omivae/vae.yaml",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="PyConsoleOptionsProvider">
     <option name="myPythonConsoleState">
       <console-settings module-name="D4L-Hackaton" is-module-sdk="true">
@@ -73,12 +72,13 @@
   </component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\szymo\Desktop\DLILS\D4L-Hackaton\data\raw" />
       <recent name="C:\Users\szymo\Desktop\DLILS\D4L-Hackaton\src\config\vae" />
       <recent name="C:\Users\szymo\Desktop\DLILS\D4L-Hackaton\data" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.vae_gex_debug">
-    <configuration name="train_and_validate" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+  <component name="RunManager">
+    <configuration name="train" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
       <module name="D4L-Hackaton" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -92,8 +92,8 @@
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/train_and_validate.py" />
-      <option name="PARAMETERS" value="--method=vae --config=vae --n-folds=2 --preload-subsample-frac=0.01" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/train.py" />
+      <option name="PARAMETERS" value="--method=vae --mode=train+test --config=vae --preload-subsample-frac=0.01" />
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
@@ -130,6 +130,7 @@
       <workItem from="1718096233662" duration="11525000" />
       <workItem from="1718283622426" duration="2950000" />
       <workItem from="1718292749767" duration="3851000" />
+      <workItem from="1718440936130" duration="2729000" />
     </task>
     <task id="LOCAL-00001" summary="Shelf changes">
       <option name="closed" value="true" />
@@ -179,7 +180,15 @@
       <option name="project" value="LOCAL" />
       <updated>1718053549576</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="manual optimization">
+      <option name="closed" value="true" />
+      <created>1718442185502</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1718442185502</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -206,7 +215,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="main" />
+                        <option value="lukass/vae" />
                       </list>
                     </value>
                   </entry>
@@ -224,7 +233,8 @@
     <MESSAGE value="Fix bugs" />
     <MESSAGE value="Single-modality VAE parallel training" />
     <MESSAGE value="Merge main" />
-    <option name="LAST_COMMIT_MESSAGE" value="Merge main" />
+    <MESSAGE value="manual optimization" />
+    <option name="LAST_COMMIT_MESSAGE" value="manual optimization" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -234,11 +244,16 @@
           <line>81</line>
           <option name="timeStamp" value="13" />
         </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/src/utils/data_utils.py</url>
+          <line>113</line>
+          <option name="timeStamp" value="14" />
+        </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/D4L_Hackaton$vae_gex_debug.coverage" NAME="vae_gex_debug Coverage Results" MODIFIED="1718287682371" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
-    <SUITE FILE_PATH="coverage/D4L_Hackaton$train_and_validate.coverage" NAME="train_and_validate Coverage Results" MODIFIED="1718287938207" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/D4L_Hackaton$vae_gex_debug.coverage" NAME="vae_gex_debug Coverage Results" MODIFIED="1718440595733" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/D4L_Hackaton$train_and_validate.coverage" NAME="train Coverage Results" MODIFIED="1718442280838" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
   </component>
 </project>
