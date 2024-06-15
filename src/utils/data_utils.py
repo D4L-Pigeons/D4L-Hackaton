@@ -304,10 +304,10 @@ def get_dataloader_dict_from_anndata(
                 if cfg.include_class_labels
                 else TensorDataset(data_dict[cfg_modality_name])
             ),
-            batch_size=cfg_modality.batch_size,
+            batch_size=cfg_modality.batch_size if train else cfg.predict_batch_size,
             shuffle=False,  # train,
         )
-        for cfg_modality_name, cfg_modality in vars(cfg.modalities).items()
+        for cfg_modality_name, cfg_modality in vars(modalities_cfg).items()
     }
     return dataloader_dict
 

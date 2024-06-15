@@ -55,7 +55,7 @@ kld_loss_coef: 1
 c_loss_coef: 1
 
 # training configuration
-max_epochs: 30
+max_epochs: 15
 log_every_n_steps: 1
 early_stopping: False
 min_delta: 0.001

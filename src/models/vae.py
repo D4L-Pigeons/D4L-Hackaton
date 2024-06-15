@@ -148,7 +148,7 @@ class SingleModalityVAE(nn.Module):
         )
 
 
-class VAE(pl.LightningModule, ModelBase):
+class VAE(pl.LightningModule, ModelBalse):
     def __init__(self, cfg: Namespace):
         super(VAE, self).__init__()
         self.assert_cfg(cfg)
@@ -226,7 +226,7 @@ class VAE(pl.LightningModule, ModelBase):
                 self.cfg,
                 train=train,
             ),
-            mode="max_size",  # if train else "sequential",
+            mode="max_size" # if train else "sequential",
         )
 
     def fit(self, train_data: AnnData, val_data: AnnData = None) -> None:

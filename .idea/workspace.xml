@@ -4,12 +4,13 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e9ec52b1-7c35-4f01-b6ee-c82ee53f1fcd" name="Changes" comment="Add .idea for pycharm development">
-      <change beforePath="$PROJECT_DIR$/.idea/D4L-Hackaton.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/D4L-Hackaton.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/runConfigurations/train.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/runConfigurations/train.xml" afterDir="false" />
+    <list default="true" id="e9ec52b1-7c35-4f01-b6ee-c82ee53f1fcd" name="Changes" comment="Fix predict">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/notebooks/ab-experiments-normal.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ab-experiments-normal.ipynb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/config/vae/vae.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/config/vae/vae.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/evaluation.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/src/evaluation.ipynb" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/models/vae.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/models/vae.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/data_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/data_utils.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -33,23 +34,24 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;Python.train.executor&quot;: &quot;Debug&quot;,
-    &quot;Python.vae_gex_debug.executor&quot;: &quot;Run&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;lukass/vae-latent&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/opt/anaconda/anaconda3/condabin/conda&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;settings.sync&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Python.train-vae.executor": "Debug",
+    "Python.train.executor": "Debug",
+    "Python.vae_gex_debug.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "lukass/vae-latent",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/opt/anaconda/anaconda3/condabin/conda",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "settings.sync",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="PyConsoleOptionsProvider">
     <option name="myPythonConsoleState">
       <console-settings module-name="D4L-Hackaton" is-module-sdk="true">
@@ -76,15 +78,15 @@
       <window_info anchor="bottom" id="File Transfer" show_stripe_button="false" />
       <window_info anchor="bottom" id="HfCacheToolWindow" show_stripe_button="false" />
       <window_info anchor="bottom" id="Find" />
-      <window_info active="true" anchor="bottom" id="Version Control" order="0" visible="true" weight="0.32067308" />
+      <window_info anchor="bottom" id="Version Control" order="0" weight="0.32067308" />
       <window_info anchor="bottom" id="Problems" order="1" />
       <window_info anchor="bottom" id="Problems View" order="2" />
       <window_info anchor="bottom" id="Terminal" order="3" weight="0.32067308" />
       <window_info anchor="bottom" id="Services" order="4" weight="0.20964286" />
       <window_info anchor="bottom" id="Python Packages" order="5" weight="0.31201923" />
-      <window_info anchor="bottom" id="Python Console" order="6" weight="0.32067308" />
+      <window_info active="true" anchor="bottom" id="Python Console" order="6" visible="true" weight="0.32067308" />
       <window_info anchor="bottom" id="Debug" order="7" weight="0.32067308" />
-      <window_info active="true" anchor="bottom" id="Run" order="7" visible="true" weight="0.31201923" />
+      <window_info anchor="bottom" id="Run" order="7" weight="0.32067308" />
       <window_info anchor="right" id="Endpoints" show_stripe_button="false" />
       <window_info anchor="right" id="Coverage" show_stripe_button="false" side_tool="true" />
       <window_info anchor="right" id="SciView" show_stripe_button="false" />
@@ -135,6 +137,9 @@
     </attachedChunks>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="SvnConfiguration">
+    <configuration>$PROJECT_DIR$/../.subversion</configuration>
+  </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="e9ec52b1-7c35-4f01-b6ee-c82ee53f1fcd" name="Changes" comment="" />
@@ -147,7 +152,7 @@
       <workItem from="1717723686972" duration="21674000" />
       <workItem from="1718095157479" duration="4422000" />
       <workItem from="1718450545024" duration="811000" />
-      <workItem from="1718451625772" duration="2062000" />
+      <workItem from="1718451625772" duration="4710000" />
     </task>
     <task id="LOCAL-00001" summary="Add .idea for pycharm development">
       <option name="closed" value="true" />
@@ -157,7 +162,15 @@
       <option name="project" value="LOCAL" />
       <updated>1717721289917</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Fix predict">
+      <option name="closed" value="true" />
+      <created>1718453828625</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1718453828625</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -174,7 +187,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="lukass/vae-latent" />
+                        <option value="main" />
                       </list>
                     </value>
                   </entry>
@@ -189,7 +202,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Merge branch 'main' of https://github.com/D4L-Pigeons/D4L-Hackaton" />
     <MESSAGE value="Add .idea for pycharm development" />
-    <option name="LAST_COMMIT_MESSAGE" value="Add .idea for pycharm development" />
+    <MESSAGE value="Fix predict" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fix predict" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -201,8 +215,8 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/train.py</url>
-          <line>92</line>
-          <option name="timeStamp" value="7" />
+          <line>91</line>
+          <option name="timeStamp" value="8" />
         </line-breakpoint>
       </breakpoints>
       <default-breakpoints>
@@ -220,6 +234,6 @@
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/D4L_Hackaton$vae_gex_debug.coverage" NAME="vae_gex_debug Coverage Results" MODIFIED="1718058316357" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
-    <SUITE FILE_PATH="coverage/D4L_Hackaton$train.coverage" NAME="train Coverage Results" MODIFIED="1718453210249" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/D4L_Hackaton$train.coverage" NAME="train-vae Coverage Results" MODIFIED="1718454495423" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
   </component>
 </project>
