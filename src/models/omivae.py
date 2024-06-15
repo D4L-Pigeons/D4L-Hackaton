@@ -98,6 +98,12 @@ class OmiAE(pl.LightningModule):
         z = self.encoder(x)
         return z
 
+    def encode_anndata(self, anndata):
+        data = torch.tensor(anndata.X.A)
+        self.encoder.eval()
+        z = self.encoder(data).detach()
+        anndata.obsm["omiae_latent_embedding"] = z
+
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.cfg.lr)
         return optimizer
