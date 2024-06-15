@@ -241,11 +241,12 @@ class VAE(pl.LightningModule, ModelBase):
         )
 
     def predict_batch(self, batch):
+        (x, _, _) = batch
         predict_results = {
-            cfg_name: model.predict(batch[cfg_name])
+            cfg_name: model.predict(x[cfg_name])
             for cfg_name, model in self.model.items()
         }
-        return torch.dstack(list(predict_results.values()))
+        return torch.hstack([v for v in predict_results.values()])
 
     def predict(self, data: AnnData) -> Tensor:
         self.eval()

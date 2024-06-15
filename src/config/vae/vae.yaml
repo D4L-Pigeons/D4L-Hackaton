@@ -9,7 +9,7 @@ modalities:
     embedding_dim: 64
     hidden_dim: 128
     #encoder
-    latent_dim: 10
+    latent_dim: 8
     latent_hidden_dim: 128
     #other
     batch_norm: true
@@ -28,7 +28,7 @@ modalities:
     embedding_dim: 64
     hidden_dim: 128
     #encoder
-    latent_dim: 10
+    latent_dim: 8
     latent_hidden_dim: 128
     #other
     batch_norm: true
@@ -55,7 +55,7 @@ kld_loss_coef: 1
 c_loss_coef: 1
 
 # training configuration
-max_epochs: 5
+max_epochs: 30
 log_every_n_steps: 1
 early_stopping: False
 min_delta: 0.001

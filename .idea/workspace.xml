@@ -4,24 +4,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="05135b18-2632-4d50-8580-e76a88fe9491" name="Changes" comment="manual optimization">
+    <list default="true" id="e9ec52b1-7c35-4f01-b6ee-c82ee53f1fcd" name="Changes" comment="Add .idea for pycharm development">
+      <change beforePath="$PROJECT_DIR$/.idea/D4L-Hackaton.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/D4L-Hackaton.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/runConfigurations/train.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/runConfigurations/train.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/ab-experiments-normal.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/ab-experiments-normal.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/pp-architecture-tries.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/pp-architecture-tries.ipynb" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/notebooks/pp-try-out.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/pp-try-out.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/config/vae/vae.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/config/vae/vae.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/models/vae.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/models/vae.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
-  </component>
-  <component name="FileTemplateManagerImpl">
-    <option name="RECENT_TEMPLATES">
-      <list>
-        <option value="Python Script" />
-      </list>
-    </option>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
@@ -32,36 +25,31 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
     <option name="RESET_MODE" value="HARD" />
   </component>
-  <component name="ProblemsViewState">
-    <option name="selectedTabId" value="CurrentFile" />
-  </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 2
 }</component>
-  <component name="ProjectId" id="2hN2pDMaYw3wWplOEkFUvRTwfgc" />
+  <component name="ProjectId" id="2hWUypTUvPjUHs0E1RVU83YLWaF" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.train.executor": "Run",
-    "Python.train_and_validate.executor": "Run",
-    "Python.vae_gex_debug.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
-    "git-widget-placeholder": "lukass/vae-latent",
-    "ignore.virus.scanning.warn.message": "true",
-    "last_opened_file_path": "C:/Users/szymo/Desktop/DLILS/D4L-Hackaton/src/config/omivae/vae.yaml",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "preferences.pluginManager",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.train.executor&quot;: &quot;Debug&quot;,
+    &quot;Python.vae_gex_debug.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;lukass/vae-latent&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/opt/anaconda/anaconda3/condabin/conda&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;settings.sync&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="PyConsoleOptionsProvider">
     <option name="myPythonConsoleState">
       <console-settings module-name="D4L-Hackaton" is-module-sdk="true">
@@ -70,15 +58,46 @@
       </console-settings>
     </option>
   </component>
-  <component name="RecentsManager">
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="C:\Users\szymo\Desktop\DLILS\D4L-Hackaton\data\raw" />
-      <recent name="C:\Users\szymo\Desktop\DLILS\D4L-Hackaton\src\config\vae" />
-      <recent name="C:\Users\szymo\Desktop\DLILS\D4L-Hackaton\data" />
-    </key>
+  <component name="RdControllerToolWindowsLayoutState" isNewUi="true">
+    <layout>
+      <window_info id="Bookmarks" show_stripe_button="false" side_tool="true" />
+      <window_info id="Merge Requests" show_stripe_button="false" />
+      <window_info id="Commit_Guest" show_stripe_button="false" />
+      <window_info id="Pull Requests" show_stripe_button="false" />
+      <window_info id="Learn" show_stripe_button="false" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" visible="true" weight="0.18411458" />
+      <window_info id="Commit" order="1" weight="0.18411458" />
+      <window_info id="VcsChanges" order="2" weight="0.1783854" />
+      <window_info id="Structure" order="3" side_tool="true" weight="0.25" />
+      <window_info anchor="bottom" id="Database Changes" show_stripe_button="false" />
+      <window_info anchor="bottom" id="TypeScript" show_stripe_button="false" />
+      <window_info anchor="bottom" id="Profiler" show_stripe_button="false" />
+      <window_info anchor="bottom" id="TODO" show_stripe_button="false" />
+      <window_info anchor="bottom" id="File Transfer" show_stripe_button="false" />
+      <window_info anchor="bottom" id="HfCacheToolWindow" show_stripe_button="false" />
+      <window_info anchor="bottom" id="Find" />
+      <window_info active="true" anchor="bottom" id="Version Control" order="0" visible="true" weight="0.32067308" />
+      <window_info anchor="bottom" id="Problems" order="1" />
+      <window_info anchor="bottom" id="Problems View" order="2" />
+      <window_info anchor="bottom" id="Terminal" order="3" weight="0.32067308" />
+      <window_info anchor="bottom" id="Services" order="4" weight="0.20964286" />
+      <window_info anchor="bottom" id="Python Packages" order="5" weight="0.31201923" />
+      <window_info anchor="bottom" id="Python Console" order="6" weight="0.32067308" />
+      <window_info anchor="bottom" id="Debug" order="7" weight="0.32067308" />
+      <window_info active="true" anchor="bottom" id="Run" order="7" visible="true" weight="0.31201923" />
+      <window_info anchor="right" id="Endpoints" show_stripe_button="false" />
+      <window_info anchor="right" id="Coverage" show_stripe_button="false" side_tool="true" />
+      <window_info anchor="right" id="SciView" show_stripe_button="false" />
+      <window_info anchor="right" content_ui="combo" id="Notifications" order="0" weight="0.25" />
+      <window_info anchor="right" id="AIAssistant" order="1" weight="0.25" />
+      <window_info anchor="right" id="Database" order="2" weight="0.25" />
+      <window_info anchor="right" id="Gradle" order="3" weight="0.25" />
+      <window_info anchor="right" id="Maven" order="4" weight="0.25" />
+      <window_info anchor="right" id="Plots" order="5" weight="0.1" />
+    </layout>
   </component>
-  <component name="RunManager">
-    <configuration name="train" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+  <component name="RunManager" selected="Python.train-vae">
+    <configuration name="train-vae-debug" type="PythonConfigurationType" factoryName="Python">
       <module name="D4L-Hackaton" />
       <option name="ENV_FILES" value="" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -87,8 +106,9 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
+      <option name="SDK_NAME" value="multimodal_hackaton" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/src" />
-      <option name="IS_MODULE_SDK" value="true" />
+      <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
@@ -101,112 +121,51 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <list>
+      <item itemvalue="Python.train-vae" />
+      <item itemvalue="Python.train-vae-debug" />
+    </list>
   </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-1d06a55b98c1-0b3e54e931b4-JavaScript-PY-241.17011.127" />
-        <option value="bundled-python-sdk-48aec45f0201-7e9c3bbb6e34-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-241.17011.127" />
+        <option value="bundled-js-predefined-d6986cc7102b-19b454f630c8-JavaScript-PY-242.16677.12" />
+        <option value="bundled-python-sdk-62b32d9fc822-64e3ce31d466-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-242.16677.12" />
       </set>
     </attachedChunks>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="05135b18-2632-4d50-8580-e76a88fe9491" name="Changes" comment="" />
-      <created>1717420396962</created>
+      <changelist id="e9ec52b1-7c35-4f01-b6ee-c82ee53f1fcd" name="Changes" comment="" />
+      <created>1717709585855</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1717420396962</updated>
-      <workItem from="1717420399842" duration="690000" />
-      <workItem from="1717421134685" duration="8571000" />
-      <workItem from="1717486037780" duration="1180000" />
-      <workItem from="1717497521020" duration="23177000" />
-      <workItem from="1717702719355" duration="6446000" />
-      <workItem from="1717716488068" duration="3568000" />
-      <workItem from="1717723545602" duration="40201000" />
-      <workItem from="1718035942706" duration="8145000" />
-      <workItem from="1718090138030" duration="2935000" />
-      <workItem from="1718096233662" duration="11525000" />
-      <workItem from="1718283622426" duration="2950000" />
-      <workItem from="1718292749767" duration="3851000" />
-      <workItem from="1718440936130" duration="2729000" />
+      <updated>1717709585855</updated>
+      <workItem from="1717709587422" duration="6439000" />
+      <workItem from="1717723107636" duration="398000" />
+      <workItem from="1717723686972" duration="21674000" />
+      <workItem from="1718095157479" duration="4422000" />
+      <workItem from="1718450545024" duration="811000" />
+      <workItem from="1718451625772" duration="2062000" />
     </task>
-    <task id="LOCAL-00001" summary="Shelf changes">
+    <task id="LOCAL-00001" summary="Add .idea for pycharm development">
       <option name="closed" value="true" />
-      <created>1717716761665</created>
+      <created>1717721289917</created>
       <option name="number" value="00001" />
       <option name="presentableId" value="LOCAL-00001" />
       <option name="project" value="LOCAL" />
-      <updated>1717716761665</updated>
+      <updated>1717721289917</updated>
     </task>
-    <task id="LOCAL-00002" summary="Introduce combined loader">
-      <option name="closed" value="true" />
-      <created>1717933074379</created>
-      <option name="number" value="00002" />
-      <option name="presentableId" value="LOCAL-00002" />
-      <option name="project" value="LOCAL" />
-      <updated>1717933074379</updated>
-    </task>
-    <task id="LOCAL-00003" summary="Fix bugs">
-      <option name="closed" value="true" />
-      <created>1718030372080</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1718030372080</updated>
-    </task>
-    <task id="LOCAL-00004" summary="Single-modality VAE parallel training">
-      <option name="closed" value="true" />
-      <created>1718052409658</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1718052409659</updated>
-    </task>
-    <task id="LOCAL-00005" summary="Single-modality VAE parallel training">
-      <option name="closed" value="true" />
-      <created>1718052624621</created>
-      <option name="number" value="00005" />
-      <option name="presentableId" value="LOCAL-00005" />
-      <option name="project" value="LOCAL" />
-      <updated>1718052624621</updated>
-    </task>
-    <task id="LOCAL-00006" summary="Merge main">
-      <option name="closed" value="true" />
-      <created>1718053549576</created>
-      <option name="number" value="00006" />
-      <option name="presentableId" value="LOCAL-00006" />
-      <option name="project" value="LOCAL" />
-      <updated>1718053549576</updated>
-    </task>
-    <task id="LOCAL-00007" summary="manual optimization">
-      <option name="closed" value="true" />
-      <created>1718442185502</created>
-      <option name="number" value="00007" />
-      <option name="presentableId" value="LOCAL-00007" />
-      <option name="project" value="LOCAL" />
-      <updated>1718442185502</updated>
-    </task>
-    <option name="localTasksCounter" value="8" />
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
-    <option name="OPEN_GENERIC_TABS">
-      <map>
-        <entry key="6c721eee-9827-4a7e-83d9-2516334e5c82" value="TOOL_WINDOW" />
-      </map>
-    </option>
     <option name="TAB_STATES">
       <map>
-        <entry key="6c721eee-9827-4a7e-83d9-2516334e5c82">
-          <value>
-            <State />
-          </value>
-        </entry>
         <entry key="MAIN">
           <value>
             <State>
@@ -215,7 +174,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="lukass/vae" />
+                        <option value="lukass/vae-latent" />
                       </list>
                     </value>
                   </entry>
@@ -228,32 +187,39 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Shelf changes" />
-    <MESSAGE value="Introduce combined loader" />
-    <MESSAGE value="Fix bugs" />
-    <MESSAGE value="Single-modality VAE parallel training" />
-    <MESSAGE value="Merge main" />
-    <MESSAGE value="manual optimization" />
-    <option name="LAST_COMMIT_MESSAGE" value="manual optimization" />
+    <MESSAGE value="Merge branch 'main' of https://github.com/D4L-Pigeons/D4L-Hackaton" />
+    <MESSAGE value="Add .idea for pycharm development" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add .idea for pycharm development" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/src/models/vae.py</url>
-          <line>81</line>
-          <option name="timeStamp" value="13" />
+          <line>257</line>
+          <option name="timeStamp" value="5" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/src/utils/data_utils.py</url>
-          <line>113</line>
-          <option name="timeStamp" value="14" />
+          <url>file://$PROJECT_DIR$/src/train.py</url>
+          <line>92</line>
+          <option name="timeStamp" value="7" />
         </line-breakpoint>
       </breakpoints>
+      <default-breakpoints>
+        <breakpoint type="python-exception">
+          <properties notifyOnTerminate="true" exception="BaseException">
+            <option name="notifyOnTerminate" value="true" />
+          </properties>
+        </breakpoint>
+      </default-breakpoints>
     </breakpoint-manager>
   </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/D4L_Hackaton$vae_gex_debug.coverage" NAME="vae_gex_debug Coverage Results" MODIFIED="1718440595733" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
-    <SUITE FILE_PATH="coverage/D4L_Hackaton$train_and_validate.coverage" NAME="train Coverage Results" MODIFIED="1718442280838" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/D4L_Hackaton$vae_gex_debug.coverage" NAME="vae_gex_debug Coverage Results" MODIFIED="1718058316357" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/D4L_Hackaton$train.coverage" NAME="train Coverage Results" MODIFIED="1718453210249" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
   </component>
 </project>
