@@ -153,7 +153,6 @@ class VAE(pl.LightningModule, ModelBase):
         super(VAE, self).__init__()
         self.assert_cfg(cfg)
         self.cfg = cfg
-        self.automatic_optimization = False
         self.model = nn.ModuleDict(
             {
                 cfg_name: SingleModalityVAE(cfg_name, modality_cfg)
@@ -194,9 +193,6 @@ class VAE(pl.LightningModule, ModelBase):
 
     def training_step(self, batch: Dict[str, Tensor], batch_idx: int) -> STEP_OUTPUT:
         loss, losses_dicts = self.combine_steps(batch, batch_idx)
-        loss.backward()
-        for optimizer in self.optimizers():
-            optimizer.step()
         self.log_dict(
             losses_dicts,
             on_step=True,

@@ -9,5 +9,8 @@ __pycache__/
 src/results/*
 # src/config/*
 src/logs/*
+<<<<<<< HEAD
 idea/*
+=======
+>>>>>>> lukass/vae
 src/lightning_logs/*
