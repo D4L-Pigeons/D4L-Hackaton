@@ -128,28 +128,31 @@ class BabelVAE(pl.LightningModule):
 
     def encode_anndata(self, anndata):
         adt_mask = anndata.var["feature_types"] == "ADT"
-        
+
         adt_anndata = anndata[:, adt_mask]
         gex_anndata = anndata[:, ~adt_mask]
-        
+
         adt_latent = []
         data = torch.tensor(adt_anndata.X.A)
-        self.model["adt"].eval() # we need to set the model to evaluation mode, so that the dropout is no longer considered
+        self.model[
+            "adt"
+        ].eval()  # we need to set the model to evaluation mode, so that the dropout is no longer considered
         z = self.model["adt"].encoder(data)
         adt_latent += [z]
         adt_latent = torch.cat(adt_latent).detach().cpu().numpy()
-        
+
         anndata.obsm["latent_embedding_adt"] = adt_latent
-        
+
         gex_latent = []
         data = torch.tensor(gex_anndata.X.A)
-        self.model["gex"].eval() # we need to set the model to evaluation mode, so that the dropout is no longer considered
+        self.model[
+            "gex"
+        ].eval()  # we need to set the model to evaluation mode, so that the dropout is no longer considered
         z = self.model["gex"].encoder(data)
         gex_latent += [z]
         gex_latent = torch.cat(gex_latent).detach().cpu().numpy()
-        
+
         anndata.obsm["latent_embedding_gex"] = gex_latent
-    
 
     def training_step(
         self, batch: Tuple[Tensor], batch_idx: int
