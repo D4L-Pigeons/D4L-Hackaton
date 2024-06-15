@@ -18,17 +18,14 @@ decoder_hidden_dim: 50 #512
 output_modelling_type: "mse_direct_reconstruction" # "mse_direct_reconstruction", "ll_neg_binomial"
 # classification specific configuration
 classification_head: False
-num_classes: 45
-class_weights: null
 # loss configuration
 recon_loss_coef: 1
 c_loss_coef: 0.01
 # training configuration
 batch_size: 128
 lr: 0.01
-max_epochs: 0
+max_epochs: 10
 log_every_n_steps: 1
 early_stopping: False
 min_delta: 0.01
 patience: 5
-# logger: True

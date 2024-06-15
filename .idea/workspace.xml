@@ -5,19 +5,14 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="05135b18-2632-4d50-8580-e76a88fe9491" name="Changes" comment="Merge main">
-      <change afterPath="$PROJECT_DIR$/src/devcontainer.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/D4L-Hackaton.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/D4L-Hackaton.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/notebooks/analyse_pbmc5k.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/analyse_pbmc5k.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/notebooks/pp-eda.ipynb" beforeDir="false" afterPath="$PROJECT_DIR$/notebooks/pp-eda.ipynb" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/config/omivae/gmm_iwae.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/config/omivae/gmm_iwae.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/config/omivae/vanilla_omivae.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/config/omivae/vanilla_omivae.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/config/vae/vae.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/src/config/vae/vae.yaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/models/ModelBase.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/models/ModelBase.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/models/omivae.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/models/omivae.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/models/vae.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/models/vae.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/train_and_validate.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/train_and_validate.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/utils/data_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/data_utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/utils/metrics.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/utils/metrics.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -134,6 +129,7 @@
       <workItem from="1718090138030" duration="2935000" />
       <workItem from="1718096233662" duration="11525000" />
       <workItem from="1718283622426" duration="2950000" />
+      <workItem from="1718292749767" duration="3851000" />
     </task>
     <task id="LOCAL-00001" summary="Shelf changes">
       <option name="closed" value="true" />
@@ -242,7 +238,7 @@
     </breakpoint-manager>
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/D4L_Hackaton$vae_gex_debug.coverage" NAME="vae_gex_debug Coverage Results" MODIFIED="1718285177367" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
-    <SUITE FILE_PATH="coverage/D4L_Hackaton$train_and_validate.coverage" NAME="train_and_validate Coverage Results" MODIFIED="1718284242532" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/D4L_Hackaton$vae_gex_debug.coverage" NAME="vae_gex_debug Coverage Results" MODIFIED="1718287682371" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
+    <SUITE FILE_PATH="coverage/D4L_Hackaton$train_and_validate.coverage" NAME="train_and_validate Coverage Results" MODIFIED="1718287938207" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
   </component>
 </project>
