@@ -193,6 +193,7 @@ class BabelVAE(pl.LightningModule):
         self.log_dict(
             full_losses_dict, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
+        self.log("Train loss", total_loss, on_epoch=True, prog_bar=True)
         return total_loss
 
     def kld_divergence(self, mu, std):
@@ -207,11 +208,15 @@ class BabelVAE(pl.LightningModule):
             full_losses_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True
         )
 
-    def predict_step(self, batch: Dict[str, Tuple[Tensor]]) -> Dict[str, Tensor]:
+    def predict_step(self, batch: Tuple[Tensor]) -> Dict[str, Tensor]:
         latent_representation_dict = {}
-        for modality_name, model in self.model.items():
-            latent_representation_dict[modality_name] = model.predict(
-                batch[modality_name]
+
+        for x_enc, (encoding_modality_name, encoding_model) in zip(
+            batch, self.model.items()
+        ):
+            # print(encoding_modality_name)
+            latent_representation_dict[encoding_modality_name] = encoding_model.predict(
+                x_enc
             )
         return latent_representation_dict
 
@@ -274,23 +279,28 @@ class BabelModel(ModelBase):
 
     def predict(self, data: AnnData) -> Dict[str, Tensor]:
         print("predict in omivae module")
-        latent_representation_dict = self.trainer.predict(
+        latent_representation_list = self.trainer.predict(
             model=self.model,
             dataloaders=get_dataloader_from_anndata(
-                data,
+                data=data,
                 batch_size=self.cfg.batch_size,
                 shuffle=False,
-                first_modality_dim=self.cfg.first_modality_dim,
-                second_modality_dim=self.cfg.second_modality_dim,
-                include_class_labels=self.cfg.classification_head
-                or self.cfg.include_class_labels,
-                target_hierarchy_level=self.cfg.target_hierarchy_level,
+                include_class_labels=False,
             ),
         )
-        for modality_name, latent_representation in latent_representation_dict.items():
-            latent_representation_dict[modality_name] = torch.cat(
-                latent_representation, dim=0
-            )
+
+        latent_representation_dict = {}
+        for modality_name, latent_representation in latent_representation_list[
+            0
+        ].items():
+            latent_representation_dict[modality_name] = latent_representation
+
+        for latent_dict in latent_representation_list[1:]:
+            for modality_name, latent_representation in latent_dict.items():
+                latent_representation_dict[modality_name] = torch.cat(
+                    [latent_representation_dict[modality_name], latent_representation],
+                    dim=0,
+                )
         return latent_representation_dict
 
     def save(self, file_path: str):
