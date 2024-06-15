@@ -287,8 +287,6 @@ def main():
         preload_subsample_frac=None,
     )
 
-    latent_test = model.predict(test_data)
-
     results_path = RESULTS_PATH / args.method
     if not os.path.exists(results_path):
         os.makedirs(results_path)
@@ -297,11 +295,14 @@ def main():
     if not os.path.exists(results_path):
         os.mkdir(results_path)
 
+    latent_test = model.predict(test_data)
+
     if isinstance(latent_test, dict):  # BABEL model
         for modality_name, latent in latent_test.items():
-            torch.save(latent, str(results_path / f"latent_test_{modality_name}"))
+            print(modality_name, type(latent), latent.shape)
+            torch.save(latent, str(results_path / f"latent_test_{modality_name}.pt"))
     else:
-        torch.save(latent_test, str(results_path / "latent_test"))
+        torch.save(latent_test, str(results_path / "latent_test.pt"))
 
     # metrics_dict = calculate_metrics(model, train_data, test_data)
     # pd.DataFrame.from_dict(metrics_dict).to_csv(args.path + "metrics.csv")
