@@ -25,7 +25,6 @@ from utils.paths import CONFIG_PATH, RESULTS_PATH
 import os
 
 
-
 class ClassificationModel(pl.LightningModule):
     def __init__(self, latent_dim, num_classes, do_batch_norm=False):
         super().__init__()
@@ -107,22 +106,28 @@ def get_predictions_gt_classes(model, classification_head, data):
     prediction_probability = torch.softmax(prediction, dim=1)
     ground_truth = data.obs["cell_type"].cat.codes.values
     classes = data.obs["cell_type"].cat.categories
-    return prediction.detach().numpy(), prediction_probability, ground_truth, classes, test_latent_representation.detach().numpy()
+    return (
+        prediction.detach().numpy(),
+        prediction_probability,
+        ground_truth,
+        classes,
+        test_latent_representation.detach().numpy(),
+    )
 
 
 def evaluate_clustering(y_true, y_pred, data):
-#     silhouette = silhouette_score(data, y_pred)  # figure out what data is
-#     print("Silhouette finished")
-#     # ari = adjusted_rand_score(y_true, y_pred)
-#     # print("Ari finished")
-#     # nmi = normalized_mutual_info_score(y_true, y_pred)
-#     # print("Normalized MI finished")
-#     metrics = {
-#         "silhouette_score": silhouette,
-#         # "adjusted_rand_index": ari,
-#         # "normalized_mutual_info": nmi,
-#     }
-#     print(metrics)
+    #     silhouette = silhouette_score(data, y_pred)  # figure out what data is
+    #     print("Silhouette finished")
+    #     # ari = adjusted_rand_score(y_true, y_pred)
+    #     # print("Ari finished")
+    #     # nmi = normalized_mutual_info_score(y_true, y_pred)
+    #     # print("Normalized MI finished")
+    #     metrics = {
+    #         "silhouette_score": silhouette,
+    #         # "adjusted_rand_index": ari,
+    #         # "normalized_mutual_info": nmi,
+    #     }
+    #     print(metrics)
     plot_clustering(data, y_pred)
     # return metrics
 
@@ -211,15 +216,15 @@ def plot_clustering(data, y_pred):
     from sklearn.decomposition import PCA
 
     # Extract the latent embedding
-    latent_embedding = GEX_anndata.obsm['latent_embedding']
+    latent_embedding = GEX_anndata.obsm["latent_embedding"]
 
     # Perform PCA on the latent embedding
     pca = PCA(n_components=2)
     latent_pca = pca.fit_transform(latent_embedding)
 
     # Store the PCA results back in the AnnData object
-    GEX_anndata.obsm['X_pca_latent'] = latent_pca
-    GEX_anndata.uns['pca_latent_variance_ratio'] = pca.explained_variance_ratio_
+    GEX_anndata.obsm["X_pca_latent"] = latent_pca
+    GEX_anndata.uns["pca_latent_variance_ratio"] = pca.explained_variance_ratio_
 
     # Create a new AnnData object for visualization purposes
     pca_gex_anndata = sc.AnnData(X=latent_pca)
@@ -227,7 +232,9 @@ def plot_clustering(data, y_pred):
     pca_gex_anndata.var_names = [f"PC{i+1}" for i in range(latent_pca.shape[1])]
 
     # Visualize the PCA results
-    sc.pl.scatter(pca_gex_anndata, x="PC1", y="PC2", color='level1', title="GEX latent by PCA")
+    sc.pl.scatter(
+        pca_gex_anndata, x="PC1", y="PC2", color="level1", title="GEX latent by PCA"
+    )
 
     # plt.figure(figsize=(10, 6))
     # sns.scatterplot(x=data[:, 0], y=data[:, 1], hue=y_pred, palette="viridis")

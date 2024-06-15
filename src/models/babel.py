@@ -92,6 +92,9 @@ class SingleModalityVAE(nn.Module):
         decoded = self.decode(z)
         return decoded, mu, std
 
+    def predict(self, x):
+        return self.encode(x)[1]  # mu
+
 
 class BabelVAE(pl.LightningModule):
     def __init__(self, cfg):
@@ -122,6 +125,34 @@ class BabelVAE(pl.LightningModule):
                 else []
             ),
         )
+
+    def encode_anndata(self, anndata):
+        adt_mask = anndata.var["feature_types"] == "ADT"
+
+        adt_anndata = anndata[:, adt_mask]
+        gex_anndata = anndata[:, ~adt_mask]
+
+        adt_latent = []
+        data = torch.tensor(adt_anndata.X.A)
+        self.model[
+            "adt"
+        ].eval()  # we need to set the model to evaluation mode, so that the dropout is no longer considered
+        z = self.model["adt"].encoder(data)
+        adt_latent += [z]
+        adt_latent = torch.cat(adt_latent).detach().cpu().numpy()
+
+        anndata.obsm["latent_embedding_adt"] = adt_latent
+
+        gex_latent = []
+        data = torch.tensor(gex_anndata.X.A)
+        self.model[
+            "gex"
+        ].eval()  # we need to set the model to evaluation mode, so that the dropout is no longer considered
+        z = self.model["gex"].encoder(data)
+        gex_latent += [z]
+        gex_latent = torch.cat(gex_latent).detach().cpu().numpy()
+
+        anndata.obsm["latent_embedding_gex"] = gex_latent
 
     def training_step(
         self, batch: Tuple[Tensor], batch_idx: int
@@ -175,6 +206,14 @@ class BabelVAE(pl.LightningModule):
         self.log_dict(
             full_losses_dict, on_step=False, on_epoch=True, prog_bar=True, logger=True
         )
+
+    def predict_step(self, batch: Dict[str, Tuple[Tensor]]) -> Dict[str, Tensor]:
+        latent_representation_dict = {}
+        for modality_name, model in self.model.items():
+            latent_representation_dict[modality_name] = model.predict(
+                batch[modality_name]
+            )
+        return latent_representation_dict
 
     def get_dataloader(self, data: AnnData, train: bool) -> CombinedLoader:
         return CombinedLoader(
@@ -233,11 +272,26 @@ class BabelModel(ModelBase):
             model=self.model, train_dataloaders=train_loader, val_dataloaders=val_loader
         )
 
-    def predict(self, anndata: AnnData) -> AnnData:
-        pass
-
-    def predict_proba(self, anndata: AnnData) -> Tensor:
-        pass
+    def predict(self, data: AnnData) -> Dict[str, Tensor]:
+        print("predict in omivae module")
+        latent_representation_dict = self.trainer.predict(
+            model=self.model,
+            dataloaders=get_dataloader_from_anndata(
+                data,
+                batch_size=self.cfg.batch_size,
+                shuffle=False,
+                first_modality_dim=self.cfg.first_modality_dim,
+                second_modality_dim=self.cfg.second_modality_dim,
+                include_class_labels=self.cfg.classification_head
+                or self.cfg.include_class_labels,
+                target_hierarchy_level=self.cfg.target_hierarchy_level,
+            ),
+        )
+        for modality_name, latent_representation in latent_representation_dict.items():
+            latent_representation_dict[modality_name] = torch.cat(
+                latent_representation, dim=0
+            )
+        return latent_representation_dict
 
     def save(self, file_path: str):
         save_path = file_path + ".ckpt"

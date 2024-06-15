@@ -187,9 +187,13 @@ class OmiGMPriorProbabilisticAE(pl.LightningModule):
         ), AssertionError(
             f"gmm_likelihood_per_k shape is {gmm_likelihood_per_k.shape}, expected {(self.cfg.no_latent_samples, batch_size)}"
         )
-        z_to_decode = z_sample.squeeze(2).reshape(-1, self.cfg.latent_dim) # (self.cfg.no_latent_samples * batch_size, self.cfg.latent_dim)
+        z_to_decode = z_sample.squeeze(2).reshape(
+            -1, self.cfg.latent_dim
+        )  # (self.cfg.no_latent_samples * batch_size, self.cfg.latent_dim)
         # print("z_to_decode", z_to_decode.shape)
-        x_hat = self.decoder(z_to_decode).reshape(self.cfg.no_latent_samples, batch_size, -1) # (self.cfg.no_latent_samples, batch_size, sum_of_modalities)
+        x_hat = self.decoder(z_to_decode).reshape(
+            self.cfg.no_latent_samples, batch_size, -1
+        )  # (self.cfg.no_latent_samples, batch_size, sum_of_modalities)
         # print("x_hat", x_hat.shape, x.repeat(self.cfg.no_latent_samples, 1, 1).shape)
         # assert x_hat.shape == x.repeat(self.cfg.no_latent_samples, 1, 1).shape
         recon_loss_per_k = F.mse_loss(
