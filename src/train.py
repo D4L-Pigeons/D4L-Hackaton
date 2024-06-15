@@ -90,7 +90,11 @@ def main():
 
     # Save latent
     latent_representation = model.predict(train_data)
-    torch.save(latent_representation, str(results_path / "latent"))
+    if isinstance(latent_representation, dict):  # BABEL model
+        for modality_name, latent in latent_representation.items():
+            torch.save(latent, str(results_path / f"latent_train_{modality_name}"))
+    else:
+        torch.save(latent_representation, str(results_path / "latent"))
 
 
 def load_config(args) -> SimpleNamespace:
