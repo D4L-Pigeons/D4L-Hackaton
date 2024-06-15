@@ -21,6 +21,9 @@ from torch import nn
 from torch.nn import functional as F
 
 from models.building_blocks import Block
+from utils.paths import CONFIG_PATH, RESULTS_PATH
+import os
+
 
 
 class ClassificationModel(pl.LightningModule):
@@ -104,24 +107,24 @@ def get_predictions_gt_classes(model, classification_head, data):
     prediction_probability = torch.softmax(prediction, dim=1)
     ground_truth = data.obs["cell_type"].cat.codes.values
     classes = data.obs["cell_type"].cat.categories
-    return prediction, prediction_probability, ground_truth, classes, test_latent_representation
+    return prediction.detach().numpy(), prediction_probability, ground_truth, classes, test_latent_representation.detach().numpy()
 
 
 def evaluate_clustering(y_true, y_pred, data):
-    silhouette = silhouette_score(data, y_pred)  # figure out what data is
-    print("Silhouette finished")
-    # ari = adjusted_rand_score(y_true, y_pred)
-    # print("Ari finished")
-    # nmi = normalized_mutual_info_score(y_true, y_pred)
-    # print("Normalized MI finished")
-    metrics = {
-        "silhouette_score": silhouette,
-        # "adjusted_rand_index": ari,
-        # "normalized_mutual_info": nmi,
-    }
-    print(metrics)
+#     silhouette = silhouette_score(data, y_pred)  # figure out what data is
+#     print("Silhouette finished")
+#     # ari = adjusted_rand_score(y_true, y_pred)
+#     # print("Ari finished")
+#     # nmi = normalized_mutual_info_score(y_true, y_pred)
+#     # print("Normalized MI finished")
+#     metrics = {
+#         "silhouette_score": silhouette,
+#         # "adjusted_rand_index": ari,
+#         # "normalized_mutual_info": nmi,
+#     }
+#     print(metrics)
     plot_clustering(data, y_pred)
-    return metrics
+    # return metrics
 
 
 def get_metrics(model, classification_head, test_data):
@@ -132,7 +135,7 @@ def get_metrics(model, classification_head, test_data):
         classes,
         test_latent_representation,
     ) = get_predictions_gt_classes(model, classification_head, test_data)
-    metrics = evaluate_clustering(ground_truth, prediction, test_latent_representation)
+    metrics = evaluate_clustering(ground_truth, prediction, test_data)
 
     metrics["f1_score_per_cell_type"] = sklearn.metrics.f1_score(
         ground_truth, prediction, labels=classes, average=None
@@ -204,10 +207,32 @@ def plot_roc_auc(y_true, y_pred, num_classes):  # what to do with this?
 
 
 def plot_clustering(data, y_pred):
-    plt.figure(figsize=(10, 6))
-    sns.scatterplot(x=data[:, 0], y=data[:, 1], hue=y_pred, palette="viridis")
-    plt.title("Clustering Results")
-    plt.show()
+    import scanpy as sc
+    from sklearn.decomposition import PCA
+
+    # Extract the latent embedding
+    latent_embedding = GEX_anndata.obsm['latent_embedding']
+
+    # Perform PCA on the latent embedding
+    pca = PCA(n_components=2)
+    latent_pca = pca.fit_transform(latent_embedding)
+
+    # Store the PCA results back in the AnnData object
+    GEX_anndata.obsm['X_pca_latent'] = latent_pca
+    GEX_anndata.uns['pca_latent_variance_ratio'] = pca.explained_variance_ratio_
+
+    # Create a new AnnData object for visualization purposes
+    pca_gex_anndata = sc.AnnData(X=latent_pca)
+    pca_gex_anndata.obs = GEX_anndata.obs
+    pca_gex_anndata.var_names = [f"PC{i+1}" for i in range(latent_pca.shape[1])]
+
+    # Visualize the PCA results
+    sc.pl.scatter(pca_gex_anndata, x="PC1", y="PC2", color='level1', title="GEX latent by PCA")
+
+    # plt.figure(figsize=(10, 6))
+    # sns.scatterplot(x=data[:, 0], y=data[:, 1], hue=y_pred, palette="viridis")
+    # plt.title("Clustering Results")
+    # plt.show()
 
 
 import argparse
@@ -239,13 +264,13 @@ def main():
 
     model.load(args.path)
 
-    train_data = load_anndata(
-        mode="train",
-        normalize=config.normalize,
-        remove_batch_effect=config.remove_batch_effect,
-        target_hierarchy_level=config.target_hierarchy_level,
-        preload_subsample_frac=None,
-    )
+    # train_data = load_anndata(
+    #     mode="train",
+    #     normalize=config.normalize,
+    #     remove_batch_effect=config.remove_batch_effect,
+    #     target_hierarchy_level=config.target_hierarchy_level,
+    #     preload_subsample_frac=None,
+    # )
 
     test_data = load_anndata(
         mode="test",
@@ -255,8 +280,19 @@ def main():
         preload_subsample_frac=None,
     )
 
-    metrics_dict = calculate_metrics(model, train_data, test_data)
-    pd.DataFrame.from_dict(metrics_dict).to_csv(args.path + "metrics.csv")
+    latent_test = model.predict(test_data)
+
+    results_path = RESULTS_PATH / args.method
+    if not os.path.exists(results_path):
+        os.makedirs(results_path)
+
+    results_path = RESULTS_PATH / args.method / f"{args.config}"
+    if not os.path.exists(results_path):
+        os.mkdir(results_path)
+    torch.save(latent_test, str(results_path / "latent_test"))
+
+    # metrics_dict = calculate_metrics(model, train_data, test_data)
+    # pd.DataFrame.from_dict(metrics_dict).to_csv(args.path + "metrics.csv")
 
 
 if __name__ == "__main__":

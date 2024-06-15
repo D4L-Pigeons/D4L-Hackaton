@@ -187,7 +187,11 @@ class OmiGMPriorProbabilisticAE(pl.LightningModule):
         ), AssertionError(
             f"gmm_likelihood_per_k shape is {gmm_likelihood_per_k.shape}, expected {(self.cfg.no_latent_samples, batch_size)}"
         )
-        x_hat = self.decoder(z_sample.squeeze(2))
+        z_to_decode = z_sample.squeeze(2).reshape(-1, self.cfg.latent_dim) # (self.cfg.no_latent_samples * batch_size, self.cfg.latent_dim)
+        # print("z_to_decode", z_to_decode.shape)
+        x_hat = self.decoder(z_to_decode).reshape(self.cfg.no_latent_samples, batch_size, -1) # (self.cfg.no_latent_samples, batch_size, sum_of_modalities)
+        # print("x_hat", x_hat.shape, x.repeat(self.cfg.no_latent_samples, 1, 1).shape)
+        # assert x_hat.shape == x.repeat(self.cfg.no_latent_samples, 1, 1).shape
         recon_loss_per_k = F.mse_loss(
             x_hat, x.repeat(self.cfg.no_latent_samples, 1, 1), reduction="none"
         ).mean(
@@ -314,7 +318,9 @@ class OmiModel(ModelBase):
                 target_hierarchy_level=self.cfg.target_hierarchy_level,
             ),
         )
-        return torch.cat(latent_representation, dim=0)
+        concatenated_latent = torch.cat(latent_representation, dim=0)
+        print(concatenated_latent.shape)
+        return concatenated_latent
 
     def save(self, file_path: str):
         save_path = file_path + ".ckpt"
