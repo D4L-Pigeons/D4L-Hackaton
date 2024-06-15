@@ -88,6 +88,10 @@ def main():
     saved_model_path = model.save(str(results_path / "saved_model"))
     print(f"Model saved to: {saved_model_path}")
 
+    # Save latent
+    latent_representation = model.predict(train_data)
+    torch.save(latent_representation, str(results_path / "latent"))
+
 
 def load_config(args) -> SimpleNamespace:
     def load_object(dct):

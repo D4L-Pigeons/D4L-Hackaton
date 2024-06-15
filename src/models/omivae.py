@@ -187,7 +187,15 @@ class OmiGMPriorProbabilisticAE(pl.LightningModule):
         ), AssertionError(
             f"gmm_likelihood_per_k shape is {gmm_likelihood_per_k.shape}, expected {(self.cfg.no_latent_samples, batch_size)}"
         )
-        x_hat = self.decoder(z_sample.squeeze(2))
+        z_to_decode = z_sample.squeeze(2).reshape(
+            -1, self.cfg.latent_dim
+        )  # (self.cfg.no_latent_samples * batch_size, self.cfg.latent_dim)
+        # print("z_to_decode", z_to_decode.shape)
+        x_hat = self.decoder(z_to_decode).reshape(
+            self.cfg.no_latent_samples, batch_size, -1
+        )  # (self.cfg.no_latent_samples, batch_size, sum_of_modalities)
+        # print("x_hat", x_hat.shape, x.repeat(self.cfg.no_latent_samples, 1, 1).shape)
+        # assert x_hat.shape == x.repeat(self.cfg.no_latent_samples, 1, 1).shape
         recon_loss_per_k = F.mse_loss(
             x_hat, x.repeat(self.cfg.no_latent_samples, 1, 1), reduction="none"
         ).mean(
@@ -232,11 +240,11 @@ class OmiGMPriorProbabilisticAE(pl.LightningModule):
         return total_loss
 
     def predict_step(self, batch: Tensor) -> Tensor:
-        print("gmm omiwae predict step DONT USE YET...")
+        # print("gmm omiwae predict step...")
         x1, x2 = batch
         x = torch.cat((x1, x2), dim=-1)
-        z = self.encoder(x)
-        return z
+        z_means, _ = self.encoder(x).chunk(2, dim=-1)
+        return z_means
 
     def _var_transformation(self, std: Tensor) -> Tensor:
         return F.softplus(std) + 1e-6
@@ -310,12 +318,13 @@ class OmiModel(ModelBase):
                 shuffle=False,
                 first_modality_dim=self.cfg.first_modality_dim,
                 second_modality_dim=self.cfg.second_modality_dim,
-                include_class_labels=self.cfg.classification_head
-                or self.cfg.include_class_labels,
+                include_class_labels=False,
                 target_hierarchy_level=self.cfg.target_hierarchy_level,
             ),
         )
-        return torch.cat(latent_representation, dim=0)
+        concatenated_latent = torch.cat(latent_representation, dim=0)
+        print(concatenated_latent.shape)
+        return concatenated_latent
 
     def save(self, file_path: str):
         save_path = file_path + ".ckpt"
