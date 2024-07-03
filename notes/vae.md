@@ -86,7 +86,7 @@ We may specify hierarchy over the clusters II) $\frac{\mu_a + \mu_b}{2}$ one gau
 In the usual case the mu's are pulled to 0 because of the prior (the mus from the encoder)
 
 Here if the example is from mu_a then it is pulled towards mu_a and the higher level mu effectively pulling the example to the second mu as well. the pulling is from both sides so the mus are pulled to the example as well (even the mu from the other cluster because of of pulling of the higher level cluster mean incorporationg it).
-![alt text](image.png)
+![alt text](images/hierarchy.png)
 
 
 # When matching two latents we may do it with the common trainable GM priors and do e. g. BABEL (what about other approaches?)
