@@ -149,10 +149,10 @@ def get_metrics(model, classification_head, test_data):
         ground_truth, prediction, labels=classes, average="macro"
     )
     metrics["accuracy"] = sklearn.metrics.accuracy_score(ground_truth, prediction)
-    metrics[
-        "average_precision_per_cell_type"
-    ] = sklearn.metrics.average_precision_score(
-        ground_truth, prediction_probability, average=None
+    metrics["average_precision_per_cell_type"] = (
+        sklearn.metrics.average_precision_score(
+            ground_truth, prediction_probability, average=None
+        )
     )
     metrics["roc_auc_per_cell_type"] = sklearn.metrics.roc_auc_score(
         ground_truth,

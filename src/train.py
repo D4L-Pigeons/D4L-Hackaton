@@ -1,110 +1,15 @@
-import argparse
-import datetime
-import json
-import os
-from types import SimpleNamespace
-
-import anndata as ad
-import numpy as np
-import pandas as pd
-import torch
-import yaml
-
 from models.babel import BabelModel
 from models.ModelBase import ModelBase
 from models.omivae import OmiModel
 from models.vae import VAE
 from utils.data_utils import load_anndata
-from utils.paths import CONFIG_PATH, RESULTS_PATH
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Validate model")
-    parser.add_argument(
-        "--method",
-        choices=["omivae", "babel", "advae", "vae"],
-        help="Name of the method to use.",
-    )
-    parser.add_argument(
-        "--mode",
-        choices=["train", "test", "train+test"],
-        default="train",
-        help="Mode to load the data for. Must be one of ['train', 'test', 'train+test'].",
-    )
-    parser.add_argument(
-        "--plus-iid-holdout",
-        action="store_true",
-        help="Whether to include the iid_holdout data in the anndata object.",
-    )
-    parser.add_argument(
-        "--config",
-        default="standard",
-        help="Name of a configuration in src/config/{method}.yaml.",
-    )
-    parser.add_argument(
-        "--preload-subsample-frac",
-        default=None,
-        type=float,
-        help="Fraction of the data to load. If None, use all data. Don't use subsample-frac with this option.",
-    )
-
-    args = parser.parse_args()
-
-    config = load_config(args)
-    model = create_model(args, config)
-
-    train_data = load_anndata(
-        mode="train",
-        normalize=config.normalize,
-        remove_batch_effect=config.remove_batch_effect,
-        target_hierarchy_level=config.target_hierarchy_level,
-        preload_subsample_frac=args.preload_subsample_frac,
-    )
-
-    model.fit(train_data)
-
-    # Save results
-    current_time = datetime.datetime.now()
-    formatted_time = current_time.strftime("%Y-%m-%d_%H-%M-%S")
-
-    # Create directories if they don't exist
-    if not os.path.exists(RESULTS_PATH):
-        os.mkdir(RESULTS_PATH)
-
-    results_path = RESULTS_PATH / args.method
-    if not os.path.exists(results_path):
-        os.makedirs(results_path)
-
-    results_path = RESULTS_PATH / args.method / f"{args.config}_{formatted_time}"
-    if not os.path.exists(results_path):
-        os.mkdir(results_path)
-
-    # Save config
-    with open(results_path / "config.yaml", "w") as file:
-        yaml.dump(config.__dict__, file)
-        print(f"Config saved to: {results_path / 'config.yaml'}")
-
-    # Save model
-    saved_model_path = model.save(str(results_path / "saved_model"))
-    print(f"Model saved to: {saved_model_path}")
-
-    # Save latent
-    latent_representation = model.predict(train_data)
-    if isinstance(latent_representation, dict):  # BABEL model
-        for modality_name, latent in latent_representation.items():
-            torch.save(latent, str(results_path / f"latent_train_{modality_name}"))
-    else:
-        torch.save(latent_representation, str(results_path / "latent"))
-
-
-def load_config(args) -> SimpleNamespace:
-    def load_object(dct):
-        return SimpleNamespace(**dct)
-
-    with open(CONFIG_PATH / args.method / f"{args.config}.yaml") as file:
-        config_dict = yaml.safe_load(file)
-    config_namespace = json.loads(json.dumps(config_dict), object_hook=load_object)
-    return config_namespace
+from utils.train_and_validate_utils import (
+    parse_arguments,
+    load_config,
+    create_results_dir,
+    save_model_and_latent,
+    CrossValidator,
+)
 
 
 def create_model(args, config) -> ModelBase:
@@ -120,6 +25,43 @@ def create_model(args, config) -> ModelBase:
         return VAE(config)
     else:
         raise NotImplementedError(f"{args.method} method not implemented.")
+
+
+def main():
+    args = parse_arguments()
+
+    config = load_config(args)
+    model = create_model(args, config)
+
+    train_data = load_anndata(
+        mode="train",
+        normalize=config.normalize,
+        remove_batch_effect=config.remove_batch_effect,
+        target_hierarchy_level=config.target_hierarchy_level,
+        preload_subsample_frac=args.preload_subsample_frac,
+    )
+    val_data = load_anndata(
+        mode="test",
+        normalize=config.normalize,
+        remove_batch_effect=config.remove_batch_effect,
+        target_hierarchy_level=config.target_hierarchy_level,
+        preload_subsample_frac=args.preload_subsample_frac,
+    )
+
+    model.fit(train_data)
+
+    cross_validator = CrossValidator(
+        model, args.cv_seed, args.n_folds, args.subsample_frac
+    )
+
+    cross_validation_metrics = cross_validator.perform_cross_validation(
+        train_data, val_data
+    )
+
+    latent_representation = model.predict(train_data)
+
+    results_path = create_results_dir(args)
+    save_model_and_latent(model, latent_representation, results_path)
 
 
 if __name__ == "__main__":
