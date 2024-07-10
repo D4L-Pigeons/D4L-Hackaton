@@ -1,0 +1,18 @@
+contexts:
+  entropy:
+    backend_type: slurm
+    cmd_type: sbatch
+    cpu: 4
+    gpu: 0
+    mem: 64
+    nodes: 1
+    ntasks: 1
+    partition: common
+    qos: 8gpu3d
+    singularity_container: --nv -H $PWD:/homeplaceholder
+     -B /home/asia/ 
+     -B /home/asia/crazyvae/data:/data 
+     --env NEPTUNEPWD=$PWD /home/asia/crazyvae/apptainer/crazyvae_container.sif 
+    slurm_url: asia@entropy.mimuw.edu.pl 
+    storage_dir: /home/asia/ 
+    time: 0-10:00:00
