@@ -11,3 +11,5 @@ src/results/*
 src/logs/*
 idea/*
 src/lightning_logs/*
+apptainer/*
+*.yaml

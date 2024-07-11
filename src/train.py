@@ -10,6 +10,7 @@ from utils.train_and_validate_utils import (
     save_model_and_latent,
     CrossValidator,
 )
+from utils.neptune_utils import get_metrics_callback
 
 
 def create_model(args, config) -> ModelBase:
@@ -27,8 +28,8 @@ def create_model(args, config) -> ModelBase:
         raise NotImplementedError(f"{args.method} method not implemented.")
 
 
-def main():
-    args = parse_arguments()
+def main(config):
+    metrics_callback = get_metrics_callback(config)
 
     config = load_config(args)
     model = create_model(args, config)
@@ -61,7 +62,8 @@ def main():
     latent_representation = model.predict(train_data)
 
     results_path = create_results_dir(args)
-    save_model_and_latent(model, latent_representation, results_path)
+    # compute_latent_and_save_model(model, latent_representation, results_path)
+    # compute_and_save_metrics(model)
 
 
 if __name__ == "__main__":

@@ -113,40 +113,6 @@ class SingleModalityVAE(nn.Module):
         z = self.reparameterize(mu, logvar)
         return z
 
-    def assert_modality_cfg(self, cfg_name: str, modality_cfg: Namespace) -> None:
-        print(modality_cfg)
-        print(modality_cfg.dim)
-        assert hasattr(modality_cfg, "modality_name"), AttributeError(
-            f'{cfg_name} modality cfg does not have the attribute "modality_name"'
-        )
-        assert hasattr(modality_cfg, "dim"), AttributeError(
-            f'{cfg_name} modality cfg does not have the attribute "dim"'
-        )
-        assert hasattr(modality_cfg, "embedding_dim"), AttributeError(
-            f'{cfg_name} modality cfg does not have the attribute "embedding_dim"'
-        )
-        assert hasattr(modality_cfg, "hidden_dim"), AttributeError(
-            f'{cfg_name} modality cfg does not have the attribute "hidden_dim"'
-        )
-        assert hasattr(modality_cfg, "latent_dim"), AttributeError(
-            f'{cfg_name} modality cfg does not have the attribute "latent_dim"'
-        )
-        assert hasattr(modality_cfg, "latent_hidden_dim"), AttributeError(
-            f'{cfg_name} modality cfg does not have the attribute "latent_hidden_dim"'
-        )
-        assert hasattr(modality_cfg, "batch_norm"), AttributeError(
-            f'{cfg_name} modality cfg does not have the attribute "batch_norm"'
-        )
-        assert hasattr(modality_cfg, "kld_weight"), AttributeError(
-            f'{cfg_name} modality cfg does not have the attribute "kld_weight"'
-        )
-        assert hasattr(modality_cfg, "batch_size"), AttributeError(
-            f'{cfg_name} modality does not have the attribute "batch_size"'
-        )
-        assert hasattr(modality_cfg, "lr"), AttributeError(
-            f'{cfg_name} modality does not have the attribute "lr"'
-        )
-
 
 class VAE(pl.LightningModule, ModelBase):
     def __init__(self, cfg: Namespace):
@@ -268,61 +234,3 @@ class VAE(pl.LightningModule, ModelBase):
             for model in self.model.values()
         ]
         return optimizers
-
-    @staticmethod
-    def assert_cfg_general(cfg: Namespace) -> None:
-        assert hasattr(cfg, "model_name"), AttributeError(
-            'cfg does not have the attribute "model_name"'
-        )
-        assert hasattr(cfg, "modalities"), AttributeError(
-            'cfg does not have the attribute "modalities"'
-        )
-        assert hasattr(cfg, "max_epochs"), AttributeError(
-            'cfg does not have the attribute "max_epochs"'
-        )
-        assert hasattr(cfg, "log_every_n_steps"), AttributeError(
-            'cfg does not have the attribute "log_every_n_steps"'
-        )
-        assert hasattr(cfg, "early_stopping"), AttributeError(
-            'cfg does not have the attribute "early_stopping"'
-        )
-        assert hasattr(cfg, "min_delta"), AttributeError(
-            'cfg does not have the attribute "min_delta"'
-        )
-        assert hasattr(cfg, "patience"), AttributeError(
-            'cfg does not have the attribute "patience"'
-        )
-
-    def assert_cfg(self, cfg: Namespace) -> None:
-        self.assert_cfg_general(cfg)
-        for cfg_name, modality_cfg in vars(cfg.modalities).items():
-            assert hasattr(modality_cfg, "modality_name"), AttributeError(
-                f'{cfg_name} modality cfg does not have the attribute "modality_name"'
-            )
-            assert hasattr(modality_cfg, "dim"), AttributeError(
-                f'{cfg_name} modality cfg does not have the attribute "dim"'
-            )
-            assert hasattr(modality_cfg, "embedding_dim"), AttributeError(
-                f'{cfg_name} modality cfg does not have the attribute "embedding_dim"'
-            )
-            assert hasattr(modality_cfg, "hidden_dim"), AttributeError(
-                f'{cfg_name} modality cfg does not have the attribute "hidden_dim"'
-            )
-            assert hasattr(modality_cfg, "latent_dim"), AttributeError(
-                f'{cfg_name} modality cfg does not have the attribute "latent_dim"'
-            )
-            assert hasattr(modality_cfg, "latent_hidden_dim"), AttributeError(
-                f'{cfg_name} modality cfg does not have the attribute "latent_hidden_dim"'
-            )
-            assert hasattr(modality_cfg, "batch_norm"), AttributeError(
-                f'{cfg_name} modality cfg does not have the attribute "batch_norm"'
-            )
-            assert hasattr(modality_cfg, "kld_weight"), AttributeError(
-                f'{cfg_name} modality cfg does not have the attribute "kld_weight"'
-            )
-            assert hasattr(modality_cfg, "batch_size"), AttributeError(
-                f'{cfg_name} modality does not have the attribute "batch_size"'
-            )
-            assert hasattr(modality_cfg, "lr"), AttributeError(
-                f'{cfg_name} modality does not have the attribute "lr"'
-            )
