@@ -1,6 +1,6 @@
 from mrunner.helpers.specification_helper import create_experiments_helper
 
-from src.utils.parser import parse_args, combine_with_defaults
+from src.utils.parser import combine_with_defaults
 
 name = globals()["script"][:-3]
 
@@ -24,7 +24,7 @@ modalities_draft_config["gex"] = {
 }
 
 modalities_draft_config["adt"] = {
-    "dim": 134, # max 13953 | MAY BE CHANGED FOR DEBUGGING
+    "dim": 134, # max 134 | MAY BE CHANGED FOR DEBUGGING
     # architecture configuration
     "hidden_dim": 128,
     "encoder_hidden_dim": 128,
@@ -38,7 +38,6 @@ modalities_draft_config["adt"] = {
     "kld_loss_coef": 0.1,
 }
 
-modalities_names = modalities_draft_config.keys()
 
 base_config = {
     "method": "omivae",
@@ -62,7 +61,7 @@ base_config = {
     "kld_loss_weight": 0.01,
 }
 
-base_config = combine_with_defaults(base_config, modalities_draft_config, defaults=vars(parse_args(modalities_names, [])))
+base_config = combine_with_defaults(base_config, modalities_draft_config)
 
 params_grid = []
 

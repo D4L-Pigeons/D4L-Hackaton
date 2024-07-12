@@ -2,7 +2,9 @@ import argparse
 from copy import deepcopy
 
 
-def combine_with_defaults(config, modalities_draft_config, defaults):
+def combine_with_defaults(config, modalities_draft_config):
+    modalities_names = modalities_draft_config.keys()
+    defaults = vars(_parse_args(modalities_names, []))
     res = deepcopy(defaults)
 
     for modalitiy_name, modality_config in modalities_draft_config.items():
@@ -15,21 +17,22 @@ def combine_with_defaults(config, modalities_draft_config, defaults):
     return res
 
 
-def parse_args(modalities_names, args=None):
-    parser = get_parser(modalities_names)
+def _parse_args(modalities_names, args=None):
+    parser = _get_parser(modalities_names)
     return parser.parse_args(args=args)
 
 
-def get_parser(modalities_names):
+def _get_parser(modalities_names):
     """Parses command line arguments."""
     parser = argparse.ArgumentParser(modalities_namesdescription="Validate model")
-    main_parser(parser)
-    train_parser(parser)
-    modality_parser(parser, modalities_names)
+    _main_parser(parser)
+    _data_parser(parser)
+    _train_parser(parser)
+    _modality_parser(parser, modalities_names)
     return parser.parse_args()
 
 
-def main_parser(parser):  # Check if needs to return parser
+def _main_parser(parser):  # Check if needs to return parser
     parser.add_argument(
         "--method",
         choices=["omivae", "babel", "advae", "vae"],
@@ -58,7 +61,7 @@ def main_parser(parser):  # Check if needs to return parser
         "--retrain", default=True, help="Retrain a model using the whole dataset."
     )
 
-def data_parser(parser):
+def _data_parser(parser):
     parser.add_argument(
         "--plus-iid-holdout",
         action="store_true",
@@ -68,8 +71,7 @@ def data_parser(parser):
     parser.add_argument("--remove_batch_effect", type=bool, default=True, help="Whether to remove batch effects.")
     parser.add_argument("--target_hierarchy_level", type=int, default=-1, help="Target hierarchy level for classification.")
 
-def train_parser(parser):
-    # Training arguments
+def _train_parser(parser):
     parser.add_argument("--lr", default=1e-3, type=float, help="Learning rate.")
     parser.add_argument("--batch-size", default=64, type=int, help="Batch size.")
     parser.add_argument("--model-name", type=str, help="Name of a current model.")
@@ -96,7 +98,7 @@ def train_parser(parser):
     )
 
 
-def modality_parser(parser, modalities_names):
+def _modality_parser(parser, modalities_names):
     for modality_name in modalities_names:
         prefix = f"{modality_name}_"
         parser.add_argument(f"--{prefix}modality_name", type=str, default=modality_name.upper(), help=f"Modality name for {modality_name.upper()}.")
