@@ -4,10 +4,65 @@ from src.utils.parser import parse_args, combine_with_defaults
 
 name = globals()["script"][:-3]
 
-base_config = {
-    "train": True,
+
+modalities_draft_config = {}
+
+modalities_draft_config["gex"] = {
+    # "modality_name": "GEX", # you can add modality name, but it's not necessary -- deafult name is name.upper()
+    "dim": 13953, # max 13953 | MAY BE CHANGED FOR DEBUGGING
+    # architecture configuration
+    "hidden_dim": 128,
+    "encoder_hidden_dim": 128,
+    "encoder_out_dim": 32,
+    "latent_dim": 16,
+    "decoder_hidden_dim": 128,
+    # other
+    "batch_norm": False,
+    "dropout_rate": 0.1,
+    "recon_loss_coef": 1,
+    "kld_loss_coef": 0.1,
 }
-base_config = combine_with_defaults(base_config, defaults=vars(parse_args([])))
+
+modalities_draft_config["adt"] = {
+    "dim": 134, # max 13953 | MAY BE CHANGED FOR DEBUGGING
+    # architecture configuration
+    "hidden_dim": 128,
+    "encoder_hidden_dim": 128,
+    "encoder_out_dim": 32,
+    "latent_dim": 16,
+    "decoder_hidden_dim": 128,
+    # other
+    "batch_norm": False,
+    "dropout_rate": 0.1,
+    "recon_loss_coef": 1,
+    "kld_loss_coef": 0.1,
+}
+
+modalities_names = modalities_draft_config.keys()
+
+base_config = {
+    "method": "omivae",
+    "model_name": "OmiAE",
+    "mode": "train",
+    "retrain": True,
+    "lr": 0.001,
+    "batch_size": 128,
+    "subsample_frac": 1, # MAY BE CHANGED FOR DEBUGGING
+    "data_normalization": "standarize", # "log1p", "standardize", "pearson_residuals", null -> None
+    "remove_batch_effect": True,
+    # include_class_labels: False
+    "target_hierarchy_level": -1,
+    "max_epochs": 10,
+    "log_every_n_steps": 1,
+    "early_stopping": True,
+    "early_stopping_delta": 0.001,
+    "early_stopping_patience": 5,
+
+    "recon_loss_weight": 1,
+    "kld_loss_weight": 0.01,
+}
+
+base_config = combine_with_defaults(base_config, modalities_draft_config, defaults=vars(parse_args(modalities_names, [])))
 
 params_grid = []
 
