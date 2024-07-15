@@ -1,6 +1,6 @@
 from mrunner.helpers.specification_helper import create_experiments_helper
 
-from src.utils.parser import combine_with_defaults
+from src.global_utils.parser import combine_with_defaults
 
 name = globals()["script"][:-3]
 
@@ -9,7 +9,7 @@ modalities_draft_config = {}
 
 modalities_draft_config["gex"] = {
     # "modality_name": "GEX", # you can add modality name, but it's not necessary -- deafult name is name.upper()
-    "dim": 13953, # max 13953 | MAY BE CHANGED FOR DEBUGGING
+    "dim": 13953,  # max 13953 | MAY BE CHANGED FOR DEBUGGING
     # architecture configuration
     "hidden_dim": 128,
     "encoder_hidden_dim": 128,
@@ -24,7 +24,7 @@ modalities_draft_config["gex"] = {
 }
 
 modalities_draft_config["adt"] = {
-    "dim": 134, # max 134 | MAY BE CHANGED FOR DEBUGGING
+    "dim": 134,  # max 134 | MAY BE CHANGED FOR DEBUGGING
     # architecture configuration
     "hidden_dim": 128,
     "encoder_hidden_dim": 128,
@@ -46,8 +46,8 @@ base_config = {
     "retrain": True,
     "lr": 0.001,
     "batch_size": 128,
-    "subsample_frac": 1, # MAY BE CHANGED FOR DEBUGGING
-    "data_normalization": "standarize", # "log1p", "standardize", "pearson_residuals", null -> None
+    "subsample_frac": 1,  # MAY BE CHANGED FOR DEBUGGING
+    "data_normalization": "standarize",  # "log1p", "standardize", "pearson_residuals", null -> None
     "remove_batch_effect": True,
     # include_class_labels: False
     "target_hierarchy_level": -1,
@@ -56,7 +56,6 @@ base_config = {
     "early_stopping": True,
     "early_stopping_delta": 0.001,
     "early_stopping_patience": 5,
-
     "recon_loss_weight": 1,
     "kld_loss_weight": 0.01,
 }

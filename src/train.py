@@ -28,7 +28,7 @@ def create_model(args, config) -> ModelBase:
         raise NotImplementedError(f"{args.method} method not implemented.")
 
 
-def main(config):
+def train(config):
     metrics_callback = get_metrics_callback(config)
 
     config = load_config(args)
@@ -67,4 +67,4 @@ def main(config):
 
 
 if __name__ == "__main__":
-    main()
+    train()
