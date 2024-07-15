@@ -13,13 +13,13 @@ from pytorch_lightning.utilities.combined_loader import CombinedLoader
 from sklearn.metrics import balanced_accuracy_score
 from torch import Tensor
 from torch.utils.data import DataLoader
-
-from models.ModelBase import ModelBase
-from utils.data_utils import (
+from src.data.dataloader_todo import (
     get_dataloader_dict_from_anndata,
     get_dataloader_from_anndata,
 )
-from utils.paths import LOGS_PATH
+from src.global_utils.paths import LOGS_PATH
+
+from src.models.ModelBase import ModelBase
 
 
 class Encoder(nn.Module):

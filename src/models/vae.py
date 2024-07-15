@@ -9,11 +9,11 @@ from pytorch_lightning.utilities.combined_loader import CombinedLoader
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import Tensor
 from tqdm import tqdm
+from src.data.dataloader_todo import get_dataloader_dict_from_anndata
+from src.global_utils.paths import LOGS_PATH
 
-from models.building_blocks import Block, ShortcutBlock
-from models.ModelBase import ModelBase
-from utils.data_utils import get_dataloader_dict_from_anndata
-from utils.paths import LOGS_PATH
+from src.models.building_blocks import Block, ShortcutBlock
+from src.models.ModelBase import ModelBase
 
 
 class SingleModalityVAE(nn.Module):

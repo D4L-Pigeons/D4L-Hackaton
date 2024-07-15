@@ -1,0 +1,68 @@
+{"obj": {"type": "AssignString", "path": ["sys", "name"], "value": "jw000_sample_spec"}, "version": 1, "at": 1721057421.169571}
+{"obj": {"type": "AssignString", "path": ["sys", "description"], "value": ""}, "version": 2, "at": 1721057421.1698263}
+{"obj": {"type": "AssignString", "path": ["monitoring", "b12b577e", "hostname"], "value": "Latitude"}, "version": 3, "at": 1721057421.169957}
+{"obj": {"type": "AssignString", "path": ["sys", "hostname"], "value": "Latitude"}, "version": 4, "at": 1721057421.1700506}
+{"obj": {"type": "AssignString", "path": ["monitoring", "b12b577e", "pid"], "value": "301053"}, "version": 5, "at": 1721057421.1701396}
+{"obj": {"type": "AssignString", "path": ["monitoring", "b12b577e", "tid"], "value": "131058500063232"}, "version": 6, "at": 1721057421.1702182}
+{"obj": {"type": "AddStrings", "path": ["sys", "tags"], "values": ["jw000_sample_spec", "kind_leavitt"]}, "version": 7, "at": 1721057421.1703117}
+{"obj": {"type": "AssignBool", "path": ["sys", "failed"], "value": false}, "version": 8, "at": 1721057421.1703904}
+{"obj": {"type": "ClearStringLog", "path": ["monitoring", "b12b577e", "stdout"]}, "version": 9, "at": 1721057421.1704884}
+{"obj": {"type": "ClearStringLog", "path": ["monitoring", "b12b577e", "stderr"]}, "version": 10, "at": 1721057421.170564}
+{"obj": {"type": "AssignString", "path": ["source_code", "entrypoint"], "value": "mrun.py"}, "version": 11, "at": 1721057421.1710885}
+{"obj": {"type": "UploadFileSet", "path": ["source_code", "files"], "file_globs": ["/home/joanna.wojciechowska/Desktop/D4L-Hackaton/mrun.py"], "reset": "False"}, "version": 12, "at": 1721057421.1712148}
+{"obj": {"type": "UploadFile", "path": ["source_code", "diff"], "ext": "patch", "file_path": null, "tmp_file_name": "source_code_diff-1721057421.184606-2024-07-15_17.30.21.184606.patch", "clean_after_upload": false}, "version": 13, "at": 1721057421.1849005}
+{"obj": {"type": "LogStrings", "path": ["monitoring", "b12b577e", "stdout"], "values": [{"value": "[neptune] [warning] Info (NVML): NVML Shared Library Not Found. GPU usage metrics may not be reported. For more information, see https://docs.neptune.ai/help/nvml_error/\n", "step": null, "ts": 1721057421.1953533}]}, "version": 14, "at": 1721057421.1954267}
+{"obj": {"type": "ConfigFloatSeries", "path": ["monitoring", "b12b577e", "cpu"], "min": 0.0, "max": 100.0, "unit": "%"}, "version": 15, "at": 1721057421.19632}
+{"obj": {"type": "ClearFloatLog", "path": ["monitoring", "b12b577e", "cpu"]}, "version": 16, "at": 1721057421.1965008}
+{"obj": {"type": "ConfigFloatSeries", "path": ["monitoring", "b12b577e", "memory"], "min": 0.0, "max": 15.30124282836914, "unit": "GB"}, "version": 17, "at": 1721057421.1966586}
+{"obj": {"type": "ClearFloatLog", "path": ["monitoring", "b12b577e", "memory"]}, "version": 18, "at": 1721057421.1967232}
+{"obj": {"type": "AssignString", "path": ["parameters", "ex"], "value": "specs/jw/jw000_sample_spec.py"}, "version": 19, "at": 1721057421.197977}
+{"obj": {"type": "AssignString", "path": ["parameters", "method"], "value": "omivae"}, "version": 20, "at": 1721057421.198329}
+{"obj": {"type": "AssignString", "path": ["parameters", "mode"], "value": "train"}, "version": 21, "at": 1721057421.198633}
+{"obj": {"type": "AssignInt", "path": ["parameters", "cv_seed"], "value": 42}, "version": 22, "at": 1721057421.1991937}
+{"obj": {"type": "AssignInt", "path": ["parameters", "n_folds"], "value": 5}, "version": 23, "at": 1721057421.1993604}
+{"obj": {"type": "AssignInt", "path": ["parameters", "subsample_frac"], "value": 1}, "version": 24, "at": 1721057421.2007313}
+{"obj": {"type": "AssignBool", "path": ["parameters", "retrain"], "value": true}, "version": 25, "at": 1721057421.201018}
+{"obj": {"type": "AssignBool", "path": ["parameters", "neptune_logger"], "value": false}, "version": 26, "at": 1721057421.2013896}
+{"obj": {"type": "AssignBool", "path": ["parameters", "plus_iid_holdout"], "value": false}, "version": 27, "at": 1721057421.2016323}
+{"obj": {"type": "AssignString", "path": ["parameters", "data_normalization"], "value": "standarize"}, "version": 28, "at": 1721057421.201753}
+{"obj": {"type": "AssignBool", "path": ["parameters", "remove_batch_effect"], "value": true}, "version": 29, "at": 1721057421.2018511}
+{"obj": {"type": "AssignInt", "path": ["parameters", "target_hierarchy_level"], "value": -1}, "version": 30, "at": 1721057421.2019458}
+{"obj": {"type": "AssignFloat", "path": ["parameters", "lr"], "value": 0.001}, "version": 31, "at": 1721057421.2020648}
+{"obj": {"type": "AssignInt", "path": ["parameters", "batch_size"], "value": 128}, "version": 32, "at": 1721057421.202166}
+{"obj": {"type": "AssignString", "path": ["parameters", "model_name"], "value": "OmiAE"}, "version": 33, "at": 1721057421.2022672}
+{"obj": {"type": "AssignInt", "path": ["parameters", "log_every_n_steps"], "value": 1}, "version": 34, "at": 1721057421.2023575}
+{"obj": {"type": "AssignInt", "path": ["parameters", "max_epochs"], "value": 10}, "version": 35, "at": 1721057421.202438}
+{"obj": {"type": "AssignBool", "path": ["parameters", "early_stopping"], "value": true}, "version": 36, "at": 1721057421.202519}
+{"obj": {"type": "AssignFloat", "path": ["parameters", "early_stopping_delta"], "value": 0.001}, "version": 37, "at": 1721057421.2026086}
+{"obj": {"type": "AssignInt", "path": ["parameters", "early_stopping_patience"], "value": 5}, "version": 38, "at": 1721057421.2026913}
+{"obj": {"type": "AssignInt", "path": ["parameters", "hidden_dim"], "value": 128}, "version": 39, "at": 1721057421.2027915}
+{"obj": {"type": "AssignInt", "path": ["parameters", "encoder_hidden_dim"], "value": 128}, "version": 40, "at": 1721057421.2028792}
+{"obj": {"type": "AssignInt", "path": ["parameters", "encoder_out_dim"], "value": 32}, "version": 41, "at": 1721057421.2029598}
+{"obj": {"type": "AssignInt", "path": ["parameters", "latent_dim"], "value": 16}, "version": 42, "at": 1721057421.2030368}
+{"obj": {"type": "AssignInt", "path": ["parameters", "decoder_hidden_dim"], "value": 128}, "version": 43, "at": 1721057421.2031124}
+{"obj": {"type": "AssignBool", "path": ["parameters", "batch_norm"], "value": false}, "version": 44, "at": 1721057421.2031875}
+{"obj": {"type": "AssignFloat", "path": ["parameters", "dropout_rate"], "value": 0.1}, "version": 45, "at": 1721057421.203459}
+{"obj": {"type": "AssignInt", "path": ["parameters", "recon_loss_coef"], "value": 1}, "version": 46, "at": 1721057421.2035556}
+{"obj": {"type": "AssignFloat", "path": ["parameters", "kld_loss_coef"], "value": 0.1}, "version": 47, "at": 1721057421.2036386}
+{"obj": {"type": "AssignString", "path": ["parameters", "gex_modality_name"], "value": "GEX"}, "version": 48, "at": 1721057421.2037356}
+{"obj": {"type": "AssignInt", "path": ["parameters", "gex_dim"], "value": 13953}, "version": 49, "at": 1721057421.2038174}
+{"obj": {"type": "AssignString", "path": ["parameters", "adt_modality_name"], "value": "ADT"}, "version": 50, "at": 1721057421.2039075}
+{"obj": {"type": "AssignInt", "path": ["parameters", "adt_dim"], "value": 134}, "version": 51, "at": 1721057421.2039886}
+{"obj": {"type": "LogFloats", "path": ["monitoring", "b12b577e", "memory"], "values": [{"value": 7.328372955322266, "step": null, "ts": 1721057421.1971812}]}, "version": 52, "at": 1721057421.2044594}
+{"obj": {"type": "LogStrings", "path": ["monitoring", "b12b577e", "stderr"], "values": [{"value": "[neptune] [warning] /home/joanna.wojciechowska/.local/lib/python3.10/site-packages/mrunner/helpers/client_helper.py:171: NeptuneUnsupportedType: You're attempting to log a type that is not directly supported by Neptune (<class 'NoneType'>).\n        Convert the value to a supported type, such as a string or float, or use stringify_unsupported(obj)\n        for dictionaries or collections that contain unsupported values.\n        For more, see https://docs.neptune.ai/help/value_of_unsupported_type\n", "step": null, "ts": 1721057421.2046843}]}, "version": 53, "at": 1721057421.2047658}
+{"obj": {"type": "AssignString", "path": ["properties", "PWD"], "value": "/home/joanna.wojciechowska/Desktop/D4L-Hackaton"}, "version": 54, "at": 1721057421.2051864}
+{"obj": {"type": "AssignString", "path": ["properties", "OLDPWD"], "value": "/home/joanna.wojciechowska/Desktop/D4L-Hackaton/src"}, "version": 55, "at": 1721057421.2053192}
+{"obj": {"type": "LogStrings", "path": ["monitoring", "b12b577e", "stderr"], "values": [{"value": "[neptune] [warning] /home/joanna.wojciechowska/.local/lib/python3.10/site-packages/mrunner/helpers/client_helper.py:171: NeptuneUnsupportedType: You're attempting to log a type that is not directly supported by Neptune (<class 'list'>).\n        Convert the value to a supported type, such as a string or float, or use stringify_unsupported(obj)\n        for dictionaries or collections that contain unsupported values.\n        For more, see https://docs.neptune.ai/help/value_of_unsupported_type\n", "step": null, "ts": 1721057421.2054367}]}, "version": 56, "at": 1721057421.2054894}
+{"obj": {"type": "LogFloats", "path": ["monitoring", "b12b577e", "cpu"], "values": [{"value": 19.5, "step": null, "ts": 1721057431.204768}]}, "version": 57, "at": 1721057431.205716}
+{"obj": {"type": "LogFloats", "path": ["monitoring", "b12b577e", "memory"], "values": [{"value": 8.27484130859375, "step": null, "ts": 1721057431.204768}]}, "version": 58, "at": 1721057431.2061653}
+{"obj": {"type": "LogFloats", "path": ["monitoring", "b12b577e", "cpu"], "values": [{"value": 12.9, "step": null, "ts": 1721057441.2064106}]}, "version": 59, "at": 1721057441.206874}
+{"obj": {"type": "LogFloats", "path": ["monitoring", "b12b577e", "memory"], "values": [{"value": 9.384014129638672, "step": null, "ts": 1721057441.2064106}]}, "version": 60, "at": 1721057441.2070692}
+{"obj": {"type": "LogStrings", "path": ["monitoring", "b12b577e", "stderr"], "values": [{"value": "/home/joanna.wojciechowska/.local/lib/python3.10/site-packages/anndata/_core/anndata.py:1820: UserWarning: Variable names are not unique. To make them unique, call `.var_names_make_unique`.\n  utils.warn_names_duplicates(\"var\")\n", "step": null, "ts": 1721057444.1645124}]}, "version": 61, "at": 1721057444.1646438}
+{"obj": {"type": "LogFloats", "path": ["monitoring", "b12b577e", "cpu"], "values": [{"value": 11.9, "step": null, "ts": 1721057451.2072728}]}, "version": 62, "at": 1721057451.2079263}
+{"obj": {"type": "LogFloats", "path": ["monitoring", "b12b577e", "memory"], "values": [{"value": 10.123981475830078, "step": null, "ts": 1721057451.2072728}]}, "version": 63, "at": 1721057451.2081387}
+{"obj": {"type": "LogFloats", "path": ["monitoring", "b12b577e", "cpu"], "values": [{"value": 11.4, "step": null, "ts": 1721057461.208427}]}, "version": 64, "at": 1721057461.2093856}
+{"obj": {"type": "LogFloats", "path": ["monitoring", "b12b577e", "memory"], "values": [{"value": 11.344993591308594, "step": null, "ts": 1721057461.208427}]}, "version": 65, "at": 1721057461.209776}
+{"obj": {"type": "LogStrings", "path": ["monitoring", "b12b577e", "stderr"], "values": [{"value": "/home/joanna.wojciechowska/.local/lib/python3.10/site-packages/anndata/_core/anndata.py:1820: UserWarning: Variable names are not unique. To make them unique, call `.var_names_make_unique`.\n  utils.warn_names_duplicates(\"var\")\n", "step": null, "ts": 1721057466.2598574}]}, "version": 66, "at": 1721057466.2599156}
+{"obj": {"type": "LogFloats", "path": ["monitoring", "b12b577e", "cpu"], "values": [{"value": 12.0, "step": null, "ts": 1721057471.2100155}]}, "version": 67, "at": 1721057471.2105522}
+{"obj": {"type": "LogFloats", "path": ["monitoring", "b12b577e", "memory"], "values": [{"value": 12.335968017578125, "step": null, "ts": 1721057471.2100155}]}, "version": 68, "at": 1721057471.2108057}

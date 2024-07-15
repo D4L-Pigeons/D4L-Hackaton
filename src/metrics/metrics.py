@@ -1,3 +1,4 @@
+import os
 from argparse import Namespace
 from itertools import cycle
 
@@ -18,11 +19,15 @@ from sklearn.metrics import (
 )
 from sklearn.preprocessing import label_binarize
 from torch import nn
-from torch.nn import functional as F
+from src.global_utils.paths import RESULTS_PATH
 
-from models.building_blocks import Block
-from utils.paths import CONFIG_PATH, RESULTS_PATH
-import os
+from src.models.building_blocks import Block
+
+import argparse
+
+from src.data.dataloader_todo import load_anndata
+
+from src.global_utils.train_and_validate_utils import create_model
 
 
 class ClassificationModel(pl.LightningModule):
@@ -242,71 +247,42 @@ def plot_clustering(data, y_pred):
     # plt.show()
 
 
-import argparse
-from utils.data_utils import load_anndata
-from train import load_config, create_model
-import pandas as pd
+# def main(config):
+#     model = create_model(config)
+#     model.load(args.path)
 
+#     # train_data = load_anndata(
+#     #     mode="train",
+#     #     normalize=config.normalize,
+#     #     remove_batch_effect=config.remove_batch_effect,
+#     #     target_hierarchy_level=config.target_hierarchy_level,
+#     #     preload_subsample_frac=None,
+#     # )
 
-def main():
-    parser = argparse.ArgumentParser(description="Validate model")
-    parser.add_argument(
-        "--path",
-        help="Path to load config from.",
-    )
-    parser.add_argument(
-        "--method",
-        choices=["omivae", "babel", "advae", "vae"],
-        help="Name of the method to use.",
-    )
-    parser.add_argument(
-        "--config",
-        default="standard",
-        help="Name of a configuration in src/config/{method}.yaml.",
-    )
-    args = parser.parse_args()
+#     test_data = load_anndata(
+#         mode="test",
+#         normalize=config.normalize,
+#         remove_batch_effect=config.remove_batch_effect,
+#         target_hierarchy_level=config.target_hierarchy_level,
+#         preload_subsample_frac=None,
+#     )
 
-    config = load_config(args)
-    model = create_model(args, config)
+#     results_path = RESULTS_PATH / args.method
+#     if not os.path.exists(results_path):
+#         os.makedirs(results_path)
 
-    model.load(args.path)
+#     results_path = RESULTS_PATH / args.method / f"{args.config}"
+#     if not os.path.exists(results_path):
+#         os.mkdir(results_path)
 
-    # train_data = load_anndata(
-    #     mode="train",
-    #     normalize=config.normalize,
-    #     remove_batch_effect=config.remove_batch_effect,
-    #     target_hierarchy_level=config.target_hierarchy_level,
-    #     preload_subsample_frac=None,
-    # )
+#     latent_test = model.predict(test_data)
 
-    test_data = load_anndata(
-        mode="test",
-        normalize=config.normalize,
-        remove_batch_effect=config.remove_batch_effect,
-        target_hierarchy_level=config.target_hierarchy_level,
-        preload_subsample_frac=None,
-    )
+#     if isinstance(latent_test, dict):  # BABEL model
+#         for modality_name, latent in latent_test.items():
+#             print(modality_name, type(latent), latent.shape)
+#             torch.save(latent, str(results_path / f"latent_test_{modality_name}.pt"))
+#     else:
+#         torch.save(latent_test, str(results_path / "latent_test.pt"))
 
-    results_path = RESULTS_PATH / args.method
-    if not os.path.exists(results_path):
-        os.makedirs(results_path)
-
-    results_path = RESULTS_PATH / args.method / f"{args.config}"
-    if not os.path.exists(results_path):
-        os.mkdir(results_path)
-
-    latent_test = model.predict(test_data)
-
-    if isinstance(latent_test, dict):  # BABEL model
-        for modality_name, latent in latent_test.items():
-            print(modality_name, type(latent), latent.shape)
-            torch.save(latent, str(results_path / f"latent_test_{modality_name}.pt"))
-    else:
-        torch.save(latent_test, str(results_path / "latent_test.pt"))
-
-    # metrics_dict = calculate_metrics(model, train_data, test_data)
-    # pd.DataFrame.from_dict(metrics_dict).to_csv(args.path + "metrics.csv")
-
-
-if __name__ == "__main__":
-    main()
+#     # metrics_dict = calculate_metrics(model, train_data, test_data)
+# pd.DataFrame.from_dict(metrics_dict).to_csv(args.path + "metrics.csv")

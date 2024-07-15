@@ -1,9 +1,6 @@
-from typing import Generator
-from utils.paths import CONFIG_PATH, RESULTS_PATH
 import datetime
-import json
 import os
-from types import SimpleNamespace
+from typing import Generator
 
 import anndata as ad
 import numpy as np
@@ -11,18 +8,29 @@ import pandas as pd
 import torch
 import yaml
 from sklearn.model_selection import KFold
+from src.global_utils.paths import RESULTS_PATH
 
 # from utils.metrics import calculate_metrics, latent_metrics
 
+from src.models.babel import BabelModel
+from src.models.ModelBase import ModelBase
+from src.models.omivae import OmiModel
+from src.models.vae import VAE
 
-def load_config(args) -> SimpleNamespace:
-    def load_object(dct):
-        return SimpleNamespace(**dct)
 
-    with open(CONFIG_PATH / args.method / f"{args.config}.yaml") as file:
-        config_dict = yaml.safe_load(file)
-    config_namespace = json.loads(json.dumps(config_dict), object_hook=load_object)
-    return config_namespace
+def create_model(config) -> ModelBase:
+    if config.method == "omivae":
+        model = OmiModel(config)
+        return model
+    elif config.method == "babel":
+        model = BabelModel(config)
+        return model
+    elif config.method == "advae":
+        raise NotImplementedError(f"{config.method} method not implemented.")
+    elif config.method == "vae":
+        return VAE(config)
+    else:
+        raise NotImplementedError(f"{config.method} method not implemented.")
 
 
 def create_results_dir(args):
@@ -92,15 +100,12 @@ class CrossValidator:
         print(f"Evaluating model on fold...")
         return None  # Replace with actual metrics calculation
 
-    def _k_folds(self, data: ad.AnnData) -> Generator[ad.AnnData, ad.AnnData]:
+    def _k_folds(self, data: ad.AnnData):
         r"""
         Generate indices for k-folds cross validation.
 
         Arguments:
             data (anndata.AnnData): The data to perform cross validation on.
-            n_folds (int): Number of folds in cross validation.
-            random_state (int): Seed used to make k folds for cross validation.
-
         Yields:
             Tuple[anndata.AnnData, anndata.AnnData]: The training and test data for each fold.
         """
@@ -116,4 +121,4 @@ class CrossValidator:
         split = kfold.split(obs_names)
 
         for train_obs_names, val_obs_names in split:
-            yield data[train_obs_names], data[val_obs_names]
+            yield (data[train_obs_names], data[val_obs_names])

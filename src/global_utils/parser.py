@@ -1,9 +1,10 @@
 import argparse
 from copy import deepcopy
+from typing import Any, Callable
 
 
 def combine_with_defaults(config, modalities_draft_config):
-    modalities_names = modalities_draft_config.keys()
+    modalities_names = list(modalities_draft_config.keys())
     defaults = vars(_parse_args(modalities_names, []))
     res = deepcopy(defaults)
 
@@ -16,25 +17,30 @@ def combine_with_defaults(config, modalities_draft_config):
     for k, v in config.items():
         assert k in res.keys(), "{} not in default values".format(k)
         res[k] = v
+
+    res["modalities_names"] = modalities_names
     return res
 
 
 def _parse_args(modalities_names, args=None):
     parser = _get_parser(modalities_names)
-    return parser.parse_args(args=args)
+    return parser.parse_args()
 
 
 def _get_parser(modalities_names):
     """Parses command line arguments."""
-    parser = argparse.ArgumentParser(modalities_namesdescription="Validate model")
+    parser = argparse.ArgumentParser()
     _main_parser(parser)
     _data_parser(parser)
     _train_parser(parser)
     _modality_parser(parser, modalities_names)
-    return parser.parse_args()
+    return parser
 
 
 def _main_parser(parser):  # Check if needs to return parser
+    parser.add_argument(
+        "--ex", type=str, default="/exp", help="Path to the experiment."
+    )
     parser.add_argument(
         "--method",
         choices=["omivae", "babel", "advae", "vae"],
@@ -67,6 +73,9 @@ def _main_parser(parser):  # Check if needs to return parser
     )
     parser.add_argument(
         "--retrain", default=True, help="Retrain a model using the whole dataset."
+    )
+    parser.add_argument(
+        "--neptune-logger", default=False, help="If to log experiment to neptune."
     )
 
 
@@ -136,6 +145,60 @@ def _train_parser(parser):
         type=int,
         help="Patience for EarlyStopping.",
     )
+    parser.add_argument(
+        f"--hidden_dim",
+        type=int,
+        default=128,
+        help=f"Hidden dimension .",
+    )
+    parser.add_argument(
+        f"--encoder_hidden_dim",
+        type=int,
+        default=128,
+        help=f"Encoder hidden dimension.",
+    )
+    parser.add_argument(
+        f"--encoder_out_dim",
+        type=int,
+        default=32,
+        help=f"Encoder output dimension.",
+    )
+    parser.add_argument(
+        f"--latent_dim",
+        type=int,
+        default=16,
+        help=f"Latent dimension.",
+    )
+    parser.add_argument(
+        f"--decoder_hidden_dim",
+        type=int,
+        default=128,
+        help=f"Decoder hidden dimension.",
+    )
+    parser.add_argument(
+        f"--batch_norm",
+        type=bool,
+        default=False,
+        help=f"Whether to use batch normalization.",
+    )
+    parser.add_argument(
+        f"--dropout_rate",
+        type=float,
+        default=0.1,
+        help=f"Dropout rate.",
+    )
+    parser.add_argument(
+        f"--recon_loss_coef",
+        type=float,
+        default=1,
+        help=f"Reconstruction loss coefficient.",
+    )
+    parser.add_argument(
+        f"--kld_loss_coef",
+        type=float,
+        default=0.1,
+        help=f"KLD loss coefficient.",
+    )
 
 
 def _test_parser(parser):
@@ -159,64 +222,90 @@ def _modality_parser(parser, modalities_names):
             default=13953 if modality_name == "gex" else 134,
             help=f"Dimension of the {modality_name.upper()} modality.",
         )
-        parser.add_argument(
-            f"--{prefix}hidden_dim",
-            type=int,
-            default=128,
-            help=f"Hidden dimension for the {modality_name.upper()} modality.",
-        )
-        parser.add_argument(
-            f"--{prefix}encoder_hidden_dim",
-            type=int,
-            default=128,
-            help=f"Encoder hidden dimension for the {modality_name.upper()} modality.",
-        )
-        parser.add_argument(
-            f"--{prefix}encoder_out_dim",
-            type=int,
-            default=32,
-            help=f"Encoder output dimension for the {modality_name.upper()} modality.",
-        )
-        parser.add_argument(
-            f"--{prefix}latent_dim",
-            type=int,
-            default=16,
-            help=f"Latent dimension for the {modality_name.upper()} modality.",
-        )
-        parser.add_argument(
-            f"--{prefix}decoder_hidden_dim",
-            type=int,
-            default=128,
-            help=f"Decoder hidden dimension for the {modality_name.upper()} modality.",
-        )
-        parser.add_argument(
-            f"--{prefix}batch_norm",
-            type=bool,
-            default=False,
-            help=f"Whether to use batch normalization for the {modality_name.upper()} modality.",
-        )
-        parser.add_argument(
-            f"--{prefix}dropout_rate",
-            type=float,
-            default=0.1,
-            help=f"Dropout rate for the {modality_name.upper()} modality.",
-        )
-        parser.add_argument(
-            f"--{prefix}recon_loss_coef",
-            type=float,
-            default=1,
-            help=f"Reconstruction loss coefficient for the {modality_name.upper()} modality.",
-        )
-        parser.add_argument(
-            f"--{prefix}kld_loss_coef",
-            type=float,
-            default=0.1,
-            help=f"KLD loss coefficient for the {modality_name.upper()} modality.",
-        )
+        # parser.add_argument(
+        #     f"--{prefix}hidden_dim",
+        #     type=int,
+        #     default=128,
+        #     help=f"Hidden dimension for the {modality_name.upper()} modality.",
+        # )
+        # parser.add_argument(
+        #     f"--{prefix}encoder_hidden_dim",
+        #     type=int,
+        #     default=128,
+        #     help=f"Encoder hidden dimension for the {modality_name.upper()} modality.",
+        # )
+        # parser.add_argument(
+        #     f"--{prefix}encoder_out_dim",
+        #     type=int,
+        #     default=32,
+        #     help=f"Encoder output dimension for the {modality_name.upper()} modality.",
+        # )
+        # parser.add_argument(
+        #     f"--{prefix}latent_dim",
+        #     type=int,
+        #     default=16,
+        #     help=f"Latent dimension for the {modality_name.upper()} modality.",
+        # )
+        # parser.add_argument(
+        #     f"--{prefix}decoder_hidden_dim",
+        #     type=int,
+        #     default=128,
+        #     help=f"Decoder hidden dimension for the {modality_name.upper()} modality.",
+        # )
+        # parser.add_argument(
+        #     f"--{prefix}batch_norm",
+        #     type=bool,
+        #     default=False,
+        #     help=f"Whether to use batch normalization for the {modality_name.upper()} modality.",
+        # )
+        # parser.add_argument(
+        #     f"--{prefix}dropout_rate",
+        #     type=float,
+        #     default=0.1,
+        #     help=f"Dropout rate for the {modality_name.upper()} modality.",
+        # )
+        # parser.add_argument(
+        #     f"--{prefix}recon_loss_coef",
+        #     type=float,
+        #     default=1,
+        #     help=f"Reconstruction loss coefficient for the {modality_name.upper()} modality.",
+        # )
+        # parser.add_argument(
+        #     f"--{prefix}kld_loss_coef",
+        #     type=float,
+        #     default=0.1,
+        #     help=f"KLD loss coefficient for the {modality_name.upper()} modality.",
+        # )
 
 
 # Babel
 
-# Omivae
-
 # Transformer
+
+
+def apply_to_all_modalities(config: dict, field_name: str, func: Callable) -> Any:
+    """Applies a function to values from all modalities in the config.
+
+    Args:
+        config: A dictionary containing configuration data.
+        field_name: The name of the field to extract from each modality.
+        func: The function to apply to the extracted values.
+
+    Returns:
+        The result of applying the function to the list of extracted values.
+
+    Raises:
+        TypeError: If the function cannot be applied to the extracted data types.
+    """
+    config_dict = vars(config)
+    values = [
+        config_dict[f"{modality_name}_{field_name}"]
+        for modality_name in config.modalities_names
+    ]
+    try:
+        return func(values)
+    except TypeError:
+        # Handle the case where func cannot handle the data types
+        raise TypeError(
+            f"Function '{func.__name__}' cannot be applied to the extracted data types."
+        )
