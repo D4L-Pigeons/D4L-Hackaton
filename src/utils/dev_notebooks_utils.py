@@ -9,6 +9,10 @@ from typing import List, Tuple
 from utils import data_utils
 from argparse import Namespace
 from torch.utils.data import TensorDataset, DataLoader
+import h5py
+from utils.paths import EMBEDDINGS_PATH
+from pathlib import Path
+from numpy import ndarray
 
 
 # Note: only preprosessing, which keeps 0 as 0 is allowed if we want 0 to mean no expression
@@ -52,15 +56,15 @@ def prepare_data_naive_mixing_version(
 
 
 def draw_umaps_pca(
-    data_tensor: Tensor, df: DataFrame, n_comps: int = 20, n_neighbors: int = 10
+    data: ndarray, df: DataFrame, n_comps: int = 20, n_neighbors: int = 10
 ) -> None:
     r"""
     Computes pca and draws umaps for each column in df.
     """
     assert (
-        n_comps <= data_tensor.shape[1]
+        n_comps <= data.shape[1]
     ), "n_comps cannot be greater than the number of features"
-    ad_tmp = ad.AnnData(X=data_tensor.numpy(), obs=df)
+    ad_tmp = ad.AnnData(X=data, obs=df)
     sc.pp.pca(ad_tmp, n_comps=n_comps)
     sc.pp.neighbors(ad_tmp, n_neighbors=n_neighbors, use_rep="X_pca")
     sc.tl.umap(ad_tmp)
@@ -83,22 +87,41 @@ def dict_to_namespace(d):
 
 
 def get_data_embeddings_transformer_version(
-    tensor_dataset: TensorDataset, model
-) -> Tuple[Tensor, Tensor]:
+    tensor_dataset: TensorDataset, model, batch_size: int = 1
+) -> Path:
+    r"""
+    Computes the embeddings of the data using the model and saves them to an HDF5 file.
+    """
+    dataloader = DataLoader(tensor_dataset, batch_size=batch_size, shuffle=False)
 
-    dataloader = DataLoader(tensor_dataset, batch_size=1, shuffle=False)
-    # sampled_embeddings = []
-    mu_embeddings = torch.empty(0, model.cfg.model.latent_dim)
-    for x in dataloader:
-        x = x[0]
-        encoder_input_gene_idxs, aux_gene_idxs = model.gene_choice_module.choose(x)
-        encoder_input_exprs_lvls = torch.gather(x, dim=1, index=encoder_input_gene_idxs)
-        # print(encoder_input_gene_idxs.device, encoder_input_exprs_lvls.device)
-        # model.to("cpu")
-        model.to(encoder_input_exprs_lvls.device)
-        z, mu, _ = model.encode(encoder_input_gene_idxs, encoder_input_exprs_lvls)
-        # sampled_embeddings.append(z)
-        mu_embeddings = torch.cat([mu_embeddings, mu], dim=0)
-    # sampled_embeddings = torch.cat(sampled_embeddings, dim=0)
-    # return sampled_embeddings, mu_embeddings\
-    return mu_embeddings
+    # Open an HDF5 file
+    with h5py.File(
+        EMBEDDINGS_PATH / f"{model.cfg.model.model_name}-embeddings.h5", "w"
+    ) as h5f:
+        # Create a resizable dataset to store embeddings
+        max_shape = (
+            None,
+            model.cfg.model.latent_dim,
+        )  # None indicates that the dimension is resizable
+        dset = h5f.create_dataset(
+            "mu_embeddings",
+            shape=(0, model.cfg.model.latent_dim),
+            maxshape=max_shape,
+            dtype="float32",
+        )
+
+        for i, x in enumerate(dataloader):
+            x = x[0]
+            encoder_input_gene_idxs, aux_gene_idxs = model.gene_choice_module.choose(x)
+            encoder_input_exprs_lvls = torch.gather(
+                x, dim=1, index=encoder_input_gene_idxs
+            )
+            model.to(encoder_input_exprs_lvls.device)
+            _, mu, _ = model.encode(encoder_input_gene_idxs, encoder_input_exprs_lvls)
+
+            # Resize the dataset to accommodate new embeddings
+            dset.resize(dset.shape[0] + mu.shape[0], axis=0)
+            # Write the new embeddings
+            dset[-mu.shape[0] :] = mu.detach().cpu().numpy()
+
+    return EMBEDDINGS_PATH / f"{model.cfg.model.model_name}-embeddings.h5"

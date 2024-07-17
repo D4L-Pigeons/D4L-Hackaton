@@ -35,3 +35,6 @@ RESULTS_PATH: Path = Path(__file__).parent.parent / "results"
 
 # Logs paths
 LOGS_PATH: Path = Path(__file__).parent.parent / "logs"
+
+# Emebeddings paths
+EMBEDDINGS_PATH: Path = DATA_PATH / "embeddings"

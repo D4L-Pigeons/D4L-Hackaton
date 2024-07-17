@@ -11,3 +11,4 @@ src/results/*
 src/logs/*
 idea/*
 src/lightning_logs/*
+notebooks/.ipynb_checkpoints/RAE-dev-checkpoint.ipynb
