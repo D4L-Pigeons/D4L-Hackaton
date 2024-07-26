@@ -5,12 +5,13 @@ from pandas import DataFrame
 import anndata as ad
 import scanpy as sc
 from sklearn.model_selection import train_test_split
-from typing import List, Tuple
+from typing import List, Tuple, Type, Any
 from utils import data_utils
 from argparse import Namespace
 from torch.utils.data import TensorDataset, DataLoader
+import pytorch_lightning as pl
 import h5py
-from utils.paths import EMBEDDINGS_PATH
+from utils.paths import EMBEDDINGS_PATH, LOGS_PATH
 from pathlib import Path
 from numpy import ndarray
 
@@ -87,7 +88,7 @@ def dict_to_namespace(d):
 
 
 def get_data_embeddings(
-    tensor_dataset: TensorDataset, model, batch_size: int = 1
+    tensor_dataset: TensorDataset, model, latent_dim: int, batch_size: int = 1
 ) -> Path:
     r"""
     Computes the embeddings of the data using the model and saves them to an HDF5 file.
@@ -166,3 +167,26 @@ def get_data_embeddings_transformer_version(
             dset[-mu.shape[0] :] = mu.detach().cpu().numpy()
 
     return EMBEDDINGS_PATH / f"{model.cfg.model.model_name}-embeddings.h5"
+
+
+def build_and_fit_model(
+    model_constructor: Type[Any],
+    cfg: Namespace,
+    train_tensor_data: Tensor,
+    val_tensor_data: Tensor,
+) -> Any:
+    train_tensor_dataset = TensorDataset(train_tensor_data)
+    train_loader = DataLoader(
+        train_tensor_dataset, batch_size=cfg.training.batch_size, shuffle=True
+    )
+    val_tensor_dataset = TensorDataset(val_tensor_data)
+    val_loader = DataLoader(
+        val_tensor_dataset, batch_size=cfg.training.batch_size, shuffle=False
+    )
+    model = model_constructor(cfg)
+    trainer = pl.Trainer(
+        max_epochs=cfg.training.n_epochs,
+        logger=pl.loggers.TensorBoardLogger(LOGS_PATH, name=cfg.model.model_name),
+    )
+    trainer.fit(model, train_loader, val_loader)
+    return model
