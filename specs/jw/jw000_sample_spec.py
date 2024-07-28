@@ -36,7 +36,7 @@ base_config = {
     "early_stopping_patience": 5,
     "hidden_dim": 128,
     "encoder_hidden_dim": 128,
-    "encoder_out_dim": 32,
+    "encoder_out_dim": 16,
     "latent_dim": 16,
     "decoder_hidden_dim": 128,
     # other

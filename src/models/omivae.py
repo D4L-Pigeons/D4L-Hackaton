@@ -9,11 +9,10 @@ import torch.nn.functional as F
 import torch.optim as optim
 from anndata import AnnData
 from torch import Tensor
-from src.data.dataloader_todo import get_dataloader_from_anndata
-from src.global_utils.paths import LOGS_PATH
 
-from src.models.ModelBase import ModelBase
+from src.data.dataloader_todo import get_dataloader_from_anndata
 from src.global_utils.parser import apply_to_all_modalities
+from src.models.ModelBase import ModelBase
 
 
 class Encoder(nn.Module):
@@ -78,7 +77,7 @@ class OmiAE(pl.LightningModule):
         return x_hat, z
 
     def training_step(self, batch, batch_idx):
-        x1, x2 = batch
+        x1, x2, _ = batch
         x = torch.cat((x1, x2), dim=-1)
         z = self.encoder(x)
         x_hat = self.decoder(z)
@@ -269,6 +268,8 @@ _OMIVAE_IMPLEMENTATIONS = {
     "OmiGMPriorProbabilisticAE": OmiGMPriorProbabilisticAE,
 }
 
+from src.global_utils.logger_utils import get_loggers
+
 
 class OmiModel(ModelBase):
     def __init__(self, cfg):
@@ -277,7 +278,7 @@ class OmiModel(ModelBase):
         self.model = _OMIVAE_IMPLEMENTATIONS[cfg.model_name](cfg)
         self.trainer = pl.Trainer(
             max_epochs=cfg.max_epochs,
-            logger=pl.loggers.TensorBoardLogger(LOGS_PATH, name=cfg.model_name),
+            logger=get_loggers(cfg),
         )
 
     def fit(self, train_anndata: AnnData, val_anndata: AnnData | None = None):

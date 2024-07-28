@@ -1,16 +1,13 @@
 from src.data.dataloader_todo import load_anndata
-from src.global_utils.neptune_utils import get_metrics_callback
 from src.global_utils.train_and_validate_utils import (
     CrossValidator,
+    create_model,
     create_results_dir,
     save_model_and_latent,
 )
-from src.global_utils.train_and_validate_utils import create_model
 
 
 def train(config):
-    metrics_callback = get_metrics_callback(config)
-
     model = create_model(config)
 
     train_data = load_anndata(

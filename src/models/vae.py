@@ -9,9 +9,8 @@ from pytorch_lightning.utilities.combined_loader import CombinedLoader
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch import Tensor
 from tqdm import tqdm
-from src.data.dataloader_todo import get_dataloader_dict_from_anndata
-from src.global_utils.paths import LOGS_PATH
 
+from src.data.dataloader_todo import get_dataloader_dict_from_anndata
 from src.models.building_blocks import Block, ShortcutBlock
 from src.models.ModelBase import ModelBase
 
@@ -19,7 +18,6 @@ from src.models.ModelBase import ModelBase
 class SingleModalityVAE(nn.Module):
     def __init__(self, cfg_name: str, modality_cfg: Namespace):
         super(SingleModalityVAE, self).__init__()
-        self.assert_modality_cfg(cfg_name, modality_cfg)
         self.cfg_name = cfg_name
         self.modality_cfg = modality_cfg
 
@@ -114,10 +112,12 @@ class SingleModalityVAE(nn.Module):
         return z
 
 
+from src.global_utils.logger_utils import get_loggers
+
+
 class VAE(pl.LightningModule, ModelBase):
     def __init__(self, cfg: Namespace):
         super(VAE, self).__init__()
-        self.assert_cfg(cfg)
         self.cfg = cfg
         self.automatic_optimization = False
         self.model = nn.ModuleDict(
@@ -130,7 +130,7 @@ class VAE(pl.LightningModule, ModelBase):
         self.trainer = pl.Trainer(
             max_epochs=cfg.max_epochs,
             log_every_n_steps=cfg.log_every_n_steps,
-            logger=pl.loggers.TensorBoardLogger(LOGS_PATH, name=cfg.model_name),
+            logger=get_loggers(cfg),
             callbacks=(
                 [
                     pl.callbacks.EarlyStopping(
