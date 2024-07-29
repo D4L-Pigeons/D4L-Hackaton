@@ -31,9 +31,7 @@ def train(config):
         model, config.cv_seed, config.n_folds, config.subsample_frac
     )
 
-    cross_validation_metrics = cross_validator.perform_cross_validation(
-        train_data, val_data
-    )
+    cross_validation_metrics = cross_validator.cross_validate(train_data, val_data)
 
     latent_representation = model.predict(train_data)
 

@@ -14,3 +14,4 @@ src/lightning_logs/*
 apptainer/*
 *.yaml
 .neptune/*
+*.sif

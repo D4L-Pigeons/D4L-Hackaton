@@ -82,7 +82,17 @@ class OmiAE(pl.LightningModule):
         z = self.encoder(x)
         x_hat = self.decoder(z)
         loss = F.mse_loss(x_hat, x)
-        self.log("Train loss", loss, on_epoch=True, prog_bar=True)
+        self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        print("validation")
+        x1, x2, _ = batch
+        x = torch.cat((x1, x2), dim=-1)
+        z = self.encoder(x)
+        x_hat = self.decoder(z)
+        loss = F.mse_loss(x_hat, x)
+        self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         return loss
 
     def predict_step(self, batch: Tensor) -> Tensor:
@@ -279,6 +289,7 @@ class OmiModel(ModelBase):
         self.trainer = pl.Trainer(
             max_epochs=cfg.max_epochs,
             logger=get_loggers(cfg),
+            val_check_interval=1.0,
         )
 
     def fit(self, train_anndata: AnnData, val_anndata: AnnData | None = None):

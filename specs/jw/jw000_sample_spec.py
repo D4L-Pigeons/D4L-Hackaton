@@ -55,12 +55,14 @@ print(params_grid)
 
 experiments_list = create_experiments_helper(
     experiment_name=name,
-    project_name="",
+    project_name="multimodal/vaes",
     script="python3 -u mrun.py",
     python_path="",
     exclude=[
         "apptainer",
         "venv",
+        "old_code",
+        "examples",
     ],
     tags=[name],
     base_config=base_config,

@@ -1,5 +1,6 @@
 import datetime
 import os
+import random
 from typing import Generator
 
 import anndata as ad
@@ -8,14 +9,21 @@ import pandas as pd
 import torch
 import yaml
 from sklearn.model_selection import KFold
+
 from src.global_utils.paths import RESULTS_PATH
-
-# from utils.metrics import calculate_metrics, latent_metrics
-
 from src.models.babel import BabelModel
 from src.models.ModelBase import ModelBase
 from src.models.omivae import OmiModel
 from src.models.vae import VAE
+
+# from utils.metrics import calculate_metrics, latent_metrics
+
+
+def set_random_seed_all(seed=0):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    # torch.cuda.manual_seed(seed)
 
 
 def create_model(config) -> ModelBase:
@@ -83,9 +91,7 @@ class CrossValidator:
     def cross_validate(self, data, test_data) -> pd.DataFrame:
         torch.manual_seed(self.random_state)
         cv_results = []
-        for i, (train_data, val_data) in enumerate(
-            self._k_folds(data, self.n_folds, self.random_state, self.subsample_frac)
-        ):
+        for i, (train_data, val_data) in enumerate(self._k_folds(data)):
             self.model.fit(train_data)
             fold_metrics = self._evaluate(self.model, val_data)
             cv_results.append(fold_metrics)
