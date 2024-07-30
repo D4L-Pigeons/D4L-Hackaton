@@ -12,6 +12,7 @@ def train(config):
 
     train_data = load_anndata(
         mode="train",
+        path_to_dataset=config.path_to_dataset,
         normalize=config.data_normalization,
         remove_batch_effect=config.remove_batch_effect,
         target_hierarchy_level=config.target_hierarchy_level,
@@ -19,6 +20,7 @@ def train(config):
     )
     val_data = load_anndata(
         mode="test",
+        path_to_dataset=config.path_to_dataset,
         normalize=config.data_normalization,
         remove_batch_effect=config.remove_batch_effect,
         target_hierarchy_level=config.target_hierarchy_level,

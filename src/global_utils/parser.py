@@ -82,7 +82,8 @@ def _main_parser(parser):  # Check if needs to return parser
 def _data_parser(parser):
     parser.add_argument(
         "--path-to-dataset",
-        help="Path to the dataset.",
+        default="",
+        help="Path to the dataset. If you want to run locally (with path repo/data/raw/dataset_name) leave it default.",
     )
 
     parser.add_argument(
@@ -113,6 +114,7 @@ def _data_parser(parser):
         "--target_hierarchy_level",
         type=int,
         default=-1,
+        choices=[-1, -2],
         help="Target hierarchy level for classification.",
     )
 

@@ -21,10 +21,11 @@ base_config = {
     "method": "omivae",
     "model_name": "OmiAE",
     "mode": "train",
+    # "path_to_dataset": "/data/raw/GSE194122_openproblems_neurips2021_cite_BMMC_processed.h5ad",
     "retrain": True,
     "lr": 0.001,
-    "batch_size": 128,
-    "subsample_frac": 1,  # MAY BE CHANGED FOR DEBUGGING
+    "batch_size": 32,
+    "subsample_frac": 0.1,  # MAY BE CHANGED FOR DEBUGGING
     "data_normalization": "standarize",  # "log1p", "standardize", "pearson_residuals", null -> None
     "remove_batch_effect": True,
     # include_class_labels: False
