@@ -12,3 +12,6 @@ src/logs/*
 idea/*
 src/lightning_logs/*
 notebooks/.ipynb_checkpoints/RAE-dev-checkpoint.ipynb
+src/utils/data/__init__.py
+src/utils/evaluation/__init__.py
+tests/__init__.py

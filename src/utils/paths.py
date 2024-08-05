@@ -19,8 +19,6 @@ RAW_ANNDATA_HIERARCHY_PATH: Path = (
 )
 
 # Preprocessed data paths
-PREPROCESSED_ANNDATA_PATH: Path = DATA_PATH / "preprocessed.h5ad"
-
 PREPROCESSED_DATA_PATH: Path = DATA_PATH / "preprocessed"
 PREPROCESSED_ANNDATA_PATH: Path = PREPROCESSED_DATA_PATH / PREPROCESSED_ANNDATA_FILENAME
 
@@ -38,3 +36,7 @@ LOGS_PATH: Path = Path(__file__).parent.parent / "logs"
 
 # Emebeddings paths
 EMBEDDINGS_PATH: Path = DATA_PATH / "embeddings"
+
+# Test paths
+TESTS_PATH: Path = Path(__file__).parent.parent.parent / "tests"
+TESTS_DATA_PATH: Path = TESTS_PATH / "data"
