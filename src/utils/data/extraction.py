@@ -20,7 +20,16 @@ def get_dataset_obs(cfg: Namespace) -> DataFrame:
     """
     with h5py.File(cfg.path, "r") as f:
         obs = pd.DataFrame(
-            data={col: np.array(f["obs"][col]) for col in cfg.obs.columns},
+            data={
+                col["name"]: (
+                    np.array(f["obs"][col["name"]][:])
+                    if col["as_codes"]
+                    else f["obs"]["__categories"][col["name"]][
+                        np.array(f["obs"][col["name"]][:])
+                    ]
+                )
+                for col in cfg.obs.columns
+            },
             index=decode_bytes(f["obs"]["_index"][:].astype(bytes)),
         )
     return obs

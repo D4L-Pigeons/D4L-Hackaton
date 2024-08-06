@@ -1,1 +1,0 @@
-# automated aesthetic plots builder

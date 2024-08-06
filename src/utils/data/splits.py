@@ -52,19 +52,21 @@ def composite_k_fold_split(df: DataFrame, cfg: Namespace) -> Generator:
         cfg (Namespace): The configuration object containing the parameters for the split.
             - grid_variables: The list of variables defining a crossvalidation grid.
             - n_splits: The number of splits in CV.
+            - random_state: The random_state argument ot KFold.
 
     Returns:
         Generator: A generator that yields tuples of train and validation sets.
 
     """
     df["index"] = np.arange(len(df))
-    df.set_index(keys=cfg.grid_variables, inplace=True)
+    df = df.set_index(keys=cfg.grid_variables, inplace=False)
     present_value_combinations = df.index.values
     splits = KFold(
         n_splits=cfg.n_splits, shuffle=True, random_state=cfg.random_state
     ).split(present_value_combinations)
+    # return splits
     return (
-        (df.loc[train_indices]["index"].values, df.loc[val_indices]["index"].values)
+        (df.iloc[train_indices]["index"].values, df.iloc[val_indices]["index"].values)
         for train_indices, val_indices in splits
     )
 
