@@ -6,42 +6,6 @@ from argparse import Namespace
 from typing import List, Tuple, Dict, Generator
 
 
-def subset_parameterised_composite_split(
-    df: DataFrame,
-    val_filter_values: List[int],
-    variables_metadata: Dict[str, Namespace],
-    cfg: Namespace,
-) -> Tuple[List[int], List[int]]:
-    r"""
-    Splits the indices into two parts based on a composite condition.
-
-    Args:
-        df (DataFrame): The input DataFrame to be split.
-        cfg (Namespace): The configuration object containing the necessary parameters.
-            - grid_variables: A list of variables used to create a grid.
-
-    Returns:
-        Tuple[List[int], List[int]]: A tuple containing two lists of indices. The first list
-        contains the indices where the composite condition is False, and the second list
-        contains the indices where the composite condition is True.
-    """
-    split_mask = (
-        df[cfg.grid_variables]
-        .apply(
-            lambda x: all(
-                value in var_meta.categories[vfv]
-                for value, vfv, var_meta in zip(
-                    x.values, val_filter_values, variables_metadata
-                )
-            ),
-            axis=1,
-        )
-        .values
-    )
-    indices = np.arange(len(df))
-    return indices[np.logical_not(split_mask)], indices[split_mask]
-
-
 def naive_mixing_fraction_split(
     max_idx: int, cfg: Namespace
 ) -> Generator[Tuple[ndarray, ndarray], None, None]:
@@ -103,3 +67,39 @@ def composite_k_fold_split(df: DataFrame, cfg: Namespace) -> Generator:
         (df.loc[train_indices]["index"].values, df.loc[val_indices]["index"].values)
         for train_indices, val_indices in splits
     )
+
+
+def subset_parameterised_composite_split(
+    df: DataFrame,
+    val_filter_values: List[int],
+    variables_metadata: Dict[str, Namespace],
+    cfg: Namespace,
+) -> Tuple[List[int], List[int]]:
+    r"""
+    Splits the indices into two parts based on a composite condition.
+
+    Args:
+        df (DataFrame): The input DataFrame to be split.
+        cfg (Namespace): The configuration object containing the necessary parameters.
+            - grid_variables: A list of variables used to create a grid.
+
+    Returns:
+        Tuple[List[int], List[int]]: A tuple containing two lists of indices. The first list
+        contains the indices where the composite condition is False, and the second list
+        contains the indices where the composite condition is True.
+    """
+    split_mask = (
+        df[cfg.grid_variables]
+        .apply(
+            lambda x: all(
+                value in var_meta.categories[vfv]
+                for value, vfv, var_meta in zip(
+                    x.values, val_filter_values, variables_metadata
+                )
+            ),
+            axis=1,
+        )
+        .values
+    )
+    indices = np.arange(len(df))
+    return indices[np.logical_not(split_mask)], indices[split_mask]

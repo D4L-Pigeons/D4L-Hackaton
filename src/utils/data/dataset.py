@@ -20,13 +20,19 @@ class hdf5SparseDataset(Dataset):
 
     """
 
-    def __init__(self, cfg: Namespace, dataset_idxs: List[int]):
+    def __init__(self, dataset_idxs: List[int], cfg: Namespace):
         r"""
         Initialize the hdf5SparseDataset object.
 
         Args:
-            cfg (Namespace): The configuration object.
             dataset_idxs (List[int]): The list of subset indices defining a dataset.
+            cfg (Namespace): The configuration object.
+                - path: A path to the hdf5 data file.
+                - rowsize: The number of entries in a row.
+                - obs.columns: A list of dicts with columns to be extracted from the obs object.
+                    - obs.columns["org_name"]: Original name of the column.
+                    - obs.columns["new_name"]: New name of teh column.
+                    - obs.columns["tocat"]:
 
         Raises:
             AssertionError: If the indices in dataset_idxs are repeated.
@@ -49,6 +55,7 @@ class hdf5SparseDataset(Dataset):
                 and self._dataset_idxs[-1]
                 <= max_possible_idx  # Assuming sorted dataset_idxs
             ), f"Values in dataset_idxs should be within [0, {max_possible_idx}]."
+            # BESIDES SAVING VAR REFERRING TO GENES ETC. SHOULD LEVERAGE SOME UNIFIED REMAPPING FOR DIFFERENT DATASETS
             self._var = f["var"]
 
     def __len__(self) -> int:
@@ -58,7 +65,7 @@ class hdf5SparseDataset(Dataset):
         return self._dataset_idxs[idxs]
 
     def __getitem__(self, index) -> Dict[str, Tensor]:
-        return self.__getitems__([self._map_idxs_to_dataset_idxs([index])])
+        return self.__getitems__([self._map_idxs_to_dataset_idxs(index)])
 
     def __getitems__(self, indices: List[int]) -> Dict[str, Tensor]:
         r"""
@@ -71,7 +78,9 @@ class hdf5SparseDataset(Dataset):
             Dict[str, Tensor]: A dictionary containing the data and additional information for the specified indices.
 
         """
-        indices = self._map_idxs_to_dataset_idxs(indices)
+        indices = self._map_idxs_to_dataset_idxs(
+            sorted(indices)
+        )  # Sorting as hdf5 selector requires increasing order of indexes.
         # Creating batch placeholder
         batch = {
             "data": torch.zeros(
@@ -90,7 +99,7 @@ class hdf5SparseDataset(Dataset):
                     f["X"]["indices"][start:end], dtype=torch.int64
                 )
 
-                # Filling the nonzero entries
+                # Filling nonzero entries in a batch placeholder
                 batch["data"][i, :] = torch.scatter(
                     input=torch.zeros(self.cfg.rowsize),
                     dim=0,
@@ -98,22 +107,15 @@ class hdf5SparseDataset(Dataset):
                     src=sparse_data,
                 )
 
-                # Extracting data from .obs providing additional information about the cell
-                for obs_col in self.cfg.obs.columns:
-                    batch[obs_col["new_name"]][i] = (
-                        torch.tensor(
-                            f["obs"][obs_col["org_name"]][index],
-                            dtype=torch.long,
-                        )
-                        if obs_col["tocat"]
-                        else torch.tensor(
-                            f["obs"][obs_col["org_name"]][index].apply_along_axis(
-                                func1d=lambda x: f["obs"]["__categories"][
-                                    obs_col["org_name"]
-                                ]
-                            ),
-                            dtype=torch.float,
-                        )
+            # Extracting data from .obs providing additional information about the cell. If tocat=True
+            for obs_col in self.cfg.obs.columns:
+                if obs_col["remap_categories"]:
+                    raise NotImplementedError(
+                        "The remapping categories functionality is not implemented yet."
+                    )
+                else:
+                    batch[obs_col["new_name"]] = torch.tensor(
+                        f["obs"][obs_col["org_name"]][indices], dtype=torch.long
                     )
 
         return batch
