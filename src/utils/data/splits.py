@@ -3,12 +3,15 @@ from pandas import DataFrame
 import numpy as np
 from numpy import ndarray
 from argparse import Namespace
-from typing import List, Tuple, Dict, Generator
+from typing import List, Tuple, Dict, Generator, TypeAlias, NamedTuple
 
 
-def naive_mixing_fraction_split(
-    max_idx: int, cfg: Namespace
-) -> Generator[Tuple[ndarray, ndarray], None, None]:
+class Split(NamedTuple):
+    train_indices: ndarray
+    val_indices: ndarray
+
+
+def naive_mixing_fraction_split(max_idx: int, cfg: Namespace) -> Split:
     r"""
     Splits the data into training and validation sets using a naive mixing fraction approach.
 
@@ -20,12 +23,12 @@ def naive_mixing_fraction_split(
     Returns:
         Generator[Tuple[ndarray, ndarray]]: A generator that yields tuples of training and validation sets.
     """
-    return train_test_split(np.arange(max_idx), test_size=cfg.val_fraction)
+    return Split(*train_test_split(np.arange(max_idx), test_size=cfg.val_fraction))
 
 
 def naive_mixing_k_fold_split(
     max_idx: int, cfg: Namespace
-) -> Generator[Tuple[ndarray, ndarray], None, None]:
+) -> Generator[Split, None, None]:
     r"""
     Perform a naive mixing k-fold split on the given data.
 
@@ -33,17 +36,21 @@ def naive_mixing_k_fold_split(
     max_idx (int): The maximum index of the data.
     cfg (Namespace): The configuration object containing the number of splits.
         - n_splits: The number of splits in CV.
+        - random_state: The random_state argument ot KFold.
 
     Returns:
     - The indices for the first and second sets for each fold.
     """
 
     kf = KFold(n_splits=cfg.n_splits, shuffle=True, random_state=cfg.random_state)
-    return kf.split(np.arange(max_idx))
+    for split in kf.split(np.arange(max_idx)):
+        yield Split(*split)
 
 
 # Named for lack of better words. It does not ensure any specified proportion of the cells in different datasets.
-def composite_k_fold_split(df: DataFrame, cfg: Namespace) -> Generator:
+def composite_k_fold_split(
+    df: DataFrame, cfg: Namespace
+) -> Generator[Split, None, None]:
     r"""
     Splits the DataFrame into train and validation sets using composite k-fold cross-validation.
 
@@ -63,18 +70,17 @@ def composite_k_fold_split(df: DataFrame, cfg: Namespace) -> Generator:
     present_value_combinations = df.index.values
     splits = KFold(
         n_splits=cfg.n_splits, shuffle=True, random_state=cfg.random_state
-    ).split(present_value_combinations)
-    # return splits
-    return (
-        (df.iloc[train_indices]["index"].values, df.iloc[val_indices]["index"].values)
-        for train_indices, val_indices in splits
-    )
+    ).split(np.arange(len(present_value_combinations)))
+    for split in splits:
+        train_indices, val_indices = split
+        yield Split(
+            train_indices=df.iloc[train_indices]["index"].values,
+            val_indices=df.iloc[val_indices]["index"].values,
+        )
 
 
 def subset_parameterised_composite_split(
     df: DataFrame,
-    val_filter_values: List[int],
-    variables_metadata: Dict[str, Namespace],
     cfg: Namespace,
 ) -> Tuple[List[int], List[int]]:
     r"""
@@ -83,7 +89,7 @@ def subset_parameterised_composite_split(
     Args:
         df (DataFrame): The input DataFrame to be split.
         cfg (Namespace): The configuration object containing the necessary parameters.
-            - grid_variables: A list of variables used to create a grid.
+            - val_filter_values List[int]: A list of variables used to create a grid and corresponding filtering values.
 
     Returns:
         Tuple[List[int], List[int]]: A tuple containing two lists of indices. The first list
@@ -91,17 +97,23 @@ def subset_parameterised_composite_split(
         contains the indices where the composite condition is True.
     """
     split_mask = (
-        df[cfg.grid_variables]
+        df[
+            [filter_var_dict["name"] for filter_var_dict in cfg.val_filter_values]
+        ]  # The maching order of columns between config and the df is ensured here.
         .apply(
             lambda x: all(
-                value in var_meta.categories[vfv]
-                for value, vfv, var_meta in zip(
-                    x.values, val_filter_values, variables_metadata
-                )
+                value in filter_var_dict["filter_values"]
+                for value, filter_var_dict in zip(x.values, cfg.val_filter_values)
             ),
             axis=1,
         )
         .values
     )
     indices = np.arange(len(df))
-    return indices[np.logical_not(split_mask)], indices[split_mask]
+    assert (
+        split_mask.sum() > 0
+    ), "There are selected indices for the validation set. Check the df cfg.val_filtere_values for a type mismatch or lack of appropriate combinations."
+    return Split(
+        train_indices=indices[np.logical_not(split_mask)],
+        val_indices=indices[split_mask],
+    )

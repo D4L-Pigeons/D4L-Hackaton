@@ -4,18 +4,20 @@ import pandas as pd
 from pandas import DataFrame
 import anndata as ad
 import scanpy as sc
-from sklearn.model_selection import train_test_split
+
+# from sklearn.model_selection import train_test_split
 from typing import List, Tuple, Type, Any, Optional, Dict
-from utils import data_utils
+
+# from utils import data_utils
 from argparse import Namespace
 from torch.utils.data import TensorDataset, DataLoader
 import pytorch_lightning as pl
 import h5py
 from utils.paths import (
-    EMBEDDINGS_PATH,
+    # EMBEDDINGS_PATH,
     LOGS_PATH,
-    RAW_DATA_PATH,
-    PREPROCESSED_DATA_PATH,
+    # RAW_DATA_PATH,
+    # PREPROCESSED_DATA_PATH,
 )
 from pathlib import Path
 from numpy import ndarray

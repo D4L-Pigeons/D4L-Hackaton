@@ -19,14 +19,23 @@ def get_dataset_obs(cfg: Namespace) -> DataFrame:
         DataFrame: The extracted dataset observations as a pandas DataFrame.
     """
     with h5py.File(cfg.path, "r") as f:
+        # dict_obs = {}
+        # for col in cfg.obs.columns:
+        #     if col["as_codes"]:
+        #         np.array(f["obs"][col["name"]][:])
+        #     else:
+        #         f["obs"]["__categories"][col["name"]][:][
+        #                 np.array(f["obs"][col["name"]][:])
+        #             ]
+        #     dict_obs["name"] =
         obs = pd.DataFrame(
             data={
                 col["name"]: (
                     np.array(f["obs"][col["name"]][:])
                     if col["as_codes"]
-                    else f["obs"]["__categories"][col["name"]][
-                        np.array(f["obs"][col["name"]][:])
-                    ]
+                    else decode_bytes(
+                        f["obs"]["__categories"][col["name"]][:].astype(bytes)
+                    )[np.array(f["obs"][col["name"]][:])]
                 )
                 for col in cfg.obs.columns
             },
