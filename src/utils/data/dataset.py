@@ -30,9 +30,9 @@ class hdf5SparseDataset(Dataset):
                 - path: A path to the hdf5 data file.
                 - rowsize: The number of entries in a row.
                 - obs.columns: A list of dicts with columns to be extracted from the obs object.
-                    - obs.columns["org_name"]: Original name of the column.
-                    - obs.columns["new_name"]: New name of teh column.
-                    - obs.columns["tocat"]:
+                    - obs.columns[...]["org_name"]: Original name of the column.
+                    - obs.columns[...]["new_name"]: New name of teh column.
+                    - obs.columns[...]["tocat"]:
 
         Raises:
             AssertionError: If the indices in dataset_idxs are repeated.
@@ -106,6 +106,9 @@ class hdf5SparseDataset(Dataset):
                     index=feature_indices,
                     src=sparse_data,
                 )
+            # TRY FASTER WITH STHG LIKE IN PREPROCESSING - REMINDER IN COMMENT BELOW
+            # csr_matrix((data, indices, indptr), shape=shape)
+            # batch["data"] = f["X/data"][indices]
 
             # Extracting data from .obs providing additional information about the cell. If tocat=True
             for obs_col in self.cfg.obs.columns:

@@ -3,7 +3,7 @@ from pandas import DataFrame
 import numpy as np
 from numpy import ndarray
 from argparse import Namespace
-from typing import List, Tuple, Dict, Generator, TypeAlias, NamedTuple
+from typing import List, Tuple, Generator, NamedTuple
 
 
 class Split(NamedTuple):
