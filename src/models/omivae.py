@@ -342,6 +342,3 @@ class OmiModel(ModelBase):
     def load(self, file_path: str):
         load_path = file_path + ".ckpt"
         self.model.load_state_dict(torch.load(load_path))
-
-    def assert_cfg(self, cfg: Namespace) -> None:
-        pass

@@ -1,18 +1,19 @@
 import argparse
 from copy import deepcopy
+from typing import Any, Callable
 
-# from typing import Any, Callable
 
-
-def combine_with_defaults(config):
-    res = deepcopy(vars(parse_args([])))
+def combine_with_defaults(config, modalities_names):
+    res = deepcopy(vars(parse_args(modalities_names, [])))
     for k, v in config.items():
         assert k in res.keys(), "{} not in default values".format(k)
         res[k] = v
+
+    res["modalities_names"] = modalities_names
     return res
 
 
-def get_parser():
+def get_parser(modalities_names):
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
@@ -52,6 +53,12 @@ def get_parser():
     )
     parser.add_argument(
         "--neptune-logger", default=False, help="If to log experiment to neptune."
+    )
+
+    parser.add_argument(
+        "--tensorboard-logger",
+        default=False,
+        help="If to log experiment with tensorboard (helpful when running locally).",
     )
 
     parser.add_argument(
@@ -173,16 +180,15 @@ def get_parser():
         help=f"KLD loss coefficient.",
     )
 
-    for modality_name in ["gex", "adt"]:
-        prefix = f"{modality_name}_"
+    for modality_name in modalities_names:
         parser.add_argument(
-            f"--{prefix}_modality_name",
+            f"--{modality_name}_modality_name",
             type=str,
             default=modality_name.upper(),
             help=f"Modality name for {modality_name.upper()}.",
         )
         parser.add_argument(
-            f"--{prefix}_dim",
+            f"--{modality_name}_dim",
             type=int,
             default=13953 if modality_name == "gex" else 134,
             help=f"Dimension of the {modality_name.upper()} modality.",
@@ -191,8 +197,8 @@ def get_parser():
     return parser
 
 
-def parse_args(args=None):
-    parser = get_parser()
+def parse_args(modalities_names, args=None):
+    parser = get_parser(modalities_names)
     return parser.parse_args(args=args)
 
 
@@ -217,62 +223,10 @@ def parse_args(args=None):
 # #     return res
 
 
-# def parse_args(args=None):
-#     parser = _get_parser()
-#     print(parser)
-#     return parser.parse_args()
-
-
-# def _get_parser():
-#     """Parses command line arguments."""
-#     parser = argparse.ArgumentParser()
-#     # _main_parser(parser)
-#     # _data_parser(parser)
-#     # _train_parser(parser)
-#     # _modality_parser(parser, modalities_names)
-#     return parser
-
-
 # def _main_parser(parser):  # Check if needs to return parser
 #     # parser.add_argument(
 #     #     "--ex", type=str, default="/exp", help="Path to the experiment."
 #     # )
-#     parser.add_argument(
-#         "--method",
-#         choices=["omivae", "babel", "advae", "vae"],
-#         help="Name of the method to use.",
-#     )
-#     parser.add_argument(
-#         "--mode",
-#         type=str,
-#         choices=["train", "test"],
-#         default="train",
-#         help="Mode to run the model.",
-#     )
-#     parser.add_argument(
-#         "--cv-seed", default=42, help="Seed used to make k folds for cross validation."
-#     )
-#     parser.add_argument(
-#         "--n-folds", default=5, type=int, help="Number of folds in cross validation."
-#     )
-#     parser.add_argument(
-#         "--preload-subsample-frac",
-#         default=None,
-#         type=float,
-#         help="Fraction of the data to load. If None, use all data. Don't use subsample-frac with this option.",
-#     )
-#     parser.add_argument(
-#         "--subsample-frac",
-#         default=None,
-#         type=float,
-#         help="Fraction of the data to use for cross validation. If None, use all data.",
-#     )
-#     parser.add_argument(
-#         "--retrain", default=True, help="Retrain a model using the whole dataset."
-#     )
-#     parser.add_argument(
-#         "--neptune-logger", default=False, help="If to log experiment to neptune."
-#     )
 
 
 # def _data_parser(parser):
@@ -497,29 +451,29 @@ def parse_args(args=None):
 # # Transformer
 
 
-# def apply_to_all_modalities(config: dict, field_name: str, func: Callable) -> Any:
-#     """Applies a function to values from all modalities in the config.
+def apply_to_all_modalities(config: dict, field_name: str, func: Callable) -> Any:
+    """Applies a function to values from all modalities in the config.
 
-#     Args:
-#         config: A dictionary containing configuration data.
-#         field_name: The name of the field to extract from each modality.
-#         func: The function to apply to the extracted values.
+    Args:
+        config: A dictionary containing configuration data.
+        field_name: The name of the field to extract from each modality.
+        func: The function to apply to the extracted values.
 
-#     Returns:
-#         The result of applying the function to the list of extracted values.
+    Returns:
+        The result of applying the function to the list of extracted values.
 
-#     Raises:
-#         TypeError: If the function cannot be applied to the extracted data types.
-#     """
-#     config_dict = vars(config)
-#     values = [
-#         config_dict[f"{modality_name}_{field_name}"]
-#         for modality_name in config.modalities_names
-#     ]
-#     try:
-#         return func(values)
-#     except TypeError:
-#         # Handle the case where func cannot handle the data types
-#         raise TypeError(
-#             f"Function '{func.__name__}' cannot be applied to the extracted data types."
-#         )
+    Raises:
+        TypeError: If the function cannot be applied to the extracted data types.
+    """
+    config_dict = vars(config)
+    values = [
+        config_dict[f"{modality_name}_{field_name}"]
+        for modality_name in config.modalities_names
+    ]
+    try:
+        return func(values)
+    except TypeError:
+        # Handle the case where func cannot handle the data types
+        raise TypeError(
+            f"Function '{func.__name__}' cannot be applied to the extracted data types."
+        )

@@ -9,5 +9,6 @@ PyYAML==6.0.1
 scanpy
 scikit_learn==1.5.1
 seaborn==0.13.2
+tensorboard
 torch==2.3.1
 tqdm==4.66.4

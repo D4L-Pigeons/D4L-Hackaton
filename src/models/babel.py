@@ -13,12 +13,12 @@ from pytorch_lightning.utilities.combined_loader import CombinedLoader
 from sklearn.metrics import balanced_accuracy_score
 from torch import Tensor
 from torch.utils.data import DataLoader
+
 from src.data.dataloader_todo import (
     get_dataloader_dict_from_anndata,
     get_dataloader_from_anndata,
 )
 from src.global_utils.paths import LOGS_PATH
-
 from src.models.ModelBase import ModelBase
 
 
@@ -311,6 +311,3 @@ class BabelModel(ModelBase):
     def load(self, file_path: str):
         load_path = file_path + ".ckpt"
         self.model.load_state_dict(torch.load(load_path))
-
-    def assert_cfg(self, cfg: Namespace) -> None:
-        pass

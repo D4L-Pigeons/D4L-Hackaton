@@ -7,8 +7,14 @@ name = globals()["script"][:-3]
 base_config = {
     "model_name": "OmiAE",
     "mode": "train",
+    "path_to_dataset": "/home/asia/data/GSE194122_openproblems_neurips2021_cite_BMMC_processed.h5ad",
+    "hidden_dim": 128,
+    "encoder_hidden_dim": 128,
+    "encoder_out_dim": 16,
+    "latent_dim": 16,
+    "decoder_hidden_dim": 128,
 }
-base_config = combine_with_defaults(base_config)
+base_config = combine_with_defaults(base_config, modalities_names=["gex", "adt"])
 
 params_grid = []
 params_grid += [
@@ -26,7 +32,7 @@ experiments_list = create_experiments_helper(
     project_name="multimodal/vaes",
     script="python3 -u mrun.py",
     python_path="",
-    exclude=[],
+    exclude=["examples", "old_code", "notes", "checkpoints", "notebooks", "data"],
     tags=[name],
     base_config=base_config,
     params_grid=params_grid,

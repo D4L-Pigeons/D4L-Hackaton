@@ -83,28 +83,8 @@ def load_anndata(
     data : anndata.AnnData
         The full anndata object for the specified mode.
     """
-    assert mode in [
-        "train",
-        "test",
-        "train+test",
-    ], f"mode must be one of ['train', 'test', 'train+test'], got {mode} instead."
-    assert isinstance(
-        plus_iid_holdout, bool
-    ), f"plus_iid_holdout must be a boolean, got {plus_iid_holdout} instead."
-    assert isinstance(
-        normalize, bool
-    ), f"normalize must be a boolean, got {normalize} instead."
-    assert isinstance(
-        remove_batch_effect, bool
-    ), f"remove_batch_effect must be a boolean, got {remove_batch_effect} instead."
-    assert isinstance(
-        target_hierarchy_level, int
-    ), f"target_hierarchy_level must be a int, got {target_hierarchy_level} instead."
-    assert target_hierarchy_level in [
-        -1,
-        -2,
-    ], f"target_hierarchy_level must be in [-1, -2], got {target_hierarchy_level} instead."
-    filter_set = mode.split("+")  # ['train'] or ['test'] or ['train', 'test']
+
+    filter_set = [mode]  # ['train'] or ['test']
 
     if plus_iid_holdout:
         filter_set.append("iid_holdout")
