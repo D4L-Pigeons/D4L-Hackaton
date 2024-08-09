@@ -55,34 +55,27 @@ def dict_to_namespace(d: Dict) -> Namespace:
 
 def build_and_fit_model(
     model_constructor: Type[Any],
+    train_dataloader: Type[DataLoader],
+    val_dataloader: Type[DataLoader],
     cfg: Namespace,
-    train_tensor_data: Tensor,
-    val_tensor_data: Tensor,
 ) -> Any:
     r"""
     Builds and fits a model using the provided model constructor, configuration, training data, and validation data.
 
     Args:
-        model_constructor (Type[Any]): The constructor function for the model.
+        model_constructor (Type[Any]): The model constructor class.
+        train_dataloader (Type[DataLoader]): The training dataloader.
+        val_dataloader (Type[DataLoader]): The validation dataloader.
         cfg (Namespace): The configuration object containing the model's hyperparameters.
-        train_tensor_data (Tensor): The training data tensor.
-        val_tensor_data (Tensor): The validation data tensor.
 
     Returns:
         Any: The trained model.
     """
-    train_tensor_dataset = TensorDataset(train_tensor_data)
-    train_loader = DataLoader(
-        train_tensor_dataset, batch_size=cfg.training.batch_size, shuffle=True
-    )
-    val_tensor_dataset = TensorDataset(val_tensor_data)
-    val_loader = DataLoader(
-        val_tensor_dataset, batch_size=cfg.training.batch_size, shuffle=False
-    )
+
     model = model_constructor(cfg)
     trainer = pl.Trainer(
         max_epochs=cfg.training.n_epochs,
         logger=pl.loggers.TensorBoardLogger(LOGS_PATH, name=cfg.model.model_name),
     )
-    trainer.fit(model, train_loader, val_loader)
+    trainer.fit(model, train_dataloader, val_dataloader)
     return model

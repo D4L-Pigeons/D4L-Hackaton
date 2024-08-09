@@ -85,11 +85,14 @@ def subset_parameterised_composite_split(
 ) -> Tuple[List[int], List[int]]:
     r"""
     Splits the indices into two parts based on a composite condition.
+    When splitting into more subsets use repeateadly with a df indexed by the indices from the previous split.
 
     Args:
         df (DataFrame): The input DataFrame to be split.
         cfg (Namespace): The configuration object containing the necessary parameters.
-            - val_filter_values List[int]: A list of variables used to create a grid and corresponding filtering values.
+            - filter_variables List[Dict[str, List[Any]]]: A dict of variables used to create a grid and corresponding filtering values.
+            - filter_variables[...]["name"]: The name of the variable.
+            - filter_variables[...]["filter_values"]: The values of the variable to be filtered.
 
     Returns:
         Tuple[List[int], List[int]]: A tuple containing two lists of indices. The first list
@@ -98,12 +101,12 @@ def subset_parameterised_composite_split(
     """
     split_mask = (
         df[
-            [filter_var_dict["name"] for filter_var_dict in cfg.val_filter_values]
+            [filter_var_dict["name"] for filter_var_dict in cfg.filter_variables]
         ]  # The maching order of columns between config and the df is ensured here.
         .apply(
             lambda x: all(
                 value in filter_var_dict["filter_values"]
-                for value, filter_var_dict in zip(x.values, cfg.val_filter_values)
+                for value, filter_var_dict in zip(x.values, cfg.filter_variables)
             ),
             axis=1,
         )
@@ -112,7 +115,7 @@ def subset_parameterised_composite_split(
     indices = np.arange(len(df))
     assert (
         split_mask.sum() > 0
-    ), "There are selected indices for the validation set. Check the df cfg.val_filtere_values for a type mismatch or lack of appropriate combinations."
+    ), "There are selected indices for the validation set. Check the df cfg.filter_variables for a type mismatch or lack of appropriate combinations."
     return Split(
         train_indices=indices[np.logical_not(split_mask)],
         val_indices=indices[split_mask],

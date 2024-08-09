@@ -1,5 +1,7 @@
-# automated aesthetic plots builder
-# --- VISUALIZATIONS ---
+from numpy import ndarray
+from pandas import DataFrame
+import scanpy as sc
+import anndata as ad
 
 
 def draw_umaps_pca(
