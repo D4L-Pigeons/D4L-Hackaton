@@ -42,7 +42,7 @@ class hdf5SparseDataset(Dataset):
         super(hdf5SparseDataset).__init__()
         self.cfg = cfg
         self._dataset_idxs = np.array(
-            list(set(dataset_idxs))
+            sorted(list(set(dataset_idxs)))
         )  # Unique values and sorting at the same time
         assert self._dataset_idxs.shape[0] == len(
             dataset_idxs
