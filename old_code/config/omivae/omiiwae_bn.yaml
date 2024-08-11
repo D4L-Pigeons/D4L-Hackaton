@@ -1,0 +1,39 @@
+model_name: "OmiIWAE-simple"
+# data configuration
+first_modality_dim: 13953 # GEX | max 13953 | MAY BE CHANGED FOR DEBUGGING
+second_modality_dim: 134 # ADT | max 134 | MAY BE CHANGED FOR DEBUGGING
+subsample_frac: 1 # | MAY BE CHANGED FOR DEBUGGING
+include_class_labels: True
+normalize: True
+remove_batch_effect: True
+target_hierarchy_level: -1
+no_components: 45
+components_std: 1
+no_latent_samples: 16
+# architecture configuration
+omivae_implementation: "OmiGMPriorProbabilisticAE"
+batch_norm: True
+dropout_rate: 0.1
+encoder_hidden_dim: 128 #512
+encoder_out_dim: 32 #128
+latent_dim: 16
+decoder_hidden_dim: 128 #512
+output_modelling_type: "mse_direct_reconstruction" # "mse_direct_reconstruction", "ll_neg_binomial"
+# classification specific configuration
+classification_head: False
+num_classes: 45
+class_weights: null
+# loss configuration
+recon_loss_coef: 1
+c_loss_coef: 0.01
+# training configuration
+batch_size: 128
+lr: 0.001
+max_epochs: 10
+log_every_n_steps: 1
+early_stopping: True
+min_delta: 0.01
+patience: 2
+gmm_likelihood_loss_coef: 0.002
+entropy_loss_coef: 0.002
+# logger: True
