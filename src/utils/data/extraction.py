@@ -1,11 +1,13 @@
-import h5py
 from argparse import Namespace
-from pandas import DataFrame
-import numpy as np
-from numpy import ndarray
-import pandas as pd
-from utils.data.hdf5 import decode_bytes
 from typing import Optional
+
+import h5py
+import numpy as np
+import pandas as pd
+from numpy import ndarray
+from pandas import DataFrame
+
+from utils.data.hdf5 import decode_bytes
 
 
 def get_dataset_obs(cfg: Namespace, indices: Optional[ndarray] = None) -> DataFrame:
@@ -22,15 +24,6 @@ def get_dataset_obs(cfg: Namespace, indices: Optional[ndarray] = None) -> DataFr
         DataFrame: The extracted dataset observations as a pandas DataFrame.
     """
     with h5py.File(cfg.path, "r") as f:
-        # dict_obs = {}
-        # for col in cfg.obs.columns:
-        #     if col["as_codes"]:
-        #         np.array(f["obs"][col["name"]][:])
-        #     else:
-        #         f["obs"]["__categories"][col["name"]][:][
-        #                 np.array(f["obs"][col["name"]][:])
-        #             ]
-        #     dict_obs["name"] =
         index = (
             decode_bytes(f["obs"]["_index"][indices].astype(bytes))
             if indices is not None

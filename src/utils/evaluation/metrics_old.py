@@ -1,3 +1,4 @@
+import os
 from argparse import Namespace
 from itertools import cycle
 
@@ -22,7 +23,6 @@ from torch.nn import functional as F
 
 from models.building_blocks import Block
 from utils.paths import CONFIG_PATH, RESULTS_PATH
-import os
 
 
 class ClassificationModel(pl.LightningModule):
@@ -149,10 +149,10 @@ def get_metrics(model, classification_head, test_data):
         ground_truth, prediction, labels=classes, average="macro"
     )
     metrics["accuracy"] = sklearn.metrics.accuracy_score(ground_truth, prediction)
-    metrics[
-        "average_precision_per_cell_type"
-    ] = sklearn.metrics.average_precision_score(
-        ground_truth, prediction_probability, average=None
+    metrics["average_precision_per_cell_type"] = (
+        sklearn.metrics.average_precision_score(
+            ground_truth, prediction_probability, average=None
+        )
     )
     metrics["roc_auc_per_cell_type"] = sklearn.metrics.roc_auc_score(
         ground_truth,
@@ -243,9 +243,11 @@ def plot_clustering(data, y_pred):
 
 
 import argparse
-from utils.data_utils import load_anndata
-from train import load_config, create_model
+
 import pandas as pd
+
+from train import create_model, load_config
+from utils.data_utils import load_anndata
 
 
 def main():
