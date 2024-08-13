@@ -275,35 +275,27 @@ def preprocess_and_save_dataset(cfg: Namespace) -> None:
             cfg.chunk_size < n_samples
         ), "chunk_size must be less than the number of samples."
 
-        # Create a list of transformations to apply
-        transformations = [
-            lambda: _get_chunk_tensor_generator(
-                X=write_file["X"],
-                n_samples=n_samples,
-                chunk_size=cfg.chunk_size,
-                n_features=n_features,
-                desc="Data preprocessing",
-            )
-        ]
-
-        # Apply transforms in sequence
-        for transform in cfg.transforms:
-            transformations.append(
-                lambda gen=transformations[-1]: _TRANSFORMS_GENERATORS_DICT[transform](
-                    gen(), n_features=n_features
-                )
-            )
-
-        # Convert the result to sparse format
-        transformations.append(
-            lambda gen=transformations[-1]: _to_sparse_chunk_tensor_generator(gen())
+        # Initial generator for chunk tensors
+        generator = _get_chunk_tensor_generator(
+            X=write_file["X"],
+            n_samples=n_samples,
+            chunk_size=cfg.chunk_size,
+            n_features=n_features,
+            desc="Data preprocessing",
         )
+
+        for transform in cfg.transforms:
+            generator = _TRANSFORMS_GENERATORS_DICT[transform](
+                generator, n_features=n_features
+            )
+
+        sparse_generator = _to_sparse_chunk_tensor_generator(generator)
+
         try:
             print("Starting data preprocessing...")
-            # Substitute transformed values in the write file
             _substitute_transformed_values(
                 X=write_file["X"],
-                sparse_chunk_tensor_generator=transformations[-1](),
+                sparse_chunk_tensor_generator=sparse_generator,
                 chunk_size=cfg.chunk_size,
                 n_samples=n_samples,
             )
