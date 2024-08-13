@@ -12,8 +12,8 @@ import yaml
 
 from models.babel import BabelModel
 from models.ModelBase import ModelBase
-from models.omivae import OmiModel
-from models.vae import VAE
+from src.models.components import VAE
+from src.models.components.omivae import OmiModel
 from utils.data_utils import load_anndata
 from utils.paths import CONFIG_PATH, RESULTS_PATH
 
