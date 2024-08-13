@@ -5,6 +5,8 @@ from src.global_utils.train_and_validate_utils import (
     create_results_dir,
     save_model_and_latent,
 )
+from src.utils.old.data_utils import load_anndata
+from src.utils.paths import CONFIG_PATH, RESULTS_PATH
 
 
 def train(config):

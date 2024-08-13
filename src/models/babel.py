@@ -1,7 +1,6 @@
 from argparse import Namespace
 from typing import Dict, Optional, Tuple, Union
 
-import anndata as ad
 import pytorch_lightning as pl
 import torch
 import torch.distributions as td
@@ -10,64 +9,16 @@ import torch.nn.functional as F
 import torch.optim as optim
 from anndata import AnnData
 from pytorch_lightning.utilities.combined_loader import CombinedLoader
-from sklearn.metrics import balanced_accuracy_score
 from torch import Tensor
-from torch.utils.data import DataLoader
-from src.data.dataloader_todo import (
+
+from models.ModelBase import ModelBase
+from src.global_utils.paths import LOGS_PATH
+from src.models.components.blocks import Decoder, Encoder
+from src.models.ModelBase import ModelBase
+from src.utils.old.data_utils import (
     get_dataloader_dict_from_anndata,
     get_dataloader_from_anndata,
 )
-from src.global_utils.paths import LOGS_PATH
-
-from src.models.ModelBase import ModelBase
-
-
-class Encoder(nn.Module):
-    def __init__(self, cfg):
-        super(Encoder, self).__init__()
-        self.encoder = nn.Sequential(
-            nn.Linear(cfg.dim, cfg.encoder_hidden_dim),
-            nn.BatchNorm1d(cfg.encoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
-            nn.ReLU(),
-            nn.Dropout(p=cfg.dropout_rate),
-            nn.Linear(cfg.encoder_hidden_dim, cfg.encoder_hidden_dim),
-            nn.BatchNorm1d(cfg.encoder_hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(p=cfg.dropout_rate),
-            nn.Linear(cfg.encoder_hidden_dim, cfg.encoder_hidden_dim),
-            nn.BatchNorm1d(cfg.encoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
-            nn.ReLU(),
-            nn.Dropout(p=cfg.dropout_rate),
-            nn.Linear(cfg.encoder_hidden_dim, cfg.encoder_out_dim),
-        )
-
-    def forward(self, x):
-        encoded = self.encoder(x)
-        return encoded
-
-
-class Decoder(nn.Module):
-    def __init__(self, cfg):
-        super(Decoder, self).__init__()
-        self.decoder = nn.Sequential(
-            nn.Linear(cfg.latent_dim, cfg.decoder_hidden_dim),
-            nn.BatchNorm1d(cfg.decoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
-            nn.ReLU(),
-            nn.Dropout(p=cfg.dropout_rate),
-            nn.Linear(cfg.decoder_hidden_dim, cfg.decoder_hidden_dim),
-            nn.BatchNorm1d(cfg.decoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
-            nn.ReLU(),
-            nn.Dropout(p=cfg.dropout_rate),
-            nn.Linear(cfg.decoder_hidden_dim, cfg.decoder_hidden_dim),
-            nn.BatchNorm1d(cfg.decoder_hidden_dim) if cfg.batch_norm else nn.Identity(),
-            nn.ReLU(),
-            nn.Dropout(p=cfg.dropout_rate),
-            nn.Linear(cfg.decoder_hidden_dim, cfg.dim),
-        )
-
-    def forward(self, z):
-        decoded = self.decoder(z)
-        return decoded
 
 
 class SingleModalityVAE(nn.Module):
@@ -159,21 +110,6 @@ class BabelVAE(pl.LightningModule):
     ) -> Tuple[Tensor, Dict[str, float]]:
         total_loss = 0.0
         full_losses_dict = {}
-        # for encoding_modality_name, encoding_model in self.model.items():
-        #     (x_enc,) = batch[encoding_modality_name]
-        #     encoded, mu, std = encoding_model.encode(x_enc)
-        #     kld_loss = self.kld_divergence(mu, std)
-        #     full_losses_dict[f"{encoding_modality_name}_kld"] = kld_loss.detach().item()
-        #     total_loss += self.cfg.kld_loss_coef * kld_loss
-
-        #     for decoding_modality_name, decoding_model in self.model.items():
-        #         (x_dec,) = batch[decoding_modality_name]
-        #         decoded = decoding_model.decode(encoded)
-        #         recon_loss = F.mse_loss(decoded, x_dec)
-        #         total_loss += self.cfg.recon_loss_coef * recon_loss
-        #         full_losses_dict[
-        #             f"{encoding_modality_name}_{decoding_modality_name}_recon"
-        #         ] = recon_loss.detach().item()
         for x_enc, (encoding_modality_name, encoding_model) in zip(
             batch, self.model.items()
         ):
@@ -311,6 +247,3 @@ class BabelModel(ModelBase):
     def load(self, file_path: str):
         load_path = file_path + ".ckpt"
         self.model.load_state_dict(torch.load(load_path))
-
-    def assert_cfg(self, cfg: Namespace) -> None:
-        pass
