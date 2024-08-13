@@ -13,11 +13,11 @@ from sklearn.model_selection import KFold
 
 from models.babel import BabelModel
 from models.ModelBase import ModelBase
-from models.omivae_simple import OmiModel
 from models.vae import VAE
-from utils.data_utils import load_anndata
-from utils.metrics import calculate_metrics, latent_metrics
-from utils.paths import CONFIG_PATH, RESULTS_PATH
+from src.models.components.omivae import OmiModel
+from src.utils.evaluation.metrics_old import calculate_metrics, latent_metrics
+from src.utils.old.data_utils import load_anndata
+from src.utils.paths import CONFIG_PATH, RESULTS_PATH
 
 
 def main():
