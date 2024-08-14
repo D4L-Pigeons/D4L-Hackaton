@@ -3,7 +3,6 @@ import random
 import numpy as np
 import torch
 from torch import Tensor
-
 from utils.data_utils import load_anndata
 from utils.paths import TRANSFORMER_DATA_PATH
 

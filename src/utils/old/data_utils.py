@@ -7,7 +7,6 @@ import scanpy as sc
 import torch
 import torch.utils
 from torch.utils.data import DataLoader, TensorDataset
-
 from utils.add_hierarchies import add_second_hierarchy
 from utils.paths import (
     PREPROCESSED_ANNDATA_PATH,

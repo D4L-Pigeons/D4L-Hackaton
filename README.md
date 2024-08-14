@@ -1,7 +1,7 @@
 # D4L-Hackaton
 
 ## Setup
-We recommend creating ```venv``` or ```conda``` environment with ```python==3.12```. 
+We recommend creating ```venv``` or ```conda``` environment with ```python==3.12```.
 
 ### Conda and requirements.txt
 
@@ -29,14 +29,14 @@ python3 train_and_validate.py [ARGUMENTS]
 
 with possible options:
   * ```-h, --help```: show this help message and exit
-  * ```--method``` {"omivae", "babel", "advae"} 
+  * ```--method``` {"omivae", "babel", "advae"}
   * ```--config``` (default="standard"): Name of a configuration in src/config/{method} directory.
   * ```--cv-seed``` (default=42): Seed used to make k folds for cross validation.
   * ```--n-folds``` (default=5): Number of folds in cross validation.
   * ```--subsample-frac``` (default=None): Fraction of the data to use for cross validation.
   * ```--retrain``` (default=True): Retrain a model using the whole dataset.
 
-### 
+###
 
 ## Dataset
 We use dataset from NeurIPS competition: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE194122 named GSE194122_openproblems_neurips2021_cite_BMMC_processed.h5ad.gz.
@@ -49,6 +49,17 @@ log-scaled counts, as well as Spearman correlation.
 **Matching cells between modalities**: As metrics, we consider area under the precision recall curve (AUPR) and the average
 probability assigned to the correct matching. The latter is a relative measure per dataset that accounts
 for non-identifiability among cells with the same identity.
+
+### Pre-commit
+
+Before you can run hooks, you need to have the pre-commit package manager installed.
+
+Using pip: `pip install pre-commit`.
+
+In a python project, add the following to your requirements.txt (or requirements-dev.txt): `pre-commit`.
+
+Then run `pre-commit install` to set up the git hook scripts.
+
 
 ### Viewing logs
 To see the logs from different runs from the `src` directory run

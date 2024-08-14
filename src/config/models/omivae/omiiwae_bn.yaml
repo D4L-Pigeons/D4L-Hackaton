@@ -36,5 +36,4 @@ min_delta: 0.01
 patience: 2
 gmm_likelihood_loss_coef: 0.002
 entropy_loss_coef: 0.002
-recon_loss_coef: 1
 # logger: True

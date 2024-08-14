@@ -9,16 +9,16 @@ import torch.nn.functional as F
 import torch.optim as optim
 from anndata import AnnData
 from pytorch_lightning.utilities.combined_loader import CombinedLoader
-from sklearn.metrics import balanced_accuracy_score
 from torch import Tensor
 
 from models.ModelBase import ModelBase
+from src.global_utils.paths import LOGS_PATH
 from src.models.components.blocks import Decoder, Encoder
+from src.models.ModelBase import ModelBase
 from src.utils.old.data_utils import (
     get_dataloader_dict_from_anndata,
     get_dataloader_from_anndata,
 )
-from utils.paths import LOGS_PATH
 
 
 class SingleModalityVAE(nn.Module):

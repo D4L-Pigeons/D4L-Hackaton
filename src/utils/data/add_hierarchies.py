@@ -2,7 +2,6 @@ import sys
 
 import anndata as ad
 import numpy as np
-
 from utils.paths import RAW_ANNDATA_HIERARCHY_PATH
 
 default_hierarchies_mapping = {
