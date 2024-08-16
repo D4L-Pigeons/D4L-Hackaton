@@ -3,6 +3,8 @@ from typing import Any, Dict, Type
 
 import torch.nn as nn
 from torch import Tensor
+from argparse import Namespace
+
 
 _ACTIVATION: Dict[str, nn.Module] = {
     "relu": nn.ReLU,
