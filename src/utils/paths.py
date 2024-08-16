@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 # Data paths
 DATA_PATH: Path = Path(__file__).parent.parent.parent / "data"
 RAW_DATA_PATH: Path = DATA_PATH / "raw"
