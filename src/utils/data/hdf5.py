@@ -1,6 +1,6 @@
+import h5py
 import numpy as np
 from numpy import ndarray
-import h5py
 
 
 def decode_bytes(bytes: ndarray[np.byte]) -> ndarray[str]:

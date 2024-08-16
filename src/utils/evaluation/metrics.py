@@ -1,16 +1,16 @@
 import numpy as np
-from numpy import ndarray
 import pandas as pd
+import torch
+from numpy import ndarray
 from pandas import DataFrame
 from sklearn.metrics import (
     adjusted_mutual_info_score,
     adjusted_rand_score,
-    normalized_mutual_info_score,
     f1_score,
+    normalized_mutual_info_score,
     silhouette_score,
 )
 from sklearn.neighbors import KNeighborsClassifier
-import torch
 
 
 def _calc_entropy(preds_probs: np.ndarray) -> float:

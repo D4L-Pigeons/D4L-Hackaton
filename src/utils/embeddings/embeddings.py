@@ -1,11 +1,13 @@
-import torch
-from typing import Type
-from torch.utils.data import DataLoader
-from utils.paths import EMBEDDINGS_PATH
-from pathlib import Path
 from argparse import Namespace
-import pytorch_lightning as pl
+from pathlib import Path
+from typing import Type
+
 import h5py
+import pytorch_lightning as pl
+import torch
+from torch.utils.data import DataLoader
+
+from utils.paths import EMBEDDINGS_PATH
 
 
 def get_and_save_embeddings(

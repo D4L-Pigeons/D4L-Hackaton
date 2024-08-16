@@ -1,10 +1,11 @@
-from torch.utils.data import Dataset
 from argparse import Namespace
 from typing import Dict, List
-import torch
-from torch import Tensor
+
 import h5py
 import numpy as np
+import torch
+from torch import Tensor
+from torch.utils.data import Dataset
 
 
 class hdf5SparseDataset(Dataset):

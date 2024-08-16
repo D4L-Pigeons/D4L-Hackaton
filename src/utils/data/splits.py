@@ -1,9 +1,10 @@
-from sklearn.model_selection import KFold, train_test_split
-from pandas import DataFrame
+from argparse import Namespace
+from typing import Generator, List, NamedTuple, Tuple
+
 import numpy as np
 from numpy import ndarray
-from argparse import Namespace
-from typing import List, Tuple, Generator, NamedTuple
+from pandas import DataFrame
+from sklearn.model_selection import KFold, train_test_split
 
 
 class Split(NamedTuple):

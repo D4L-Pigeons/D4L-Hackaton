@@ -1,7 +1,9 @@
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
-from torch import Tensor
-from typing import Dict
 from argparse import Namespace
+from typing import Dict
+
+from torch import Tensor
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
+
 from utils.data.dataset import hdf5SparseDataset
 
 
