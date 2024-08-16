@@ -153,31 +153,17 @@ def test_get_std_transform():
     assert torch.all(transformed_x > 0)
 
 
-def test_gaussian_posterior():
+def test_GaussianPosterior():
     cfg = SimpleNamespace(
-        n_latent_samples=2, std_transformation="softplus", data_name="data"
+        n_latent_samples=2, std_transformation="softplus", 
     )
-    model = GaussianPosterior(cfg)
-
-    # Test forward method
-    batch = {"data": torch.tensor([[1.0, 2.0, 3.0]])}
-    output = model.forward(batch)
-    assert "batch" in output
-    assert "losses" in output
+    model = GaussianPosterior(cfg=cfg, data_name="data")
 
     # Test _std_transformation attribute
     assert model._std_transformation is not None
 
     # Test _data_name attribute
     assert model._data_name == "data"
-
-
-def test_gaussian_posterior_forward():
-    cfg = SimpleNamespace(
-        n_latent_samples=2, std_transformation="softplus", data_name="data"
-    )
-    model = GaussianPosterior(cfg)
-
     # Test forward method
     batch = {"data": torch.tensor([[1.0, 2.0, 3.0, 3.0]])}
     data_init_shape = batch["data"].shape

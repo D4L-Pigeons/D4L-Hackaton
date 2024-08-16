@@ -70,7 +70,7 @@ def _sample_diff_gm_rv(
         sample_shape=sample_shape
     )  # (*sample_shape, n_components, dim)
     selected_component_samples = (
-        sampled_components_one_hots.unsqueeze(-1) * component_samples,
+        sampled_components_one_hots.unsqueeze(-1) * component_samples
     ).sum(
         dim=1
     )  # (*sample_shape, dim)
