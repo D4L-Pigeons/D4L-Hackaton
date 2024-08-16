@@ -1,6 +1,7 @@
-import torch
 from argparse import Namespace
-from typing import Dict, Callable, TypeAlias
+from typing import Callable, Dict, TypeAlias
+
+import torch
 import torch.nn.functional as F
 
 StructuredLoss: TypeAlias = Dict[str, torch.Tensor | str | bool]

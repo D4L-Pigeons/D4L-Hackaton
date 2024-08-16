@@ -1,8 +1,8 @@
 from argparse import Namespace
+from typing import Any, Dict, Type
+
 import torch.nn as nn
 from torch import Tensor
-from typing import Dict, Any, Type
-
 
 _ACTIVATION: Dict[str, nn.Module] = {
     "relu": nn.ReLU,

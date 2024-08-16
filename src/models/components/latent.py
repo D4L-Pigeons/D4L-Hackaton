@@ -1,15 +1,17 @@
+import abc
+from argparse import Namespace
+from typing import Callable, Dict, List, NamedTuple, Optional, Tuple, TypeAlias, TypeVar
+
 import torch
+import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.distributions as td
-from typing import List, Tuple, Dict, TypeAlias, TypeVar, Optional, Callable, NamedTuple
-from argparse import Namespace
-import abc
+
 from src.models.components.loss import (
     StructuredLoss,
-    map_loss_name,
-    get_explicit_constraint,
     format_loss,
+    get_explicit_constraint,
+    map_loss_name,
 )
 
 _EPS: float = 1e-8

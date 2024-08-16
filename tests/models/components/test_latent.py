@@ -1,17 +1,19 @@
-from numpy import require
+from types import SimpleNamespace
+
 import pytest
 import torch
 import torch.distributions as td
 import torch.nn.functional as F
-from types import SimpleNamespace
+from numpy import require
+
 from src.models.components.latent import (
-    _format_forward_output,
-    make_normal_rv,
-    make_gm_rv,
-    _sample_nondiff,
-    _sample_diff_gm_rv,
-    _get_std_transform,
     GaussianPosterior,
+    _format_forward_output,
+    _get_std_transform,
+    _sample_diff_gm_rv,
+    _sample_nondiff,
+    make_gm_rv,
+    make_normal_rv,
 )
 
 
