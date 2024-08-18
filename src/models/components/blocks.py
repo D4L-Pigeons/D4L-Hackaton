@@ -1,10 +1,49 @@
 from argparse import Namespace
-from typing import Any, Dict, Type
-
+from typing import (
+    Any,
+    List,
+    Dict,
+    Type,
+    TypeAlias,
+    TypedDict,
+    Optional,
+    Union,
+    NamedTuple,
+)
+from numpy import block, isin
 import torch.nn as nn
 from torch import Tensor
+from src.utils.common_types import (
+    Batch,
+    ConfigStructure,
+    StructuredForwardOutput,
+)
+from src.utils.config import validate_config_structure, parse_choice_spec_path
 
-_ACTIVATION: Dict[str, nn.Module] = {
+
+class ModuleSpec(Namespace):
+    nnmodule_path: str
+    kwargs: Namespace
+
+
+OrderedModuleSpecs: TypeAlias = List[ModuleSpec]
+
+
+class ModuleWithSpecialTreatment(NamedTuple):
+    nnmodule: nn.Module
+    output_dim_keyword: str
+
+
+DictofModules: TypeAlias = Dict[str, Type[nn.Module] | ModuleWithSpecialTreatment]
+
+
+# def _namespace_to_ordered_module_specs(
+#     ordered_module_specs_namespace: List[Namespace],
+# ) -> ModuleSpec:
+#     return [vars(elem) for elem in vars(ordered_module_specs_namespace)]
+
+
+_ACTIVATION: DictofModules = {
     "relu": nn.ReLU,
     "prelu": nn.PReLU,
     "rrelu": nn.RReLU,
@@ -12,65 +51,98 @@ _ACTIVATION: Dict[str, nn.Module] = {
     "selu": nn.SELU,
 }
 
-_NORM: Dict[str, Type[nn.Module]] = {
-    "batch": nn.BatchNorm1d,
+_NORM: DictofModules = {
+    "batch": ModuleWithSpecialTreatment(
+        nnmodule=nn.BatchNorm1d, output_dim_keyword="num_features"
+    ),
 }
 
-_DROPOUT: Dict[str, Type[nn.Module]] = {"ordinary": nn.Dropout}
+_DROPOUT: DictofModules = {"ordinary": nn.Dropout}
 
-_SPECS: Dict[str, Dict[str, Type[nn.Module]]] = {
+_MODULE_SPECS: Dict[str, DictofModules] = {
     "activation": _ACTIVATION,
     "norm": _NORM,
     "dropout": _DROPOUT,
 }
 
 
-def _get_module_from_spec(spec: Dict[str, str | Dict[str, Any]]) -> nn.Module:
-    return _SPECS[spec["key"]][spec["key"]["meta_kwargs"]["type"]](
-        **spec["key"]["kwargs"]
-    )
+def _get_module_from_spec(spec: ModuleSpec, output_dim: int) -> nn.Module:
+    r"""
+    Get a module from the provided specification.
+
+    Args:
+        spec (ModuleSpec): The specification of the module.
+
+    Returns:
+        nn.Module: The module corresponding to the specification.
+
+    Raises:
+        ValueError: If the provided spec["key1"] is not valid.
+        ValueError: If the provided spec["key2"] is not valid.
+    """
+    assert isinstance(
+        spec, ModuleSpec
+    ), f"Argument spec is of type {type(spec)} not an instance of ModuleSpec."
+
+    choice_path: List[str] = parse_choice_spec_path(spec_path=spec.nnmodule_spec_path)
+    choice = _MODULE_SPECS
+    for key in choice_path:
+        next_choice = choice.get(key, None)
+        if next_choice is None:
+            raise ValueError(
+                f'The provided key {key} is wrong. Must be one of {" ,".join(list(choice.keys()))}'
+            )
+        choice = next_choice
+    kwargs = vars(spec.kwargs) if spec.kwargs is not None else {}
+    if isinstance(choice, ModuleWithSpecialTreatment):
+        kwargs[choice.output_dim_keyword] = output_dim
+        choice = choice.nnmodule
+    return choice(**kwargs)
 
 
 class Block(nn.Module):
-    def __init__(self, input_dim: int, output_dim: int, cfg: Namespace) -> None:
-        r"""
-        Initialize the Block object.
+    r"""
+    A block module that consists of multiple layers.
+    Args:
+        input_dim (int): The input dimension of the block.
+        output_dim (int): The output dimension of the block.
+        ordered_module_specs (OrderedModuleSpecs): The ordered module specifications.
+    Attributes:
+        intput_dim (int): The input dimension of the block.
+        output_dim (int): The output dimension of the block.
+        layer (nn.ModuleList): The list of layers in the block.
+    Methods:
+        forward(x: Tensor) -> Tensor: Performs forward pass through the block.
+    """
 
-        Args:
-            input_dim (int): The input dimension.
-            output_dim (int): The output dimension.
-            cfg (Namespace): The configuration object.
-                - ordered_spec (List[Dict[str, str | Dict[Any]]])
-                e.g.
-                    [
-                    {"key": "norm", "meta_kwargs": {"type": "batch"}, "kwargs": {}},
-                    {"key": "activation", "meta_kwargs": {"type": "relu"}, "kwargs": {}},
-                    {"key": "dropout", "meta_kwargs": {"type": "ordinary"}, "kwargs": {}}
-                    ]
-                    }
-
-        Returns:
-            None
-        """
+    def __init__(
+        self, input_dim: int, output_dim: int, ordered_module_specs: OrderedModuleSpecs
+    ) -> None:
         super(Block, self).__init__()
-        self.intput_dim: int = input_dim
+
+        self.input_dim: int = input_dim
         self.output_dim: int = output_dim
         self.layer = nn.ModuleList(
-            nn.Linear(
-                input_dim,
-                output_dim,
-                bias=not "norm"
-                in any(
-                    [
-                        item["key"] == "norm" and item["key"]["type"] == "batch"
-                        for item in cfg.ordered_spec
-                    ]
-                ),  # If the batch norm is used we are not learning biases.
-            )
+            [
+                nn.Linear(
+                    input_dim,
+                    output_dim,
+                    bias=self._check_if_bias(ordered_module_specs=ordered_module_specs),
+                ),
+            ]
         )
         # Adding the specified modules in the order.
-        for spec in cfg.ordered_spec:
-            self.layer.append(_get_module_from_spec(spec=spec))
+        for spec in ordered_module_specs:
+            self.layer.append(_get_module_from_spec(spec=spec, output_dim=output_dim))
+
+    @staticmethod
+    def _check_if_bias(ordered_module_specs: OrderedModuleSpecs) -> bool:
+        return not any(
+            [
+                module_spec.nnmodule_spec_path == "norm/batch"
+                for module_spec in ordered_module_specs
+            ]
+        )  # If the batch norm is used we are not learning biases.
 
     def forward(self, x: Tensor) -> Tensor:
         for layer_component in self.layer:
@@ -79,6 +151,15 @@ class Block(nn.Module):
 
 
 class AddResidue(nn.Module):
+    r"""
+    AddResidue module that adds the input tensor to the output of the given module.
+
+    Args:
+        module (nn.Module): The module to add the input tensor to.
+
+    Returns:
+        Tensor: The output tensor after adding the input tensor to the module's output.
+    """
 
     def __init__(self, module: nn.Module) -> None:
         super(AddResidue, self).__init__()
@@ -89,6 +170,21 @@ class AddResidue(nn.Module):
 
 
 class AddShortcut(nn.Module):
+    r"""
+    Module that adds a shortcut connection to the input tensor.
+
+    Args:
+        module (nn.Module): The module to which the shortcut connection is added.
+
+    Attributes:
+        module (nn.Module): The module to which the shortcut connection is added.
+        shortcut (nn.Linear): The linear layer representing the shortcut connection.
+
+    Methods:
+        forward(x: Tensor) -> Tensor:
+            Performs the forward pass of the module.
+
+    """
 
     def __init__(self, module: nn.Module) -> None:
         super(AddShortcut, self).__init__()
@@ -101,37 +197,94 @@ class AddShortcut(nn.Module):
         return self.shortcut(x) + self.block(x)
 
 
+_BLOCK_WRAPPERS: Dict[str, Type[nn.Module]] = {
+    "residual": AddResidue,
+    "shortcut": AddShortcut,
+}
+
+
+def _wrap_block(
+    block_module: nn.Module, block_wrapper_name: Optional[str]
+) -> nn.Module:
+    r"""
+    Wraps a block module with a specified block wrapper.
+
+    Args:
+        block_module (Type[nn.Module]): The block module to be wrapped.
+        block_wrapper_name (Optional[str]): The name of the block wrapper. If None, the original block module is returned.
+
+    Returns:
+        Type[nn.Module]: The wrapped block module.
+
+    Raises:
+        ValueError: If the provided block_wrapper_name is not found in the available block wrappers.
+
+    """
+    if block_wrapper_name == None:
+        return block_module
+    block_wrapper = _BLOCK_WRAPPERS.get(block_wrapper_name, None)
+    if block_wrapper is not None:
+        return block_wrapper(block_module)
+    raise ValueError(
+        f'The provided block_wrapper_name {block_wrapper_name} is wrong. Must be one of {" ,".join(list(_BLOCK_WRAPPERS.keys()))}'
+    )
+
+
 class BlockStack(nn.Module):
-    def __init__(self, block_constructor: Type[nn.Module], cfg: Namespace) -> None:
-        r"""
-        Initializes a BlockStack object.
+    r"""
+    A stack of blocks used in a neural network model.
 
-        Args:
-            block_constructor (Type[nn.Module]): The constructor for the block module.
-            cfg (Namespace): The configuration namespace.
-                - input_dim (int): The dimensionality of the input.
-                - hidden_dims (List[int]): The dimensions of the hidden layers.
-                - output_dim (int): The dimensionality of the output.
-                - block (Namespace): Configuration of the blocks.
+    Args:
+        cfg (Namespace): The configuration namespace containing the input and output dimensions.
 
-        Returns:
-            None
-        """
+    Attributes:
+        input_dim (int): The input dimension of the block stack.
+        output_dim (int): The output dimension of the block stack.
+        blocks (ModuleList): A list of blocks in the stack.
+
+    """
+
+    _config_structure: ConfigStructure = {
+        "input_dim": int,
+        "output_dim": int,
+        "hidden_dims": list,
+        "ordered_module_specs": list,
+        "wrapper": str | None,
+        "data_name": str,
+        "block_wrapper_name": str,
+    }
+
+    def __init__(self, cfg: Namespace) -> None:
         super(BlockStack, self).__init__()
+        validate_config_structure(cfg=cfg, config_structure=self._config_structure)
+
         self.input_dim: int = cfg.input_dim
         self.output_dim: int = cfg.output_dim
-        self.blocks = nn.ModuleList()
-        dims = [cfg.input_dim] + cfg.hidden_dims
+        self._data_name: str = cfg.data_name
 
+        blocks: List[nn.Module] = []
+        dims: List[int] = [cfg.input_dim] + cfg.hidden_dims
+
+        ordered_module_specs: OrderedModuleSpecs = [
+            ModuleSpec(spec)
+            for spec in cfg.ordered_module_specs  # Conversion from List[Namespace] done just for consistency.
+        ]
         # Creating blocks if len(dims) > 1
         for in_dim, out_dim in zip(dims[:-1], dims[1:]):
-            self.block.append(
-                block_constructor(input_dim=in_dim, output_dim=out_dim, cfg=cfg.block)
+            blocks.append(
+                Block(
+                    input_dim=in_dim,
+                    output_dim=out_dim,
+                    ordered_module_specs=ordered_module_specs,
+                ),
             )
 
-        self.blocks.append(nn.Linear(in_features=dims[-1], out_features=cfg.output_dim))
+        blocks.append(nn.Linear(in_features=dims[-1], out_features=cfg.output_dim))
+        blocks: Type[nn.Module] = _wrap_block(
+            block_module=nn.Sequential(*blocks),
+            block_wrapper_name=cfg.block_wrapper_name,
+        )
 
-    def forward(self, x: Tensor) -> Tensor:
-        for layer in self.blocks:
-            x = layer(x)
-        return self.out(x)
+    def forward(self, batch: Batch) -> StructuredForwardOutput:
+        batch[self._data_name] = self.blocks(batch[self._data_name])
+        return batch

@@ -1,66 +1,27 @@
-from types import SimpleNamespace
-from argparse import Namespace
-import pytest
-import torch
 import torch.distributions as td
-import torch.nn.functional as F
+from argparse import Namespace
+import pytest
+import torch
 from numpy import require
-import torch
-import pytest
-from types import SimpleNamespace
-from src.models.components.latent import GaussianPosterior
-import torch
-import pytest
-from src.models.components.latent import _GM
-import torch
-import pytest
-from src.models.components.latent import _GM
-import torch
-import pytest
-from src.models.components.latent import _GM, GaussianMixtureRV, make_gm_rv
-import torch
-import pytest
-from types import SimpleNamespace
-from src.models.components.latent import GMPriorNLL
-import torch
-import pytest
-from src.models.components.latent import calc_mmd
-import torch
-from src.models.components.latent import calc_pairwise_distances
-import torch
-import pytest
-from src.models.components.latent import calc_mmd
-import pytest
-import torch
-from argparse import Namespace
-from src.models.components.latent import LatentConstraint
-import pytest
-import torch
-from argparse import Namespace
-from src.models.components.latent import FuzzyClustering
-
 from src.models.components.latent import (
     GaussianPosterior,
-    _format_forward_output,
-    _get_std_transform,
-    _sample_diff_gm_rv,
-    _sample_nondiff,
-    make_gm_rv,
+    _GM,
     make_normal_rv,
-    GMPriorNLL,
-    FuzzyClustering,
+    make_gm_rv,
+    _sample_nondiff,
+    _sample_diff_gm_rv,
     calc_component_logits_for_gm_sample,
-    calc_pairwise_distances,
+    _get_std_transform,
+    GaussianMixtureRV,
+    GaussianMixturePriorNLL,
     calc_mmd,
+    calc_pairwise_distances,
+    LatentConstraint,
+    FuzzyClustering,
 )
 
-
-def test_format_forward_output():
-    batch = {"data": torch.tensor([1, 2, 3])}
-    losses = [{"loss": torch.tensor(0.5)}]
-    output = _format_forward_output(batch, losses)
-    assert output["batch"] == batch
-    assert output["losses"] == losses
+from src.utils.config import _load_config_from_path
+from pathlib import Path
 
 
 def test_make_normal_rv():
@@ -151,13 +112,18 @@ def test_get_std_transform():
     x = torch.tensor([-1.0, 0.0, 1.0])
     transformed_x = transform(x)
     assert torch.all(transformed_x > 0)
+    with pytest.raises(ValueError):
+        _get_std_transform("invalid_transform_name")
 
 
 def test_GaussianPosterior():
-    cfg = SimpleNamespace(
-        n_latent_samples=2, std_transformation="softplus", 
+    cfg = _load_config_from_path(
+        file_path=Path("D4L-Hackaton")
+        / "tests"
+        / "utils"
+        / "dummy_cfg-GaussianPosterior.yaml"
     )
-    model = GaussianPosterior(cfg=cfg, data_name="data")
+    model = GaussianPosterior(cfg=cfg)
 
     # Test _std_transformation attribute
     assert model._std_transformation is not None
@@ -192,16 +158,12 @@ class _GM_subclass(_GM):
         return None
 
 
-def test_GM_set_reset_rv():
-    cfg = SimpleNamespace(
-        n_components=2, latent_dim=3, components_std=1.0, data_name="data"
+@pytest.fixture
+def _GM_cfg():
+    cfg = _load_config_from_path(
+        file_path=Path("D4L-Hackaton") / "tests" / "utils" / "dummy_cfg-_GM.yaml"
     )
-    model = _GM_subclass(cfg)
-    assert model._rv is None
-    model.set_rv()
-    assert isinstance(model._rv, GaussianMixtureRV)
-    model.reset_rv()
-    assert model._rv is None
+    return cfg
 
 
 @pytest.fixture
@@ -213,10 +175,18 @@ def _GM_sample_tensor():
     return tensor
 
 
-def test_GM_get_nll(_GM_sample_tensor):
-    cfg = SimpleNamespace(
-        n_components=2, latent_dim=8, components_std=1.0, data_name="data"
-    )
+def test_GM_set_reset_rv(_GM_cfg):
+    cfg = _GM_cfg
+    model = _GM_subclass(cfg)
+    assert model._rv is None
+    model.set_rv()
+    assert isinstance(model._rv, GaussianMixtureRV)
+    model.reset_rv()
+    assert model._rv is None
+
+
+def test_GM_get_nll(_GM_cfg, _GM_sample_tensor):
+    cfg = _GM_cfg
     model = _GM_subclass(cfg)
     model.set_rv()
     x = _GM_sample_tensor
@@ -225,10 +195,8 @@ def test_GM_get_nll(_GM_sample_tensor):
     assert nll.shape == x.shape[:-1]
 
 
-def test_GM_get_component_conditioned_nll(_GM_sample_tensor):
-    cfg = SimpleNamespace(
-        n_components=2, latent_dim=8, components_std=1.0, data_name="data"
-    )
+def test_GM_get_component_conditioned_nll(_GM_cfg, _GM_sample_tensor):
+    cfg = _GM_cfg
     model = _GM_subclass(cfg)
     model.set_rv()
     x = _GM_sample_tensor
@@ -250,11 +218,15 @@ def batch_fixture():
     }
 
 
-def test_GMPriorNLL_forward(batch_fixture):
-    cfg = SimpleNamespace(n_components=2, latent_dim=8, components_std=1.0)
-    model = GMPriorNLL(
-        cfg, data_name="data", component_indicator_name="component_indicator"
+def test_GaussianMixturePriorNLL_forward(batch_fixture):
+    cfg = _load_config_from_path(
+        file_path=Path("D4L-Hackaton")
+        / "tests"
+        / "utils"
+        / "dummy_cfg-GaussianMixturePriorNLL.yaml"
     )
+
+    model = GaussianMixturePriorNLL(cfg)
     # Test forward method
     batch = batch_fixture
     output = model.forward(batch)
@@ -266,16 +238,30 @@ def test_GMPriorNLL_forward(batch_fixture):
     assert output["losses"][0]["data"].shape == batch["data"].shape[:2]
 
 
-def test_calc_mmd():
-    x = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
-    y = torch.tensor([[7.0, 8.0, 9.0], [10.0, 11.0, 12.0]])
-    kernel_name = "rbf"
-    latent_dim = 3
-    components_std = 1.0
-    mmd = calc_mmd(x, y, kernel_name, latent_dim, components_std)
-    assert isinstance(mmd, torch.Tensor)
-    assert mmd.shape == torch.Size([])
-    assert mmd >= 0.0
+def test_FuzzyClustering_forward(batch_fixture):
+    cfg = _load_config_from_path(
+        file_path=Path("D4L-Hackaton")
+        / "tests"
+        / "utils"
+        / "dummy_cfg-FuzzyClustering.yaml"
+    )
+    model = FuzzyClustering(cfg)
+
+    # Test _calculate_component_constraint method
+    component_reg = model._calculate_component_constraint()
+    assert isinstance(component_reg, torch.Tensor)
+
+    # Test forward method
+    batch = batch_fixture
+    output = model.forward(batch)
+    assert "batch" in output
+    assert "losses" in output
+    losses = output["losses"]
+    assert len(losses) == 2
+    assert "fuzz_clust" == losses[0]["name"]
+    assert "comp_clust_reg" == losses[1]["name"]
+    assert isinstance(losses[0]["data"], torch.Tensor)
+    assert isinstance(losses[1]["data"], torch.Tensor)
 
 
 def test_calc_pairwise_distances_positive():
@@ -314,10 +300,15 @@ def test_calc_mmd():
     assert mmd.item() >= 0.0
 
 
-def test_latent_constraint():
-    cfg = Namespace(constraint_method="l2")
+def test_LatentConstraint():
+    cfg = _load_config_from_path(
+        file_path=Path("D4L-Hackaton")
+        / "tests"
+        / "utils"
+        / "dummy_cfg-LatentConstraint.yaml"
+    )
     data_name = "latent_data"
-    model = LatentConstraint(cfg, data_name)
+    model = LatentConstraint(cfg)
 
     # Test forward method
     batch = {"latent_data": torch.tensor([1.0, 2.0, 3.0])}
@@ -332,32 +323,6 @@ def test_latent_constraint():
     assert model._data_name == "latent_data"
 
     assert (output["losses"][0]["data"] >= 0).all()
-
-
-def test_FuzzyClustering_forward():
-    cfg = Namespace(
-        n_components=2,
-        latent_dim=3,
-        components_std=1.0,
-        constraint_method="huber",
-    )
-    model = FuzzyClustering(cfg, data_name="data")
-
-    # Test _calculate_component_constraint method
-    component_reg = model._calculate_component_constraint()
-    assert isinstance(component_reg, torch.Tensor)
-
-    # Test forward method
-    batch = {"data": torch.tensor([[1.0, 2.0, 3.0]])}
-    output = model.forward(batch)
-    assert "batch" in output
-    assert "losses" in output
-    losses = output["losses"]
-    assert len(losses) == 2
-    assert "fuzz_clust" == losses[0]["name"]
-    assert "comp_clust_reg" == losses[1]["name"]
-    assert isinstance(losses[0]["data"], torch.Tensor)
-    assert isinstance(losses[1]["data"], torch.Tensor)
 
 
 if __name__ == "__main__":

@@ -1,10 +1,8 @@
 from argparse import Namespace
-from typing import Callable, Dict, TypeAlias
-
+from typing import Callable, Dict
 import torch
 import torch.nn.functional as F
 
-StructuredLoss: TypeAlias = Dict[str, torch.Tensor | str | bool]
 
 _LOSS_NAME_MANAGER: Dict[str, str] = {
     "posterior_entropy": "postr_H",
@@ -16,16 +14,26 @@ _LOSS_NAME_MANAGER: Dict[str, str] = {
 
 
 def map_loss_name(loss_name: str) -> str:
-    return _LOSS_NAME_MANAGER[loss_name]
+    loss = _LOSS_NAME_MANAGER.get(loss_name, None)
+    if loss is not None:
+        return loss
+    raise ValueError(
+        f"The provided loss_name {loss_name} is wrong. Must be one of {' ,'.join(list(_LOSS_NAME_MANAGER.keys()))}"
+    )
 
 
-_INVERSE_NAME_MANAGER: Dict[str, str] = {
+_INVERSE_LOSS_NAME_MANAGER: Dict[str, str] = {
     val: key for key, val in _LOSS_NAME_MANAGER.items()
 }
 
 
 def map_loss_name_inverse(loss_name: str) -> str:
-    return _INVERSE_NAME_MANAGER[loss_name]
+    loss = _INVERSE_LOSS_NAME_MANAGER.get(loss_name, None)
+    if loss is not None:
+        return loss
+    raise ValueError(
+        f"The provided loss_name {loss_name} is wrong. Must be one of {' ,'.join(list(_INVERSE_LOSS_NAME_MANAGER.keys()))}"
+    )
 
 
 _EXPLICIT_CONSTRAINT: Dict[str, Callable[[torch.Tensor, int | None], torch.Tensor]] = {
@@ -39,15 +47,12 @@ _EXPLICIT_CONSTRAINT: Dict[str, Callable[[torch.Tensor, int | None], torch.Tenso
 def get_explicit_constraint(
     constraint_name: str,
 ) -> Callable[[torch.Tensor, int | None], torch.Tensor]:
-    return _EXPLICIT_CONSTRAINT[constraint_name]
-
-
-def format_loss(loss: torch.Tensor, name: str, aggregated: bool) -> StructuredLoss:
-    return {
-        "data": loss,
-        "name": name,
-        "aggregated": aggregated,
-    }
+    constraint = _EXPLICIT_CONSTRAINT.get(constraint_name, None)
+    if constraint is not None:
+        return constraint
+    raise ValueError(
+        f"The provided constraint_name {constraint_name} is wrong. Must be one of {' ,'.join(list(_EXPLICIT_CONSTRAINT.keys()))}"
+    )
 
 
 _LOSS_AGGREGATORS: Dict[str, Callable[[torch.Tensor], torch.Tensor]] = {
@@ -56,5 +61,12 @@ _LOSS_AGGREGATORS: Dict[str, Callable[[torch.Tensor], torch.Tensor]] = {
 }
 
 
-def get_loss_aggregator(cfg: Namespace) -> Callable[[torch.Tensor], torch.Tensor]:
-    return _LOSS_AGGREGATORS[cfg.name]
+def get_loss_aggregator(
+    loss_aggregator_name: str,
+) -> Callable[[torch.Tensor], torch.Tensor]:
+    loss_aggregator = _LOSS_AGGREGATORS.get(loss_aggregator, None)
+    if loss_aggregator is not None:
+        return loss_aggregator
+    raise ValueError(
+        f"The provided loss_aggregator_name {loss_aggregator_name} is wrong. Must be one of {' ,'.join(list(_LOSS_AGGREGATORS.keys()))}"
+    )

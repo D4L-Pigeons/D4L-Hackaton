@@ -1,0 +1,3 @@
+n_components: 3
+latent_dim: 8
+components_std: 1.

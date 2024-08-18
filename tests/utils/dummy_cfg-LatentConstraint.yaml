@@ -1,0 +1,3 @@
+constraint_method: "l2"
+data_name: "latent_data" 
+loss_coef_latent_constraint: 0.0001
