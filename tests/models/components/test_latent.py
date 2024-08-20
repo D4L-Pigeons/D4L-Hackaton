@@ -125,8 +125,8 @@ def test_GaussianPosterior():
     )
     model = GaussianPosterior(cfg=cfg)
 
-    # Test _std_transformation attribute
-    assert model._std_transformation is not None
+    # Test _std_transform attribute
+    assert model._std_transform is not None
 
     # Test _data_name attribute
     assert model._data_name == "data"
@@ -143,11 +143,11 @@ def test_GaussianPosterior():
         2 == output["batch"]["data"].shape[1]
     ), "The number of latent samples is not correct in the output."
     assert (
-        data_init_shape[1] == 2 * output["batch"]["data"].shape[3]
+        data_init_shape[1] == 2 * output["batch"]["data"].shape[2]
     ), "The dimension after forward is not a half of the inputted."
-    assert (
-        output["batch"]["data"].shape[2] == 1
-    ), "The dummy dimension was not properly added or the dimensions are mixed somehow."
+    # assert (
+    #     output["batch"]["data"].shape[2] == 1
+    # ), "The dummy dimension was not properly added or the dimensions are mixed somehow."
 
 
 class _GM_subclass(_GM):

@@ -11,7 +11,5 @@ ordered_module_specs:
   - 
     nnmodule_spec_path: "activation/relu"
     kwargs:
-
-wrapper: "torch.nn.Sequential"
 data_name: "example_data"
-block_wrapper_name: "example_block_wrapper"
+block_wrapper_name: "residual"

@@ -178,7 +178,7 @@ class GaussianPosterior(nn.Module):  # nn.Module for compatibility
     """
 
     _cfg_structure: ConfigStructure = {
-        "std_transformation": str,
+        "std_transform": str,
         "data_name": str,
         "n_latent_samples": int,
         "loss_coef_posterior_entropy": float,
@@ -188,14 +188,14 @@ class GaussianPosterior(nn.Module):  # nn.Module for compatibility
         super(GaussianPosterior, self).__init__()
         validate_config_structure(cfg=cfg, config_structure=self._cfg_structure)
 
-        self._std_transformation: Callable = _get_std_transform(cfg.std_transformation)
+        self._std_transform: Callable = _get_std_transform(cfg.std_transform)
         self._data_name: str = cfg.data_name
         self._n_latent_samples: int = cfg.n_latent_samples
         self._loss_coef_posterior_entropy: float = cfg.loss_coef_posterior_entropy
 
     def forward(self, batch: Batch) -> StructuredForwardOutput:
         means, stds = batch[self._data_name].chunk(chunks=2, dim=1)
-        stds = self._std_transformation(stds)
+        stds = self._std_transform(stds)
         rv = make_normal_rv(mean=means, std=stds)
         entropy_per_batch_sample = einsum(rv.entropy(), "batch dim -> batch").unsqueeze(
             0
@@ -205,7 +205,7 @@ class GaussianPosterior(nn.Module):  # nn.Module for compatibility
             sample_shape=(self._n_latent_samples,)
         )  # (n_latent_samples, batch_size, latent_dim)
         batch[self._data_name] = rearrange(
-            tensor=latent_samples, pattern="samp batch dim -> batch samp 1 dim"
+            tensor=latent_samples, pattern="samp batch dim -> batch samp dim"
         )
         return format_structured_forward_output(
             batch=batch,
@@ -335,6 +335,9 @@ class GaussianMixturePriorNLL(_GM):
             unknown_gm_nll_lat_sampl = self._get_nll(
                 x=x[unknown_mask]
             )  # (unknown_batch_size, n_latent_samples)
+            assert (
+                nll_lat_sampl[unknown_mask].shape == unknown_gm_nll_lat_sampl.shape
+            ), f"nll_lat_sampl[unknown_mask].shape = {nll_lat_sampl[unknown_mask].shape} and unknown_gm_nll_lat_sampl.shape = {unknown_gm_nll_lat_sampl.shape}"
             nll_lat_sampl[unknown_mask] = unknown_gm_nll_lat_sampl  #
         if known_mask.any():  # There are samples with known components.
             known_gm_nll_lat_sampl = self._get_component_conditioned_nll(

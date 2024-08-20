@@ -1,0 +1,30 @@
+chain:
+  - chain_link_spec_path: "blocks/block_stack"
+    cfg:
+      input_dim: 128
+      output_dim: 40
+      hidden_dims: [64]
+      ordered_module_specs:
+        - {nnmodule_spec_path: "norm/batch", kwargs: {}}
+        - {nnmodule_spec_path: "activation/relu", kwargs: {}}
+      data_name: "data"
+      block_wrapper_name: null
+  - chain_link_spec_path: "latent/clustering_fuzzy"
+    cfg:
+      n_components: 2
+      latent_dim: 40
+      components_std: 1.0
+      constraint_method: "l2"
+      data_name: "data"
+      loss_coef_latent_fuzzy_clustering: 1.0
+      loss_coef_clustering_component_reg: 0.001
+  - chain_link_spec_path: "blocks/block_stack"
+    cfg:
+      input_dim: 40
+      output_dim: 128
+      hidden_dims: []
+      ordered_module_specs:
+        - {nnmodule_spec_path: "norm/batch", kwargs: {}}
+        - {nnmodule_spec_path: "activation/relu", kwargs: {}}
+      data_name: "data"
+      block_wrapper_name: null

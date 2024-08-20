@@ -15,6 +15,7 @@ class StructuredLoss(TypedDict):
 def format_structured_loss(
     loss: torch.Tensor, coef: float, name: str, aggregated: bool
 ) -> StructuredLoss:
+
     return StructuredLoss(data=loss, coef=coef, name=name, aggregated=aggregated)
 
 
@@ -26,6 +27,13 @@ class StructuredForwardOutput(TypedDict):
 def format_structured_forward_output(
     batch: Batch, losses: List[StructuredLoss]
 ) -> StructuredForwardOutput:
+    r"""
+    Formats data to StrucutredForwardOutput object.
+
+    Args:
+        batch (Batch):
+        losses (List[StructuredLoss])
+    """
     return StructuredForwardOutput(batch=batch, losses=losses)
 
 

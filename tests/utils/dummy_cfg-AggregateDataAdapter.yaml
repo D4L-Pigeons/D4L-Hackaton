@@ -1,0 +1,6 @@
+aggregation_type : "concat"
+batch_aggr_def : {
+    aggregated_data: ["data1", "data2"],
+    aggregated_data2: ["data3"],
+}
+kwargs : {dim: 1}

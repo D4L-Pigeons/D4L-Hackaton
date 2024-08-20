@@ -1,0 +1,62 @@
+chain:
+  - chain_link_spec_path: "blocks/block_stack"
+    cfg:
+      input_dim: 128
+      output_dim: 40
+      hidden_dims: [64]
+      ordered_module_specs:
+        - {nnmodule_spec_path: "norm/batch", kwargs: {}}
+        - {nnmodule_spec_path: "activation/relu", kwargs: {}}
+      data_name: "data"
+      block_wrapper_name: null
+  - chain_link_spec_path: "latent/clustering_fuzzy"
+    cfg:
+      n_components: 2
+      latent_dim: 40
+      components_std: 1.0
+      constraint_method: "l2"
+      data_name: "data"
+      loss_coef_latent_fuzzy_clustering: 1.0
+      loss_coef_clustering_component_reg: 0.001
+  - chain_link_spec_path: "blocks/block_stack"
+    cfg:
+      input_dim: 40
+      output_dim: 40
+      hidden_dims: []
+      ordered_module_specs:
+        - {nnmodule_spec_path: "norm/batch", kwargs: {}}
+        - {nnmodule_spec_path: "activation/relu", kwargs: {}}
+        - {nnmodule_spec_path: "dropout/ordinary", kwargs: {}}
+      data_name: "data"
+      block_wrapper_name: null
+  - chain_link_spec_path: "latent/posterior_gaussian"
+    cfg:
+      std_transform: "softplus"
+      data_name: "data"
+      n_latent_samples: 5
+      loss_coef_posterior_entropy: 1.
+  - chain_link_spec_path: "latent/prior_gaussian_mixture_nll"
+    cfg:
+      data_name: "data"
+      latent_dim: 20
+      n_components: 10
+      components_std: 1.
+      component_indicator_name: "component_indicator"
+      loss_coef_prior_nll: 2.
+  - chain_link_spec_path: "misc/batch_rearranger"
+    cfg:
+      rearrange_patterns: [{data_name: "data", pattern: "b lat_sampl d -> (b lat_sampl) d", kwargs: {lat_sampl: 5}}]
+  - chain_link_spec_path: "blocks/block_stack"
+    cfg:
+      input_dim: 20
+      output_dim: 128
+      hidden_dims: [40, 64]
+      ordered_module_specs:
+        - {nnmodule_spec_path: "norm/batch", kwargs: {}}
+        - {nnmodule_spec_path: "activation/relu", kwargs: {}}
+        - {nnmodule_spec_path: "dropout/ordinary", kwargs: {}}
+      data_name: "data"
+      block_wrapper_name: null
+  - chain_link_spec_path: "misc/batch_rearranger"
+    cfg:
+      rearrange_patterns: [{data_name: "data", pattern: "(b lat_sampl) d -> b lat_sampl d", kwargs: {lat_sampl: 5}}]

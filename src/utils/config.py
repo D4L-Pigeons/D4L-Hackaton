@@ -1,6 +1,7 @@
 from argparse import Namespace
 from typing import List
 
+from flask import config
 from numpy import isin
 from src.utils.common_types import ConfigStructure
 import yaml
@@ -10,26 +11,40 @@ from pathlib import Path
 
 
 def validate_config_structure(
-    cfg: Namespace, config_structure: ConfigStructure
+    cfg: Namespace | List[Namespace], config_structure: ConfigStructure
 ) -> None:
-    variables = vars(cfg)
-    if isinstance(variables, dict):
+    if isinstance(cfg, Namespace):
+        variables = vars(cfg)
         if variables.keys() != config_structure.keys():
             raise ValueError(
-                f"There is mismatch between provided keys {list(variables.keys())} and expected keys {list(config_structure.keys())}"
+                f"There is a mismatch between provided keys {list(variables.keys())} and expected keys {list(config_structure.keys())}"
             )
         for attr_name, attr_val in variables.items():
-            if config_structure.get(attr_name, None) is None:
-                raise ValueError(f"Invalid attribute '{attr_name}' in config")
-            if isinstance(attr_val, Namespace):
+            if (
+                isinstance(config_structure[attr_name], dict)
+                and isinstance(attr_val, Namespace)
+            ) or (
+                isinstance(config_structure[attr_name], list)
+                and isinstance(attr_val, list)
+            ):  # If Namespace we are passing the verification responsibility to some other module.
                 validate_config_structure(attr_val, config_structure[attr_name])
-            elif config_structure[attr_name] is not None and not isinstance(
-                attr_val, config_structure[attr_name]
-            ):
-                raise ValueError(f"Invalid type for attribute '{attr_name}'")
-    elif isinstance(variables, list):
-        for elem in variables:
-            validate_config_structure(elem)
+
+            # assert isinstance(
+            #     config_structure[attr_name], type
+            # ), f"{type(config_structure[attr_name])} {type(attr_val)} {isinstance(config_structure[attr_name], list)} {isinstance(attr_val, list)}"
+            elif not isinstance(attr_val, config_structure[attr_name]):
+                raise ValueError(
+                    f"Invalid type for attribute '{attr_name}'. Expected {config_structure[attr_name]} but got {type(attr_val)}"
+                )
+    elif isinstance(cfg, list):
+        if not isinstance(config_structure, list):
+            raise ValueError("Config structure is not list at this level.")
+        config_structure = config_structure[0]
+        if not config_structure == Namespace:
+            for cfg_elem in cfg:
+                validate_config_structure(
+                    cfg=cfg_elem, config_structure=config_structure
+                )
 
 
 _CHOICE_PATH_SEPARATOR: str = "/"
