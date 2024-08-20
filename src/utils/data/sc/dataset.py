@@ -1,55 +1,57 @@
 from argparse import Namespace
 from typing import Dict, List
-
 import h5py
 import numpy as np
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
+from src.utils.common_types import ConfigStructure
+from src.utils.config import validate_config_structure
+from pathlib import Path
 
 
 class hdf5SparseDataset(Dataset):
     r"""
-    A dataset class for loading data from an HDF5 file in a sparse format.
-    Requires specification of datast_idxs inducing a dataset as a subset of the whole data file.
+    Used to create a dataset from an HDF5 file with sparse data.
 
-    Args:
-        cfg (Namespace): The configuration object containing the path to the HDF5 file.
+        dataset_idxs (List[int]): List of indices to select from the dataset.
+        cfg (Namespace): Configuration object containing the path and other parameters.
 
-    Attributes:
-        cfg (Namespace): The configuration object containing the path to the HDF5 file.
+
+    Raises:
+        AssertionError: If the indices in dataset_idxs are repeated.
+        AssertionError: If the values in dataset_idxs are not within the range [0, max_possible_idx].
+        NotImplementedError: If the remapping categories functionality is not implemented yet.
 
     """
 
+    _config_structure: ConfigStructure = {
+        "path": str,
+        "rowsize": int,
+        "obs": {
+            "columns": [
+                {
+                    "org_name": str,
+                    "new_name": str,
+                    "remap_categories": bool,
+                },
+            ]
+        },
+    }
+
     def __init__(self, dataset_idxs: List[int], cfg: Namespace):
-        r"""
-        Initialize the hdf5SparseDataset object.
-
-        Args:
-            dataset_idxs (List[int]): The list of subset indices defining a dataset.
-            cfg (Namespace): The configuration object.
-                - path: A path to the hdf5 data file.
-                - rowsize: The number of entries in a row.
-                - obs.columns: A list of dicts with columns to be extracted from the obs object.
-                    - obs.columns[...]["org_name"]: Original name of the column.
-                    - obs.columns[...]["new_name"]: New name of teh column.
-                    - obs.columns[...]["tocat"]:
-
-        Raises:
-            AssertionError: If the indices in dataset_idxs are repeated.
-            AssertionError: If values in dataset_idxs are not within [0, max_possible_idx].
-
-        """
         super(hdf5SparseDataset).__init__()
-        self.cfg = cfg
-        self._dataset_idxs = np.array(
+        validate_config_structure(cfg=cfg, config_structure=self._config_structure)
+
+        self.cfg: Namespace = cfg
+        self._dataset_idxs: np.ndarray = np.array(
             sorted(list(set(dataset_idxs)))
         )  # Unique values and sorting at the same time
         assert self._dataset_idxs.shape[0] == len(
             dataset_idxs
         ), "The indices in dataset_idxs should not repeat."
         self._len = self._dataset_idxs.shape[0]
-        with h5py.File(cfg.path, "r") as f:
+        with h5py.File(Path(cfg.path), "r") as f:
             max_possible_idx = f["X"]["indptr"].shape[0] - 1
             assert (
                 self._dataset_idxs[0] >= 0
@@ -88,11 +90,11 @@ class hdf5SparseDataset(Dataset):
                 len(indices), self.cfg.rowsize
             ),  # Only nonzero entries will be filled
             **{
-                col["new_name"]: torch.empty(len(indices), dtype=torch.long)
+                col.new_name: torch.empty(len(indices), dtype=torch.long)
                 for col in self.cfg.obs.columns
             },
         }
-        with h5py.File(self.cfg.path, "r") as f:
+        with h5py.File(Path(self.cfg.path), "r") as f:
             for i, index in enumerate(indices):
                 start, end = f["X"]["indptr"][[index, index + 1]]
                 sparse_data = torch.tensor(f["X"]["data"][start:end])
@@ -111,15 +113,15 @@ class hdf5SparseDataset(Dataset):
             # csr_matrix((data, indices, indptr), shape=shape)
             # batch["data"] = f["X/data"][indices]
 
-            # Extracting data from .obs providing additional information about the cell. If tocat=True
+            # Extracting data from .obs providing additional information about the cell. If remap_categories=True the remapping of codes is done to alter the numbering
             for obs_col in self.cfg.obs.columns:
-                if obs_col["remap_categories"]:
+                if obs_col.remap_categories:
                     raise NotImplementedError(
                         "The remapping categories functionality is not implemented yet."
                     )
                 else:
-                    batch[obs_col["new_name"]] = torch.tensor(
-                        f["obs"][obs_col["org_name"]][indices], dtype=torch.long
+                    batch[obs_col.new_name] = torch.tensor(
+                        f["obs"][obs_col.org_name][indices], dtype=torch.long
                     )
 
         return batch

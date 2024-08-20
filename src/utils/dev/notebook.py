@@ -26,7 +26,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from torch import Tensor
 from torch.utils.data import DataLoader, TensorDataset
 
-from utils.paths import (  # EMBEDDINGS_PATH,; RAW_DATA_PATH,; PREPROCESSED_DATA_PATH,
+from src.utils.paths import (  # EMBEDDINGS_PATH,; RAW_DATA_PATH,; PREPROCESSED_DATA_PATH,
     LOGS_PATH,
 )
 

@@ -7,7 +7,7 @@ import pandas as pd
 from numpy import ndarray
 from pandas import DataFrame
 
-from utils.data.hdf5 import decode_bytes
+from src.utils.data.sc.hdf5 import decode_bytes
 
 
 def get_dataset_obs(cfg: Namespace, indices: Optional[ndarray] = None) -> DataFrame:

@@ -1,10 +1,8 @@
 from argparse import Namespace
 from typing import Dict
-
 from torch import Tensor
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
-
-from utils.data.dataset import hdf5SparseDataset
+from src.utils.data.sc.dataset import hdf5SparseDataset
 
 
 def _hdf5_custom_collate_fn(batch: Dict[str, Tensor]):
