@@ -28,3 +28,4 @@ chain:
         - {nnmodule_spec_path: "activation/relu", kwargs: {}}
       data_name: "data"
       block_wrapper_name: null
+processing_commands: []

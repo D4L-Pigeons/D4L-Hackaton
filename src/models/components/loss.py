@@ -55,6 +55,26 @@ def get_explicit_constraint(
     )
 
 
+_RECONSTRUCTION_LOSSES: Dict[
+    str, Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+] = {
+    "mse": F.mse_loss,
+    "l1": F.l1_loss,
+    "smooth_l1": F.smooth_l1_loss,
+}
+
+
+def get_reconstruction_loss(
+    loss_name: str,
+) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
+    loss = _RECONSTRUCTION_LOSSES.get(loss_name, None)
+    if loss is not None:
+        return loss
+    raise ValueError(
+        f"The provided loss_name {loss_name} is wrong. Must be one of {' ,'.join(list(_RECONSTRUCTION_LOSSES.keys()))}"
+    )
+
+
 _LOSS_AGGREGATORS: Dict[str, Callable[[torch.Tensor], torch.Tensor]] = {
     "mean": lambda x: x.mean(),
     "logsumexp": lambda x: x.logsumexp(dim=0),

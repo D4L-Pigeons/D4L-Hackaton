@@ -193,7 +193,11 @@ class GaussianPosterior(nn.Module):  # nn.Module for compatibility
         self._n_latent_samples: int = cfg.n_latent_samples
         self._loss_coef_posterior_entropy: float = cfg.loss_coef_posterior_entropy
 
-    def forward(self, batch: Batch) -> StructuredForwardOutput:
+    def forward(
+        self, batch: Batch, n_latent_samples: None | int = None
+    ) -> StructuredForwardOutput:
+        if n_latent_samples is None:
+            n_latent_samples = self._n_latent_samples
         means, stds = batch[self._data_name].chunk(chunks=2, dim=1)
         stds = self._std_transform(stds)
         rv = make_normal_rv(mean=means, std=stds)
@@ -202,7 +206,7 @@ class GaussianPosterior(nn.Module):  # nn.Module for compatibility
         )  # (1, batch_size)
         # Replacing the 'data' with reparametrisation trick samples in the batch and leaving the rest unchanged.
         latent_samples = rv.rsample(
-            sample_shape=(self._n_latent_samples,)
+            sample_shape=(n_latent_samples,)
         )  # (n_latent_samples, batch_size, latent_dim)
         batch[self._data_name] = rearrange(
             tensor=latent_samples, pattern="samp batch dim -> batch samp dim"

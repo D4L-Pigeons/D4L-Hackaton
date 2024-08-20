@@ -60,4 +60,6 @@ chain:
   - chain_link_spec_path: "misc/batch_rearranger"
     cfg:
       rearrange_patterns: [{data_name: "data", pattern: "(b lat_sampl) d -> b lat_sampl d", kwargs: {lat_sampl: 5}}]
-processing_commands: []
+processing_commands:
+- {command_name: "pre_sample_embedding", final_link_idx: 2, kwargs: {}}
+- {command_name: "sample_posterior", final_link_idx: 3, kwargs: {n_latent_samples: 1}}

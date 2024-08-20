@@ -29,9 +29,6 @@ def validate_config_structure(
             ):  # If Namespace we are passing the verification responsibility to some other module.
                 validate_config_structure(attr_val, config_structure[attr_name])
 
-            # assert isinstance(
-            #     config_structure[attr_name], type
-            # ), f"{type(config_structure[attr_name])} {type(attr_val)} {isinstance(config_structure[attr_name], list)} {isinstance(attr_val, list)}"
             elif not isinstance(attr_val, config_structure[attr_name]):
                 raise ValueError(
                     f"Invalid type for attribute '{attr_name}'. Expected {config_structure[attr_name]} but got {type(attr_val)}"
@@ -39,12 +36,15 @@ def validate_config_structure(
     elif isinstance(cfg, list):
         if not isinstance(config_structure, list):
             raise ValueError("Config structure is not list at this level.")
-        config_structure = config_structure[0]
-        if not config_structure == Namespace:
-            for cfg_elem in cfg:
-                validate_config_structure(
-                    cfg=cfg_elem, config_structure=config_structure
-                )
+        if (
+            len(cfg) != 0
+        ):  # Proceed only if the list is nonempty. BAD if the list is obligatory!!!
+            config_structure = config_structure[0]
+            if not config_structure == Namespace:
+                for cfg_elem in cfg:
+                    validate_config_structure(
+                        cfg=cfg_elem, config_structure=config_structure
+                    )
 
 
 _CHOICE_PATH_SEPARATOR: str = "/"

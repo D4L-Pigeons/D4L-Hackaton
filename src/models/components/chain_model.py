@@ -1,5 +1,4 @@
-from itertools import chain
-from attr import validate
+import torch
 import torch.nn as nn
 from src.utils.config import validate_config_structure, parse_choice_spec_path
 from argparse import Namespace
@@ -82,15 +81,61 @@ class ChainModel(nn.Module):
 
     _config_structure: ConfigStructure = {
         "chain": [{"chain_link_spec_path": str, "cfg": Namespace}],
+        "processing_commands": [
+            {"command_name": str, "final_link_idx": int, "kwargs": Namespace}
+        ],
     }
 
     def __init__(self, cfg: Namespace) -> None:
         super(ChainModel, self).__init__()
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
+        self._processing_commands: Dict[str, Dict[str, Dict | int]] = {
+            command.command_name: {
+                "final_link_idx": command.final_link_idx,
+                "kwargs": vars(command.kwargs),
+            }
+            for command in cfg.processing_commands
+        }
         self._chain: nn.ModuleList = nn.ModuleList()
         for chain_spec in cfg.chain:
             self._chain.append(_get_chain_link(chain_link_spec=chain_spec))
+
+        self._assert_commands()
+
+    def _assert_commands(self) -> None:
+        for command_key, command_val in self._processing_commands.items():
+            assert command_val["final_link_idx"] < len(
+                self._chain
+            ), f"The value {command_val['final_link_idx']} for command {command_key} if greater than the number of chain_links={len(self._chain)}."
+
+    def run_processing_command(
+        self, batch: Batch, command_name: str
+    ) -> StructuredForwardOutput:
+        assert (
+            command_name in self._processing_commands
+        ), f"The provivided command {command_name} is not within defined commands {self._processing_commands}."
+        losses: List[StructuredLoss] = []
+        command = self._processing_commands[command_name]
+        final_link_idx: int = command["final_link_idx"]
+
+        # Processing up to the final link specified in command definition
+
+        self._chain.train(mode=False)
+        for chain_link in self._chain[:final_link_idx]:
+            chain_link_output = chain_link(batch)
+            batch = chain_link_output["batch"]
+            losses.extend(chain_link_output["losses"])
+
+        # Special treatment for the last link, which may take additional kwargs to the forward method
+        chain_link_output = self._chain[final_link_idx](
+            batch=batch, **command["kwargs"]
+        )
+        batch = chain_link_output["batch"]
+        losses.extend(chain_link_output["losses"])
+        self._chain.train(mode=True)
+
+        return format_structured_forward_output(batch=batch, losses=losses)
 
     def forward(self, batch: Batch) -> StructuredForwardOutput:
         losses: List[StructuredLoss] = []

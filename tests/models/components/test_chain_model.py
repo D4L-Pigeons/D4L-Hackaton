@@ -65,3 +65,58 @@ def test_ChainModel_forward2(batch_fixture):
     losses_names = [loss["name"] for loss in output["losses"]]
     assert "fuzz_clust" in losses_names
     assert "comp_clust_reg" in losses_names
+
+
+def test_ChainModel_run_command_pre_sample_embedding(batch_fixture):
+
+    # Create a dummy configuration
+    cfg = _load_config_from_path(
+        file_path=Path("D4L-Hackaton")
+        / "tests"
+        / "utils"
+        / "dummy_cfg-ChainModel3.yaml"
+    )
+
+    org_batch = batch_fixture.copy()
+    org_batch2 = batch_fixture.copy()
+
+    # Create an instance of ChainModel
+    chain_model = ChainModel(cfg)
+    output = chain_model(batch_fixture)
+    assert isinstance(output["batch"]["data"], torch.Tensor)
+    assert output["batch"]["data"].shape == (3, 5, 128)
+    losses_names = [loss["name"] for loss in output["losses"]]
+    assert "fuzz_clust" in losses_names
+    assert "comp_clust_reg" in losses_names
+
+    command_run_output = chain_model.run_processing_command(
+        batch=org_batch, command_name="pre_sample_embedding"
+    )
+    assert command_run_output["batch"]["data"].shape == (
+        org_batch2["data"].shape[0],
+        40,
+    )
+
+
+def test_ChainModel_run_command_sample_posterior(batch_fixture):
+
+    # Create a dummy configuration
+    cfg = _load_config_from_path(
+        file_path=Path("D4L-Hackaton")
+        / "tests"
+        / "utils"
+        / "dummy_cfg-ChainModel3.yaml"
+    )
+
+    org_batch = batch_fixture.copy()
+    # Create an instance of ChainModel
+    chain_model = ChainModel(cfg)
+
+    command_run_output = chain_model.run_processing_command(
+        batch=org_batch, command_name="sample_posterior"
+    )
+    assert command_run_output["batch"]["data"].shape == (
+        org_batch["data"].shape[0],
+        1,
+        20,
+    )
