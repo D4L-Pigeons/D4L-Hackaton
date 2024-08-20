@@ -17,8 +17,13 @@ from src.utils.common_types import (
     Batch,
     ConfigStructure,
     StructuredForwardOutput,
+    format_structured_forward_output,
 )
-from src.utils.config import validate_config_structure, parse_choice_spec_path
+from src.utils.config import (
+    validate_config_structure,
+    parse_choice_spec_path,
+)
+from src.utils.common_types import format_structured_forward_output
 
 
 class ModuleSpec(Namespace):
@@ -249,9 +254,8 @@ class BlockStack(nn.Module):
         "output_dim": int,
         "hidden_dims": list,
         "ordered_module_specs": list,
-        "wrapper": str | None,
         "data_name": str,
-        "block_wrapper_name": str,
+        "block_wrapper_name": str | None,
     }
 
     def __init__(self, cfg: Namespace) -> None:
@@ -266,7 +270,7 @@ class BlockStack(nn.Module):
         dims: List[int] = [cfg.input_dim] + cfg.hidden_dims
 
         ordered_module_specs: OrderedModuleSpecs = [
-            ModuleSpec(spec)
+            ModuleSpec(**vars(spec))
             for spec in cfg.ordered_module_specs  # Conversion from List[Namespace] done just for consistency.
         ]
         # Creating blocks if len(dims) > 1
@@ -284,7 +288,8 @@ class BlockStack(nn.Module):
             block_module=nn.Sequential(*blocks),
             block_wrapper_name=cfg.block_wrapper_name,
         )
+        self.blocks: nn.Sequential = nn.Sequential(*blocks)
 
     def forward(self, batch: Batch) -> StructuredForwardOutput:
         batch[self._data_name] = self.blocks(batch[self._data_name])
-        return batch
+        return format_structured_forward_output(batch=batch, losses=[])
