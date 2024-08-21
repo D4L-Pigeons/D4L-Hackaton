@@ -9,7 +9,7 @@ from src.models.components.blocks import (
     BlockStack,
     ModuleSpec,
 )
-from src.utils.config import _load_config_from_path
+from src.utils.config import load_config_from_path
 from argparse import Namespace
 import torch.nn as nn
 from pathlib import Path
@@ -41,7 +41,7 @@ def test_get_module_from_spec_invalid_key2():
 
 def test_block_forward_pass():
     # Define input tensor
-    cfg = _load_config_from_path(
+    cfg = load_config_from_path(
         file_path=Path("D4L-Hackaton")
         / "tests"
         / "utils"

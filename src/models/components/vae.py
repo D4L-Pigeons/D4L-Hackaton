@@ -1,2 +1,0 @@
-# Hierarchical
-# general model infovae

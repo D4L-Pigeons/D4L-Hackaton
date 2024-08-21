@@ -15,10 +15,7 @@ from src.utils.common_types import (
     ConfigStructure,
 )
 
-from src.models.components.loss import (
-    get_explicit_constraint,
-    map_loss_name,
-)
+from src.models.components.loss import get_explicit_constraint, map_loss_name
 
 from src.utils.config import validate_config_structure
 
@@ -433,7 +430,7 @@ class FuzzyClustering(_GM):
                     loss=gm_nll,
                     coef=self._loss_coef_latent_fuzzy_clustering,
                     name=map_loss_name(loss_name="latent_fuzzy_clustering"),
-                    aggregated=True,
+                    aggregated=False,
                 ),
                 format_structured_loss(
                     loss=comp_reg,

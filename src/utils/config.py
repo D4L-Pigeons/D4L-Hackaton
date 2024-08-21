@@ -13,6 +13,22 @@ from pathlib import Path
 def validate_config_structure(
     cfg: Namespace | List[Namespace], config_structure: ConfigStructure
 ) -> None:
+    r"""
+    Validates the structure of the configuration based on the provided config_structure checking keyword and type aggrement.
+
+    Args:
+        cfg (Namespace | List[Namespace]): The configuration to validate.
+        config_structure (ConfigStructure): The expected structure of the configuration.
+
+    Raises:
+        ValueError: If there is a mismatch between the provided keys and expected keys,
+                    or if the type of an attribute does not match the expected type.
+
+    Note:
+        - If a Namespace is encountered, the validation responsibility is passed to another module.
+        - If a list is encountered, the validation is performed recursively for each element in the list.
+        - The list should not be empty, otherwise, it will not be validated.
+    """
     if isinstance(cfg, Namespace):
         variables = vars(cfg)
         if variables.keys() != config_structure.keys():
@@ -64,7 +80,7 @@ def parse_choice_spec_path(spec_path: str) -> List[str]:
 #     return config_namespace
 
 
-def _load_config_from_path(file_path: Path) -> Namespace:
+def load_config_from_path(file_path: Path) -> Namespace:
 
     def load_object(dct):
         return Namespace(**dct)
@@ -77,7 +93,7 @@ def _load_config_from_path(file_path: Path) -> Namespace:
 
 def load_config_from_config_dir(file_path: Path) -> Namespace:
     file_path = CONFIG_PATH / file_path
-    config = _load_config_from_path(file_path)
+    config = load_config_from_path(file_path)
     return config
 
     # # Save config

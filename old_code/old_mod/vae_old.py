@@ -192,7 +192,7 @@ class VAE(pl.LightningModule, ModelBase):
         loss = sum(losses)
         return loss, losses_dicts
 
-    def training_step(self, batch: Dict[str, Tensor], batch_idx: int) -> STEP_OUTPUT:
+    def training_step(self, batch: Dict[str, Tensor]) -> STEP_OUTPUT:
         loss, losses_dicts = self.combine_steps(batch, batch_idx)
         loss.backward()
         for optimizer in self.optimizers():

@@ -24,7 +24,7 @@ _TENSOR_AGGREGATORS: Dict[
 }
 
 
-def _get_tensor_aggregator(
+def get_tensor_aggregator(
     aggregation_type: str, kwargs: Dict[str, Any]
 ) -> TensorAggregator:
     tensor_aggregator = _TENSOR_AGGREGATORS.get(aggregation_type, None)
@@ -68,7 +68,7 @@ class AggregateDataAdapter(nn.Module):
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
         self._batch_aggr_def: BatchAggregationDefinition = cfg.batch_aggr_def
-        self._aggregate: TensorAggregator = _get_tensor_aggregator(
+        self._aggregate: TensorAggregator = get_tensor_aggregator(
             aggregation_type=cfg.aggregation_type, kwargs=vars(cfg.kwargs)
         )
 

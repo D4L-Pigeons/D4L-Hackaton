@@ -20,7 +20,7 @@ from src.models.components.latent import (
     FuzzyClustering,
 )
 
-from src.utils.config import _load_config_from_path
+from src.utils.config import load_config_from_path
 from pathlib import Path
 
 
@@ -117,7 +117,7 @@ def test_get_std_transform():
 
 
 def test_GaussianPosterior():
-    cfg = _load_config_from_path(
+    cfg = load_config_from_path(
         file_path=Path("D4L-Hackaton")
         / "tests"
         / "utils"
@@ -160,7 +160,7 @@ class _GM_subclass(_GM):
 
 @pytest.fixture
 def _GM_cfg():
-    cfg = _load_config_from_path(
+    cfg = load_config_from_path(
         file_path=Path("D4L-Hackaton") / "tests" / "utils" / "dummy_cfg-_GM.yaml"
     )
     return cfg
@@ -219,7 +219,7 @@ def batch_fixture():
 
 
 def test_GaussianMixturePriorNLL_forward(batch_fixture):
-    cfg = _load_config_from_path(
+    cfg = load_config_from_path(
         file_path=Path("D4L-Hackaton")
         / "tests"
         / "utils"
@@ -239,7 +239,7 @@ def test_GaussianMixturePriorNLL_forward(batch_fixture):
 
 
 def test_FuzzyClustering_forward(batch_fixture):
-    cfg = _load_config_from_path(
+    cfg = load_config_from_path(
         file_path=Path("D4L-Hackaton")
         / "tests"
         / "utils"
@@ -301,7 +301,7 @@ def test_calc_mmd():
 
 
 def test_LatentConstraint():
-    cfg = _load_config_from_path(
+    cfg = load_config_from_path(
         file_path=Path("D4L-Hackaton")
         / "tests"
         / "utils"

@@ -1,7 +1,6 @@
 import torch
 from typing import List, Dict, TypeAlias, TypedDict, Type
 
-
 Batch: TypeAlias = Dict[str, torch.Tensor]
 
 

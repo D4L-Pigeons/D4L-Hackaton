@@ -1,8 +1,16 @@
 from argparse import Namespace
-from typing import Callable, Dict
+from typing import Any, Callable, Dict
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-
+from src.utils.config import ConfigStructure, validate_config_structure
+from src.models.components.misc import (
+    AggregateDataAdapter,
+    get_tensor_aggregator,
+    TensorAggregator,
+)
+from src.utils.common_types import StructuredLoss
+from typing import TypeAlias, List
 
 _LOSS_NAME_MANAGER: Dict[str, str] = {
     "posterior_entropy": "postr_H",
@@ -10,6 +18,7 @@ _LOSS_NAME_MANAGER: Dict[str, str] = {
     "latent_constraint": "lat_constr",
     "latent_fuzzy_clustering": "fuzz_clust",
     "clustering_component_reg": "comp_clust_reg",
+    "reconstruction": "reconstr",
 }
 
 
@@ -58,35 +67,120 @@ def get_explicit_constraint(
 _RECONSTRUCTION_LOSSES: Dict[
     str, Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 ] = {
-    "mse": F.mse_loss,
-    "l1": F.l1_loss,
-    "smooth_l1": F.smooth_l1_loss,
+    "mse": nn.MSELoss,
+    "l1": nn.L1Loss,
+    "smooth_l1": nn.SmoothL1Loss,
 }
 
 
 def get_reconstruction_loss(
     loss_name: str,
+    kwargs: Dict[str, Any],
 ) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
     loss = _RECONSTRUCTION_LOSSES.get(loss_name, None)
     if loss is not None:
-        return loss
+        return loss(**kwargs)
     raise ValueError(
         f"The provided loss_name {loss_name} is wrong. Must be one of {' ,'.join(list(_RECONSTRUCTION_LOSSES.keys()))}"
     )
 
 
-_LOSS_AGGREGATORS: Dict[str, Callable[[torch.Tensor], torch.Tensor]] = {
+LossAggregator: TypeAlias = Callable[[torch.Tensor], torch.Tensor]
+
+_LOSS_AGGREGATORS: Dict[str, LossAggregator] = {
     "mean": lambda x: x.mean(),
-    "logsumexp": lambda x: x.logsumexp(dim=0),
+    "logsumexpmean": lambda x: x.logsumexp(
+        dim=1
+    ).mean(),  # dim=1 corresponds to latent samples
 }
 
 
 def get_loss_aggregator(
     loss_aggregator_name: str,
 ) -> Callable[[torch.Tensor], torch.Tensor]:
-    loss_aggregator = _LOSS_AGGREGATORS.get(loss_aggregator, None)
+    loss_aggregator = _LOSS_AGGREGATORS.get(loss_aggregator_name, None)
     if loss_aggregator is not None:
         return loss_aggregator
     raise ValueError(
         f"The provided loss_aggregator_name {loss_aggregator_name} is wrong. Must be one of {' ,'.join(list(_LOSS_AGGREGATORS.keys()))}"
     )
+
+
+class LossManager:
+    r"""
+    Class representing a loss manager used for aggregating the losses and outputting the loss terms to the logger.
+
+    Args:
+        cfg (Namespace): The configuration namespace.
+
+    Attributes:
+        _config_structure (ConfigStructure): The configuration structure.
+        _sum_tensor_aggregator (TensorAggregator): The tensor aggregator for summing tensors.
+        _loss_aggregator (LossAggregator): The loss aggregator.
+        _loss_unaggregated (List[torch.Tensor]): The list of unaggregated losses.
+        _loss_aggregate (None | torch.Tensor): The aggregated loss.
+        _loss_log_dict (Dict[str, float]): The dictionary for logging losses.
+
+    Methods:
+        reset(): Resets the loss manager.
+        _add_to_log_dict(loss_name: str, loss: torch.Tensor): Adds a loss to the log dictionary.
+        _sum_unaggregated(loss: torch.Tensor): Sums an unaggregated loss.
+        process_structured_loss(structured_loss: StructuredLoss): Processes a structured loss.
+        get_loss_aggregate(): Returns the aggregated loss.
+
+    """
+
+    _config_structure: ConfigStructure = {"loss_aggregator": str}
+
+    def __init__(self, cfg: Namespace) -> None:
+        validate_config_structure(cfg=cfg, config_structure=self._config_structure)
+
+        self._sum_tensor_aggregator: TensorAggregator = get_tensor_aggregator(
+            aggregation_type="sum", kwargs={}
+        )
+        self._loss_aggregator: LossAggregator = get_loss_aggregator(
+            loss_aggregator_name=cfg.loss_aggregator
+        )
+        self._loss_unaggregated: List[torch.Tensor] = []
+        self._loss_aggregate: torch.Tensor = torch.zeros(1)
+        self._loss_log_dict: Dict[str, float] = {}
+
+    @property
+    def log_dict(self) -> Dict[str, float]:
+        return self._loss_log_dict
+
+    def reset(self) -> None:
+        self._loss_unaggregated: List[torch.Tensor] = []
+        self._loss_aggregate: torch.Tensor = torch.zeros(1)
+        self._loss_log_dict: Dict[str, float] = {}
+
+    def _add_to_log_dict(self, loss_name: str, loss: torch.Tensor) -> None:
+        self._loss_log_dict[loss_name] = loss.item()
+
+    def _sum_unaggregated(self, loss: torch.Tensor) -> None:
+        self._loss_unaggregated = [
+            self._sum_tensor_aggregator(self._loss_unaggregated + [loss])
+        ]
+
+    def process_structured_loss(self, structured_loss: StructuredLoss) -> None:
+        if structured_loss["aggregated"]:
+            self._loss_aggregate += structured_loss["coef"] * structured_loss["data"]
+            self._add_to_log_dict(
+                loss_name=structured_loss["name"], loss=structured_loss["data"]
+            )
+        else:
+            self._sum_unaggregated(
+                loss=structured_loss["coef"] * structured_loss["data"]
+            )
+            self._add_to_log_dict(
+                loss_name=structured_loss["name"], loss=structured_loss["data"].mean()
+            )
+
+    def get_loss_aggregate(self) -> torch.Tensor:
+        loss_aggregate: torch.Tensor = self._loss_aggregate
+        if len(self._loss_unaggregated) != 0:
+            loss_unnagregated = self._loss_unaggregated[0]
+            loss_aggregate += self._loss_aggregator(loss_unnagregated)
+
+        self.reset()
+        return loss_aggregate

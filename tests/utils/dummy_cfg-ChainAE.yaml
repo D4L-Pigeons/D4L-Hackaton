@@ -28,4 +28,13 @@ chain:
         - {nnmodule_spec_path: "activation/relu", kwargs: {}}
       data_name: "data"
       block_wrapper_name: null
+optimizer: {optimizer_name: "adam", kwargs: {}}
+loss:
+  loss_manager:
+    loss_aggregator: "mean"
+  reconstruction_loss_spec:
+    nnmodulename: "mse"
+    coef: 1.
+    var_name: "data"
+    kwargs: {}
 processing_commands: []

@@ -1,6 +1,6 @@
 import pytest
 from argparse import Namespace
-from src.utils.config import ConfigStructure, _load_config_from_path
+from src.utils.config import ConfigStructure, load_config_from_path
 from src.utils.data.sc.dataset import hdf5SparseDataset
 from pathlib import Path
 
@@ -8,7 +8,7 @@ from pathlib import Path
 def test_hdf5SparseDataset():
     # Test case 1: Valid dataset_idxs and cfg
     dataset_idxs = [0, 1, 2]
-    cfg = _load_config_from_path(
+    cfg = load_config_from_path(
         file_path=Path("D4L-Hackaton")
         / "tests"
         / "utils"
