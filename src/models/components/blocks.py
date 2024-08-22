@@ -42,12 +42,6 @@ class ModuleWithSpecialTreatment(NamedTuple):
 DictofModules: TypeAlias = Dict[str, Type[nn.Module] | ModuleWithSpecialTreatment]
 
 
-# def _namespace_to_ordered_module_specs(
-#     ordered_module_specs_namespace: List[Namespace],
-# ) -> ModuleSpec:
-#     return [vars(elem) for elem in vars(ordered_module_specs_namespace)]
-
-
 _ACTIVATION: DictofModules = {
     "relu": nn.ReLU,
     "prelu": nn.PReLU,
