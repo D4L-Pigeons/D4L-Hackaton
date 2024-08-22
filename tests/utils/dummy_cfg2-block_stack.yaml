@@ -1,0 +1,15 @@
+input_dim: 128
+output_dim: 64
+hidden_dims:
+  - 256
+  - 128
+  - 64
+ordered_module_specs:
+  -
+    nnmodule_spec_path: "norm/batch"
+    kwargs: {"num_features"}
+  - 
+    nnmodule_spec_path: "activation/relu"
+    kwargs:
+data_name: "example_data"
+block_wrapper_name: "residual"

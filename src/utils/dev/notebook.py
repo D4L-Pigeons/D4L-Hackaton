@@ -1,37 +1,34 @@
-import torch
-from torch import Tensor
-import pandas as pd
-from pandas import DataFrame
-import anndata as ad
-import scanpy as sc
-
-# from sklearn.model_selection import train_test_split
-from typing import List, Tuple, Type, Any, Optional, Dict
-
 # from utils import data_utils
 from argparse import Namespace
-from torch.utils.data import TensorDataset, DataLoader
-import pytorch_lightning as pl
-import h5py
-from utils.paths import (
-    # EMBEDDINGS_PATH,
-    LOGS_PATH,
-    # RAW_DATA_PATH,
-    # PREPROCESSED_DATA_PATH,
-)
 from pathlib import Path
+
+# from sklearn.model_selection import train_test_split
+from typing import Any, Dict, List, Optional, Tuple, Type
+
+import anndata as ad
+import h5py
+import numpy as np
+import pandas as pd
+import pytorch_lightning as pl
+import scanpy as sc
+import torch
 from numpy import ndarray
+from pandas import DataFrame
 from scipy.sparse import csr_matrix
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import (
     adjusted_rand_score,
-    normalized_mutual_info_score,
     f1_score,
+    normalized_mutual_info_score,
     silhouette_score,
 )
 from sklearn.model_selection import train_test_split
-import numpy as np
-from numpy import ndarray
+from sklearn.neighbors import KNeighborsClassifier
+from torch import Tensor
+from torch.utils.data import DataLoader, TensorDataset
+
+from src.utils.paths import (  # EMBEDDINGS_PATH,; RAW_DATA_PATH,; PREPROCESSED_DATA_PATH,
+    LOGS_PATH,
+)
 
 
 def dict_to_namespace(d: Dict) -> Namespace:

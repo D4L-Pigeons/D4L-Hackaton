@@ -1,0 +1,7 @@
+n_components: 3
+latent_dim: 8
+components_std: 1.
+constraint_method: "huber"
+data_name: "data"
+loss_coef_latent_fuzzy_clustering: 2. 
+loss_coef_clustering_component_reg: 6.

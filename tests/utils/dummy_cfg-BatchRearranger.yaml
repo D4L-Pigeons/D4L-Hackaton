@@ -1,0 +1,3 @@
+rearrange_patterns:
+  - {data_name: "data1", pattern: "b s d -> b s d", kwargs: {}}
+  - {data_name: "data2", pattern: "b s d -> s b d", kwargs: {}}

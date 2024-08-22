@@ -1,0 +1,12 @@
+chain:
+  - chain_link_path: "blocks/block_stack"
+    cfg:
+      # Add specific configuration for BlockStack here
+      param1: 2
+      param2: "string"
+  - chain_link_path: "latent/posterior_gaussian"
+    cfg:
+      # Add specific configuration for GaussianPosterior here
+      param1: 2
+      param2: "string"
+  - chain_link_path: "latent/prior_gaussian_mixture_nll"

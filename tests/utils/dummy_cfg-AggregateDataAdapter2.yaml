@@ -1,0 +1,6 @@
+aggregation_type : "sum"
+batch_aggr_def : {
+    aggregated_data: ["data1", "data2", "data3"],
+    aggregated_data2: ["data3"],
+}
+kwargs : {}

@@ -1,0 +1,7 @@
+path: "D4L-Hackaton/data/preprocessed/GSE194122_openproblems_neurips2021_cite_BMMC_processed_processed.h5"
+rowsize: 14087
+obs:
+  columns:
+  - {org_name: "cell_type", new_name: "cell_type", remap_categories: False}
+  - {org_name: "batch", new_name: "batch", remap_categories: False}
+  - {org_name: "Site", new_name: "site", "remap_categories": False}
