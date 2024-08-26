@@ -1,0 +1,14 @@
+- known_prob: 0.
+  is_continous: True
+  cfg:
+    token_id: 2
+    image_transform: {name: "fade", keyword: "threshold", kwargs: {}}
+    distribution: {name: "uniform", kwargs: {low: 0., high: 1.}}
+    value_transform: {name: "log1p", kwargs: {}}
+- known_prob: 0.
+  is_continous: False
+  cfg:
+    token_id: 5
+    image_transform: {name: "rotate", keyword: "degree", kwargs: {}}
+    distribution: {name: "categorical", kwargs: {probs: [0.5, 0.5]}}
+    categories_map: [0., 40.]

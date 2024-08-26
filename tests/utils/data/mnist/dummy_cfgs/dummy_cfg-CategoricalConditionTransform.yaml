@@ -1,0 +1,4 @@
+token_id: 2
+image_transform: {name: "fade", keyword: "threshold", kwargs: {}}
+distribution: {name: "categorical", kwargs: {probs: [0.1, 0.3, 0.6]}}
+categories_map: [0., 0.4, 0.8]

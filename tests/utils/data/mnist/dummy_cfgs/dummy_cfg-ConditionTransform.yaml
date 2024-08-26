@@ -1,0 +1,3 @@
+token_id: 2
+image_transform: {name: "fade", keyword: "threshold", kwargs: {}}
+distribution: {name: "none", kwargs: {}}

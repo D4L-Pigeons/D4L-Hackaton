@@ -3,7 +3,7 @@ from pkg_resources import get_distribution
 from sympy import Q
 import torch
 import torch.distributions as td
-from typing import List, Dict, Callable, Any, TypedDict, Typle, TypeAlias
+from typing import List, Dict, Callable, Any, TypedDict, Tuple, TypeAlias
 from argparse import Namespace
 from src.utils.config import validate_config_structure
 from src.utils.common_types import ConfigStructure
@@ -15,41 +15,33 @@ from torchvision import transforms
 from einops import rearrange
 import abc
 from src.utils.common_types import Batch
+from src.utils.paths import RAW_DATA_PATH
+import torchvision
 
-_CONTINOUS_DISTRIBUTIONS: Dict[td.Distribution] = {
-    "uniform": td.Uniform,
-}
+
+_CONTINOUS_DISTRIBUTIONS: Dict[str, td.Distribution] = {"uniform": td.Uniform}
 
 
 def _get_continous_distribution(dist_name: str, kwargs: Dict) -> td.Distribution:
     distribution = _CONTINOUS_DISTRIBUTIONS.get(dist_name, None)
     if distribution is not None:
-        return distribution(**kwargs)
+        return distribution(
+            **{key: torch.tensor(value) for key, value in kwargs.items()}
+        )
     raise ValueError(
         f'The provided dist_name {dist_name} is wrong. Must be one of {" ,".join(list(_CONTINOUS_DISTRIBUTIONS.keys()))}'
     )
 
 
-def continous_value_transforms_wrapper(
-    func: Callable[..., Any]
-) -> Callable[[Dict[str, Any]], Callable[..., Any]]:
-    def wrapper(kwargs: Dict[str, Any]) -> Callable[..., Any]:
-        return partial(func, **kwargs)
-
-    return wrapper
-
-
-ContinousValueTransform: TypeAlias = Callable[[float], float]
-
-_CONTINOUS_VALUE_TRANSFORMS: Dict[str, ContinousValueTransform] = {
-    "identity": continous_value_transforms_wrapper(func=lambda x: x),
-    "log1p": continous_value_transforms_wrapper(func=np.log1p),
+_CONTINOUS_VALUE_TRANSFORMS: Dict[str, Callable[..., float]] = {
+    "identity": lambda x: x,
+    "log1p": np.log1p,
 }
 
 
 def _get_continous_value_transform(
     value_transform_name: str, kwargs: Dict
-) -> ContinousValueTransform:
+) -> Callable[[float], float]:
     value_transform = _CONTINOUS_VALUE_TRANSFORMS.get(value_transform_name, None)
     if value_transform is not None:
         return partial(value_transform, **kwargs)
@@ -62,24 +54,18 @@ _DISCRETE_DISTRIBUTIONS: Dict[str, td.Distribution] = {
     "bernoulli": td.Bernoulli,
     "categorical": td.Categorical,
     "binomial": td.Binomial,
-    # Add other discrete distributions as needed
 }
 
 
 def _get_discrete_distribution(dist_name: str, kwargs: Dict) -> td.Distribution:
     distribution = _DISCRETE_DISTRIBUTIONS.get(dist_name, None)
     if distribution is not None:
-        return distribution(**kwargs)
+        return distribution(
+            **{key: torch.tensor(value) for key, value in kwargs.items()}
+        )
     raise ValueError(
         f'The provided dist_name {dist_name} is wrong. Must be one of {" ,".join(list(_DISCRETE_DISTRIBUTIONS.keys()))}'
     )
-
-
-CategoriesRemapper: TypeAlias = Callable[[int], int]
-
-
-def _get_categories_remapper(kwargs: Dict[str, Any]) -> CategoriesRemapper:
-    return partial(func=lambda x, values: values[x], **kwargs)
 
 
 class ImageTransform(abc.ABC):
@@ -147,19 +133,30 @@ def _get_image_transform(transform_name: str, kwargs: Dict[str, Any]) -> ImageTr
     )
 
 
-class Condition(TypedDict):
-    condition_name: str
-    data: torch.Tensor
-
-
 class ConditionTransformOutput(TypedDict):
     image_transform: ImageTransform
-    condition: Condition
+    condition_value: int
 
 
 class ConditionTransform(abc.ABC):
+    r"""
+    Abstract base class for condition transforms.
+
+    Attributes:
+        _config_structure (ConfigStructure): The configuration structure for the transform.
+        _token_id (int): The token ID.
+        _name (str): The name of the transform.
+        _argument_keyword (str): The keyword for the image transform.
+        _image_transform_constructor (ImageTransform): The image transform constructor.
+
+    Methods:
+        __init__(self, cfg: Namespace): Initializes the ConditionTransform instance.
+        token_id(self) -> int: Returns the token ID.
+        __call__(self) -> ConditionTransformOutput: Abstract method to be implemented by subclasses.
+    """
+
     _config_structure: ConfigStructure = {
-        "data_name": str,
+        "token_id": int,
         "image_transform": {"name": str, "keyword": str, "kwargs": Namespace},
         "distribution": {"name": str, "kwargs": Namespace},
     }
@@ -167,11 +164,16 @@ class ConditionTransform(abc.ABC):
     def __init__(self, cfg: Namespace) -> None:
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
-        self._data_name: str = cfg.data_name
+        self._token_id: int = cfg.token_id
         self._argument_keyword: str = cfg.image_transform.keyword
         self._image_transform_constructor: ImageTransform = _get_image_transform(
-            transform_name=cfg.transform.name
+            transform_name=cfg.image_transform.name,
+            kwargs=vars(cfg.image_transform.kwargs),
         )
+
+    @property
+    def token_id(self) -> int:
+        return self._token_id
 
     @abc.abstractmethod
     def __call__(self) -> ConditionTransformOutput:
@@ -180,11 +182,8 @@ class ConditionTransform(abc.ABC):
 
 class ContinousConditionTransform(ConditionTransform):
     _config_structure: ConfigStructure = {
-        {
-            "value_transform": {"name": str, "kwargs": Namespace},
-        }
-        | ConditionTransform._config_structure
-    }
+        "value_transform": {"name": str, "kwargs": Namespace}
+    } | ConditionTransform._config_structure
 
     def __init__(self, cfg: Namespace) -> None:
         super(ContinousConditionTransform, self).__init__(cfg=cfg)
@@ -194,7 +193,7 @@ class ContinousConditionTransform(ConditionTransform):
             dist_name=cfg.distribution.name,
             kwargs=vars(cfg.distribution.kwargs),
         )
-        self._cond_value_transform: ContinousValueTransform = (
+        self._cond_value_transform: Callable[[float], float] = (
             _get_continous_value_transform(
                 value_transform_name=cfg.value_transform.name,
                 kwargs=vars(cfg.value_transform.kwargs),
@@ -202,55 +201,51 @@ class ContinousConditionTransform(ConditionTransform):
         )
 
     def __call__(self) -> ConditionTransformOutput:
-        value = self._distribution.sample((1)).item()
+        value = self._distribution.sample(sample_shape=(1,)).item()
         value = self._cond_value_transform(value)
+        kwargs = {self._argument_keyword: value}
         output = ConditionTransformOutput(
-            image_transform=self._image_transform_constructor(
-                **{self._argument_keyword: value}
-            ),
-            condition=Condition(
-                condition_name=self._data_name,
-                data=torch.tensor(value, dtype=torch.float32),
-            ),
+            image_transform=self._image_transform_constructor(**kwargs),
+            condition_value=torch.tensor(value, dtype=torch.float32),
         )
         return output
 
 
 class CategoricalConditionTransform(ConditionTransform):
     _config_structure: ConfigStructure = {
-        {
-            "categories_map": [int],
-        }
-        | ConditionTransform._config_structure
-    }
+        "categories_map": [int],
+    } | ConditionTransform._config_structure
 
     def __init__(self, cfg: Namespace) -> None:
-        super(ContinousConditionTransform, self).__init__(cfg=cfg)
+        super(CategoricalConditionTransform, self).__init__(cfg=cfg)
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
         self._distribution: td.Distribution = _get_discrete_distribution(
-            dist_name=cfg.distribution, kwargs=vars(cfg.distibution.kwargs)
+            dist_name=cfg.distribution.name, kwargs=vars(cfg.distribution.kwargs)
         )
         self._categories: List[int] = cfg.categories_map
 
+    def _map_category_to_value(self, category: int) -> int:
+        return self._categories[category]
+
     def __call__(self) -> ConditionTransformOutput:
-        category = self._distribution.sample((1)).item()
-        value = self._categories_map[value]
+        category = self._distribution.sample(sample_shape=(1,)).item()
+        value = self._map_category_to_value(category=category)
         output = ConditionTransformOutput(
             image_transform=self._image_transform_constructor(
                 **{self._argument_keyword: value}
             ),
-            condition=Condition(
-                condition_name=self._data_name,
-                data=torch.tensor(category, dtype=torch.int),
-            ),
+            condition_value=torch.tensor(
+                category, dtype=torch.float32
+            ),  # Category is of float type to allow categorical and coninous conditions values in one sequence tensor.
         )
         return output
 
 
 class ConditionTransformManagerOutput(TypedDict):
     transform: transforms.Compose
-    conditions: Dict[str, torch.Tensor]
+    token_ids: torch.Tensor
+    values: torch.Tensor
 
 
 class ConditionTransformManager:
@@ -266,7 +261,8 @@ class ConditionTransformManager:
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
         self._cond_known_probs: torch.Tensor = torch.zeros(len(cfg))
-        self._cond_transforms: ConditionTransform = []
+        self._cond_transforms: List[ConditionTransform] = []
+        self._n_conditions: int = len(cfg)
         for i, cond_cfg in enumerate(cfg):
             assert (
                 cond_cfg.known_prob >= 0 and cond_cfg.known_prob <= 1
@@ -276,35 +272,50 @@ class ConditionTransformManager:
             self._cond_transforms.append(
                 ContinousConditionTransform(cfg=cond_cfg.cfg)
                 if cond_cfg.is_continous
-                else CategoricalConditionTransform(cfg=cond_cfg)
+                else CategoricalConditionTransform(cfg=cond_cfg.cfg)
             )
 
-    def get_transform(self) -> None:
+    def get_transform(self) -> ConditionTransformManagerOutput:
         image_transforms: List[ImageTransform] = []
-        conditions: Batch = {}
+        # Default the token_ids to pad token and values to zero.
+        token_ids: torch.Tensor = torch.zeros(self._n_conditions, dtype=torch.long)
+        values: torch.Tensor = torch.zeros(self._n_conditions, dtype=torch.float32)
 
-        for cond_transform in self._cond_transforms:
+        known_mask = torch.bernoulli(self._cond_known_probs)
+        i: int = 0
+
+        for is_known, cond_transform in zip(known_mask, self._cond_transforms):
             output = cond_transform()
             image_transforms.append(output["image_transform"])
-            conditions[output["condition"]["data_name"]] = output["condition"]["value"]
+            # Update the token_id and value only for non-pad conditions. Consequently the padding is added at the end.
+            if is_known:
+                token_ids[i] = cond_transform.token_id
+                values[i] = output["condition_value"]
+                i += 1
 
         return ConditionTransformManagerOutput(
             transform=transforms.Compose(transforms=image_transforms),
-            conditions=conditions,
+            token_ids=token_ids,
+            values=values,
         )
 
 
-from src.utils.paths import RAW_DATA_PATH
-import torchvision
-
-
 class ConditionalMNIST(Dataset):
-    _config_structure: ConfigStructure = {"train": bool, "cond_trans_mgr": Namespace}
+    _config_structure: ConfigStructure = {
+        "train": bool,
+        "cond_trans_mgr": Namespace,
+        "label_condition": {"token_id": int, "known_prob": float},
+        "special_token_id": {"pad": int},
+    }
 
     def __init__(self, cfg: Namespace) -> None:
         super(ConditionalMNIST, self).__init__()
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
+        self._label_token_id: torch.Tensor = torch.Tensor(
+            cfg.label_condition.token_id, dtype=torch.long
+        )
+        self._label_known_prob: float = cfg.label_condition.known_prob
         self._mnist = torchvision.datasets.MNIST(
             root=RAW_DATA_PATH, train=cfg.train, download=True
         )
@@ -312,3 +323,15 @@ class ConditionalMNIST(Dataset):
         self._cond_trans_mgr: ConditionTransformManager = ConditionTransformManager(
             cfg=cfg.cond_trans_mgr
         )
+
+    def __getitem__(self, index) -> Batch:
+        conditions: ConditionTransformManagerOutput = self._cond_trans_mgr()
+
+        img, label = self._mnist.__getitem__(index=index)
+        img = conditions["transform"](img)
+        token_ids: torch.Tensor = torch.cat(
+            [self._label_token_id, conditions["token_ids"]], dim=0
+        )
+        values: torch.Tensor = torch.cat([label, conditions["values"]], dim=0)
+
+        return {"condition_token_ids": token_ids, "condition_values": values}
