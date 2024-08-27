@@ -104,15 +104,16 @@ class RotationTransform(ImageTransform):
 
 class ResizeTransform(ImageTransform):
     def __init__(self, size: int) -> None:
-        self._size = size
+        self._size: int = size
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
+        init_size: int = img.shape[1:]
         img = transforms.functional.resize(
             transforms.functional.pad(
                 transforms.functional.resize(img, size=(self._size, self._size)),
-                padding=[(img.shape[0] - self._size) // 2],
+                padding=[(init_size[0] - self._size) // 2],
             ),
-            size=img.shape,
+            size=init_size,
         )
         return img
 
@@ -164,6 +165,7 @@ class ConditionTransform(abc.ABC):
     def __init__(self, cfg: Namespace) -> None:
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
+        assert cfg.token_id != 0, "The token_id equal to 0 is reserved for pad token."
         self._token_id: int = cfg.token_id
         self._argument_keyword: str = cfg.image_transform.keyword
         self._image_transform_constructor: ImageTransform = _get_image_transform(
@@ -275,7 +277,7 @@ class ConditionTransformManager:
                 else CategoricalConditionTransform(cfg=cond_cfg.cfg)
             )
 
-    def get_transform(self) -> ConditionTransformManagerOutput:
+    def __call__(self) -> ConditionTransformManagerOutput:
         image_transforms: List[ImageTransform] = []
         # Default the token_ids to pad token and values to zero.
         token_ids: torch.Tensor = torch.zeros(self._n_conditions, dtype=torch.long)
@@ -303,17 +305,19 @@ class ConditionTransformManager:
 class ConditionalMNIST(Dataset):
     _config_structure: ConfigStructure = {
         "train": bool,
-        "cond_trans_mgr": Namespace,
         "label_condition": {"token_id": int, "known_prob": float},
-        "special_token_id": {"pad": int},
+        "cond_trans_mgr": [Namespace],
     }
 
     def __init__(self, cfg: Namespace) -> None:
         super(ConditionalMNIST, self).__init__()
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
-        self._label_token_id: torch.Tensor = torch.Tensor(
-            cfg.label_condition.token_id, dtype=torch.long
+        assert (
+            cfg.label_condition.token_id != 0
+        ), "The token_id equal to 0 is reserved for pad token."
+        self._label_token_id: torch.Tensor = torch.tensor(
+            [cfg.label_condition.token_id], dtype=torch.long
         )
         self._label_known_prob: float = cfg.label_condition.known_prob
         self._mnist = torchvision.datasets.MNIST(
@@ -324,14 +328,50 @@ class ConditionalMNIST(Dataset):
             cfg=cfg.cond_trans_mgr
         )
 
-    def __getitem__(self, index) -> Batch:
+    def __len__(self) -> int:
+        return len(self._mnist)
+
+    def __getitem__(self, index) -> Dict[str, torch.Tensor]:
         conditions: ConditionTransformManagerOutput = self._cond_trans_mgr()
 
         img, label = self._mnist.__getitem__(index=index)
+        label = torch.tensor([label], dtype=torch.float32)
+        img = transforms.ToTensor()(img)
         img = conditions["transform"](img)
-        token_ids: torch.Tensor = torch.cat(
-            [self._label_token_id, conditions["token_ids"]], dim=0
-        )
-        values: torch.Tensor = torch.cat([label, conditions["values"]], dim=0)
+        token_ids: torch.Tensor = conditions["token_ids"]
+        values: torch.Tensor = conditions["values"]
+        if torch.bernoulli(torch.tensor(self._label_known_prob)).item():
+            token_ids = torch.cat([self._label_token_id, token_ids], dim=0)
+            values = torch.cat([label, values], dim=0)
+        else:
+            token_ids = torch.cat([token_ids, torch.zeros((1,))], dim=0)
+            values = torch.cat([values, torch.zeros((1,))], dim=0)
 
-        return {"condition_token_ids": token_ids, "condition_values": values}
+        return {
+            "img": img,
+            "condition_token_ids": token_ids,
+            "condition_values": values,
+        }
+
+
+# def collate_fn(batch: List[Dict[str, torch.Tensor]]) -> Batch:
+#     imgs = [item["img"] for item in batch]
+#     labels = [item["label"] for item in batch]
+#     condition_token_ids = [item["condition_token_ids"] for item in batch]
+#     condition_values = [item["condition_values"] for item in batch]
+
+#     # Pad sequences to the maximum length
+#     max_length = max([len(seq) for seq in condition_token_ids])
+#     condition_token_ids_padded = [
+#         pad_sequence(seq, max_length) for seq in condition_token_ids
+#     ]
+#     condition_values_padded = [
+#         pad_sequence(seq, max_length) for seq in condition_values
+#     ]
+
+#     return {
+#         "img": torch.stack(imgs),
+#         "label": torch.tensor(labels),
+#         "condition_token_ids": torch.stack(condition_token_ids_padded),
+#         "condition_values": torch.stack(condition_values_padded),
+#     }
