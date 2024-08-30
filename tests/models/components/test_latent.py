@@ -18,10 +18,14 @@ from src.models.components.latent import (
     calc_pairwise_distances,
     LatentConstraint,
     FuzzyClustering,
+    VectorConditionedLogitsGMPriorNLL,
 )
 
 from src.utils.config import load_config_from_path
 from pathlib import Path
+import torch
+import pytest
+from argparse import Namespace
 
 
 def test_make_normal_rv():
@@ -120,7 +124,9 @@ def test_GaussianPosterior():
     cfg = load_config_from_path(
         file_path=Path("D4L-Hackaton")
         / "tests"
-        / "utils"
+        / "models"
+        / "components"
+        / "dummy_cfgs"
         / "dummy_cfg-GaussianPosterior.yaml"
     )
     model = GaussianPosterior(cfg=cfg)
@@ -161,7 +167,12 @@ class _GM_subclass(_GM):
 @pytest.fixture
 def _GM_cfg():
     cfg = load_config_from_path(
-        file_path=Path("D4L-Hackaton") / "tests" / "utils" / "dummy_cfg-_GM.yaml"
+        file_path=Path("D4L-Hackaton")
+        / "tests"
+        / "models"
+        / "components"
+        / "dummy_cfgs"
+        / "dummy_cfg-_GM.yaml"
     )
     return cfg
 
@@ -222,7 +233,9 @@ def test_GaussianMixturePriorNLL_forward(batch_fixture):
     cfg = load_config_from_path(
         file_path=Path("D4L-Hackaton")
         / "tests"
-        / "utils"
+        / "models"
+        / "components"
+        / "dummy_cfgs"
         / "dummy_cfg-GaussianMixturePriorNLL.yaml"
     )
 
@@ -242,7 +255,9 @@ def test_FuzzyClustering_forward(batch_fixture):
     cfg = load_config_from_path(
         file_path=Path("D4L-Hackaton")
         / "tests"
-        / "utils"
+        / "models"
+        / "components"
+        / "dummy_cfgs"
         / "dummy_cfg-FuzzyClustering.yaml"
     )
     model = FuzzyClustering(cfg)
@@ -304,10 +319,11 @@ def test_LatentConstraint():
     cfg = load_config_from_path(
         file_path=Path("D4L-Hackaton")
         / "tests"
-        / "utils"
+        / "models"
+        / "components"
+        / "dummy_cfgs"
         / "dummy_cfg-LatentConstraint.yaml"
     )
-    data_name = "latent_data"
     model = LatentConstraint(cfg)
 
     # Test forward method
@@ -323,6 +339,31 @@ def test_LatentConstraint():
     assert model._data_name == "latent_data"
 
     assert (output["losses"][0]["data"] >= 0).all()
+
+
+def test_VectorConditionedLogitsGMPriorNLL_forward():
+    cfg = Namespace(
+        data_name="data",
+        logits_name="logits",
+        n_components=4,
+        latent_dim=8,
+        components_std=1.0,
+        loss_coef_prior_nll=0.5,
+    )
+    model = VectorConditionedLogitsGMPriorNLL(cfg)
+
+    # Test forward method
+    batch = {
+        "data": torch.randn((16, 1, 8)),
+        "logits": torch.randn((16, 4)),
+    }
+    output = model.forward(batch)
+    assert "batch" in output
+    assert "losses" in output
+    assert output["batch"] == batch
+    assert len(output["losses"]) == 1
+    assert output["losses"][0]["name"] == "prior_nll"
+    assert output["losses"][0]["data"].shape == batch["data"].shape[:2]
 
 
 if __name__ == "__main__":

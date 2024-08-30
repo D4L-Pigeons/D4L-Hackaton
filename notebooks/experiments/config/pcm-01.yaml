@@ -1,0 +1,57 @@
+chain:
+- chain_link_spec_path: "misc/batch_rearranger"
+  name: "br-0"
+  cfg:
+    rearrange_patterns: [{data_name: "img", pattern: "b 1 h w -> b (h w)", kwargs: {}}]
+- chain_link_spec_path: "blocks/block_stack"
+  name: "bs-0"
+  cfg:
+    data_name: "img"
+    input_dim: 784
+    output_dim: 2
+    hidden_dims: [512]
+    ordered_module_specs:
+    - {nnmodule_spec_path: "activation/relu", kwargs: {}}
+    block_wrapper_name: null
+- chain_link_spec_path: "latent/clustering_fuzzy"
+  name: "cf"
+  cfg:
+    n_components: 16
+    latent_dim: 2
+    components_std: 1.
+    data_name: "img"
+    constraint_method: "huber"
+    data_name: "img"
+    loss_coef_latent_fuzzy_clustering: 1.
+    loss_coef_clustering_component_reg: 1.
+- chain_link_spec_path: "blocks/block_stack"
+  name: "bs-2"
+  cfg:
+    input_dim: 2
+    output_dim: 784
+    hidden_dims: [512]
+    ordered_module_specs:
+    - {nnmodule_spec_path: "activation/relu", kwargs: {}}
+    data_name: "img"
+    block_wrapper_name: null
+- chain_link_spec_path: "blocks/standalone_tiny_module"
+  name: "oa"
+  cfg:
+    data_name: "img"
+    nnmodule_spec_path: "activation/sigmoid"
+    kwargs: {}
+- chain_link_spec_path: "misc/batch_rearranger"
+  name: "br-3"
+  cfg:
+    rearrange_patterns: [{data_name: "img", pattern: "b (h w) -> b 1 h w", kwargs: {h: 28, w: 28}}]
+forward_link_order: ["br-0", "bs-0", "bs-2", "oa", "br-3"]
+optimizer: {optimizer_name: "adam", kwargs: {lr: 0.001}}
+loss:
+  loss_manager:
+    loss_aggregator: "mean"
+  reconstruction_loss_spec:
+    nnmodulename: "mse"
+    coef: 1.
+    var_name: "img"
+    kwargs: {reduction: 'sum'}
+processing_commands: []

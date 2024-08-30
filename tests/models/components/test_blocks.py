@@ -1,3 +1,4 @@
+import torch
 import pytest
 from src.models.components.blocks import (
     OrderedModuleSpecs,
@@ -8,12 +9,12 @@ from src.models.components.blocks import (
     AddShortcut,
     BlockStack,
     ModuleSpec,
+    StandaloneTinyModule,
 )
 from src.utils.config import load_config_from_path
 from argparse import Namespace
 import torch.nn as nn
 from pathlib import Path
-import torch
 
 
 def test_get_module_from_spec_valid_spec():
@@ -82,6 +83,39 @@ def test_wrap_block_with_invalid_wrapper():
     # Wrap Block with invalid wrapper
     with pytest.raises(ValueError):
         _wrap_block(nn.Linear(10, 5), "invalid_wrapper")
+
+
+@pytest.fixture
+def batch_fixture():
+    return {"input": torch.randn(34, 6, 77)}
+
+
+def test_standalone_tiny_module_with_relu(batch_fixture):
+    # Test StandaloneTinyModule with ReLU activation
+    cfg = Namespace(
+        nnmodule_spec_path="activation/relu",
+        kwargs=Namespace(),
+        data_name="input",
+    )
+    module = StandaloneTinyModule(cfg)
+    batch = batch_fixture
+    input_tensor = batch["input"]
+    output_tensor = module(batch)["batch"]["input"]
+    assert output_tensor.shape == input_tensor.shape
+
+
+def test_standalone_tiny_module_with_dropout(batch_fixture):
+    # Test StandaloneTinyModule with Dropout
+    cfg = Namespace(
+        nnmodule_spec_path="dropout/ordinary",
+        kwargs=Namespace(p=0.5),
+        data_name="input",
+    )
+    module = StandaloneTinyModule(cfg)
+    batch = batch_fixture
+    input_tensor = batch["input"]
+    output_tensor = module(batch)["batch"]["input"]
+    assert output_tensor.shape == input_tensor.shape
 
 
 if __name__ == "__main__":

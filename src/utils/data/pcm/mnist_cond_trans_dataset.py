@@ -10,7 +10,7 @@ from src.utils.common_types import ConfigStructure
 import numpy as np
 from functools import partial
 import PIL as pil
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from einops import rearrange
 import abc
@@ -303,6 +303,24 @@ class ConditionTransformManager:
 
 
 class ConditionalMNIST(Dataset):
+    r"""
+    A dataset class for conditional MNIST data.
+
+    Args:
+        cfg (Namespace): The configuration object containing the dataset parameters.
+
+    Attributes:
+        _label_token_id (torch.Tensor): The token ID for the label.
+        _label_known_prob (float): The probability of the label being known.
+        _mnist (torchvision.datasets.MNIST): The MNIST dataset.
+        _cond_trans_mgr (ConditionTransformManager): The condition transformation manager.
+
+    Methods:
+        __len__(): Returns the length of the dataset.
+        __getitem__(index): Returns the item at the given index.
+
+    """
+
     _config_structure: ConfigStructure = {
         "train": bool,
         "label_condition": {"token_id": int, "known_prob": float},
@@ -344,7 +362,9 @@ class ConditionalMNIST(Dataset):
             token_ids = torch.cat([self._label_token_id, token_ids], dim=0)
             values = torch.cat([label, values], dim=0)
         else:
-            token_ids = torch.cat([token_ids, torch.zeros((1,))], dim=0)
+            token_ids = torch.cat(
+                [token_ids, torch.zeros((1,), dtype=torch.long)], dim=0
+            )
             values = torch.cat([values, torch.zeros((1,))], dim=0)
 
         return {
@@ -354,24 +374,29 @@ class ConditionalMNIST(Dataset):
         }
 
 
-# def collate_fn(batch: List[Dict[str, torch.Tensor]]) -> Batch:
-#     imgs = [item["img"] for item in batch]
-#     labels = [item["label"] for item in batch]
-#     condition_token_ids = [item["condition_token_ids"] for item in batch]
-#     condition_values = [item["condition_values"] for item in batch]
+def cmnist_collate_fn(batch: List[Dict[str, torch.Tensor]]) -> Batch:
+    # Collect the images, condition token IDs, and condition values from the batch
+    images = [item["img"] for item in batch]
+    condition_token_ids = [item["condition_token_ids"] for item in batch]
+    condition_values = [item["condition_values"] for item in batch]
+    # Stack the condition token IDs and values into tensors
+    images = torch.stack(images, dim=0)
+    condition_token_ids = torch.stack(condition_token_ids, dim=0)
+    condition_values = torch.stack(condition_values, dim=0)
 
-#     # Pad sequences to the maximum length
-#     max_length = max([len(seq) for seq in condition_token_ids])
-#     condition_token_ids_padded = [
-#         pad_sequence(seq, max_length) for seq in condition_token_ids
-#     ]
-#     condition_values_padded = [
-#         pad_sequence(seq, max_length) for seq in condition_values
-#     ]
+    return {
+        "img": images,
+        "condition_token_ids": condition_token_ids,
+        "condition_values": condition_values,
+    }
 
-#     return {
-#         "img": torch.stack(imgs),
-#         "label": torch.tensor(labels),
-#         "condition_token_ids": torch.stack(condition_token_ids_padded),
-#         "condition_values": torch.stack(condition_values_padded),
-#     }
+
+def get_ConditionalMnistDataloader(
+    cmnist: Dataset, batch_size: int, shuffle: bool
+) -> DataLoader:
+    return DataLoader(
+        dataset=cmnist,
+        collate_fn=cmnist_collate_fn,
+        batch_size=batch_size,
+        shuffle=shuffle,
+    )

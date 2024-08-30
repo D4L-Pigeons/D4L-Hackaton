@@ -1,3 +1,4 @@
+import torch
 from argparse import Namespace
 from typing import (
     Any,
@@ -9,10 +10,10 @@ from typing import (
     Optional,
     Union,
     NamedTuple,
+    Optional,
 )
 from numpy import block, isin
 import torch.nn as nn
-from torch import Tensor
 from src.utils.common_types import (
     Batch,
     ConfigStructure,
@@ -27,7 +28,7 @@ from src.utils.common_types import format_structured_forward_output
 
 
 class ModuleSpec(Namespace):
-    nnmodule_path: str
+    nnmodule_spec_path: str
     kwargs: Namespace
 
 
@@ -48,12 +49,15 @@ _ACTIVATION: DictofModules = {
     "rrelu": nn.RReLU,
     "celu": nn.CELU,
     "selu": nn.SELU,
+    "sigmoid": nn.Sigmoid,
+    "tanh": nn.Tanh,
 }
 
 _NORM: DictofModules = {
     "batch": ModuleWithSpecialTreatment(
         nnmodule=nn.BatchNorm1d, output_dim_keyword="num_features"
     ),
+    "layer": nn.LayerNorm,
 }
 
 _DROPOUT: DictofModules = {"ordinary": nn.Dropout}
@@ -65,20 +69,23 @@ _MODULE_SPECS: Dict[str, DictofModules] = {
 }
 
 
-def _get_module_from_spec(spec: ModuleSpec, output_dim: int) -> nn.Module:
+def _get_module_from_spec(spec: ModuleSpec, output_dim: Optional[int]) -> nn.Module:
     r"""
-    Get a module from the provided specification.
+    Get a module from the given ModuleSpec.
 
     Args:
-        spec (ModuleSpec): The specification of the module.
+        spec (ModuleSpec): The ModuleSpec object specifying the module.
+        output_dim (Optional[int]): The output dimension of the module.
 
     Returns:
-        nn.Module: The module corresponding to the specification.
+        nn.Module: The module instance.
 
     Raises:
-        ValueError: If the provided spec["key1"] is not valid.
-        ValueError: If the provided spec["key2"] is not valid.
+        AssertionError: If the spec argument is not an instance of ModuleSpec.
+        ValueError: If the provided key in the spec path is wrong.
+        ValueError: If the output_dim argument is not provided when required.
     """
+
     assert isinstance(
         spec, ModuleSpec
     ), f"Argument spec is of type {type(spec)} not an instance of ModuleSpec."
@@ -94,9 +101,51 @@ def _get_module_from_spec(spec: ModuleSpec, output_dim: int) -> nn.Module:
         choice = next_choice
     kwargs = vars(spec.kwargs) if spec.kwargs is not None else {}
     if isinstance(choice, ModuleWithSpecialTreatment):
+        if output_dim is None:
+            raise ValueError("Argument output_dim needs to be provided.")
         kwargs[choice.output_dim_keyword] = output_dim
         choice = choice.nnmodule
     return choice(**kwargs)
+
+
+class StandaloneTinyModule(nn.Module):
+    r"""
+    StandaloneTinyModule module.
+
+    Args:
+        cfg (Namespace): Configuration object containing the following attributes:
+            - module_name (str): Name of the module.
+            - kwargs (Namespace): Additional keyword arguments for the module.
+
+    Attributes:
+        _config_structure (ConfigStructure): Configuration structure for validation.
+
+    Methods:
+        __init__(self, cfg: Namespace) -> None: Initializes the StandaloneTinyModule module.
+        forward(self, x: torch.Tensor) -> torch.Tensor: Performs forward pass through the module.
+
+    Returns:
+        torch.Tensor: Output tensor after applying the module.
+    """
+
+    _config_structure: ConfigStructure = {
+        "nnmodule_spec_path": str,
+        "kwargs": Namespace,
+        "data_name": str,
+    }
+
+    def __init__(self, cfg: Namespace) -> None:
+        super(StandaloneTinyModule, self).__init__()
+        validate_config_structure(cfg=cfg, config_structure=self._config_structure)
+        spec: ModuleSpec = ModuleSpec(
+            nnmodule_spec_path=cfg.nnmodule_spec_path, kwargs=cfg.kwargs
+        )
+        self._data_name: str = cfg.data_name
+        self._tiny_module: nn.Module = _get_module_from_spec(spec=spec, output_dim=None)
+
+    def forward(self, batch: Batch) -> StructuredForwardOutput:
+        batch[self._data_name] = self._tiny_module(batch[self._data_name])
+        return format_structured_forward_output(batch=batch)
 
 
 class Block(nn.Module):
@@ -130,6 +179,7 @@ class Block(nn.Module):
                 ),
             ]
         )
+        torch.nn.init.xavier_normal_(self.layer[0].weight)
         # Adding the specified modules in the order.
         for spec in ordered_module_specs:
             self.layer.append(_get_module_from_spec(spec=spec, output_dim=output_dim))
@@ -143,7 +193,7 @@ class Block(nn.Module):
             ]
         )  # If the batch norm is used we are not learning biases.
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         for layer_component in self.layer:
             x = layer_component(x)
         return x
@@ -164,7 +214,7 @@ class AddResidue(nn.Module):
         super(AddResidue, self).__init__()
         self.module = module
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return x + self.module(x)
 
 
@@ -192,7 +242,7 @@ class AddShortcut(nn.Module):
             input_size=module.input_dim, output_size=module.output_dim
         )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.shortcut(x) + self.block(x)
 
 
@@ -250,6 +300,7 @@ class BlockStack(nn.Module):
         "ordered_module_specs": list,
         "data_name": str,
         "block_wrapper_name": str | None,
+        # "output_activation_name": str | None,
     }
 
     def __init__(self, cfg: Namespace) -> None:
@@ -282,6 +333,10 @@ class BlockStack(nn.Module):
             block_module=nn.Sequential(*blocks),
             block_wrapper_name=cfg.block_wrapper_name,
         )
+
+        # if cfg.output_activation_name:
+        #     self.blocks.append(_get_module_from_spec())
+
         self.blocks: nn.Sequential = nn.Sequential(*blocks)
 
     def forward(self, batch: Batch) -> StructuredForwardOutput:

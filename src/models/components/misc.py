@@ -112,12 +112,13 @@ class BatchRearranger(nn.Module):
 
         self._rearrange_patterns: List[Namespace] = cfg.rearrange_patterns
 
-    def forward(self, batch: Batch) -> Batch:
+    def forward(self, batch: Batch, **kwargs: Dict[str, Any]) -> Batch:
         for rearrange_pattern in self._rearrange_patterns:
             batch[rearrange_pattern.data_name] = rearrange(
                 tensor=batch[rearrange_pattern.data_name],
                 pattern=rearrange_pattern.pattern,
                 **vars(rearrange_pattern.kwargs),
+                **kwargs,
             )
         return format_structured_forward_output(batch=batch, losses=[])
 

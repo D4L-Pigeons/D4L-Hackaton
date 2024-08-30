@@ -44,7 +44,14 @@ def test_load_config_from_path_BlockStack():
 
 
 def test_load_config_from_path_ChainModel():
-    file_path = Path("D4L-Hackaton") / "tests" / "utils" / "dummy_cfg-ChainAE.yaml"
+    file_path = (
+        Path("D4L-Hackaton")
+        / "tests"
+        / "models"
+        / "components"
+        / "dummy_cfgs"
+        / "dummy_cfg-ChainAE.yaml"
+    )
 
     assert file_path.exists()
     cfg = load_config_from_path(file_path)

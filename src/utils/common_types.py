@@ -1,5 +1,5 @@
 import torch
-from typing import List, Dict, TypeAlias, TypedDict, Type
+from typing import List, Dict, TypeAlias, TypedDict, Type, Optional
 
 Batch: TypeAlias = Dict[str, torch.Tensor]
 
@@ -24,7 +24,7 @@ class StructuredForwardOutput(TypedDict):
 
 
 def format_structured_forward_output(
-    batch: Batch, losses: List[StructuredLoss]
+    batch: Batch, losses: Optional[List[StructuredLoss]] = None
 ) -> StructuredForwardOutput:
     r"""
     Formats data to StrucutredForwardOutput object.
@@ -33,7 +33,9 @@ def format_structured_forward_output(
         batch (Batch):
         losses (List[StructuredLoss])
     """
-    return StructuredForwardOutput(batch=batch, losses=losses)
+    return StructuredForwardOutput(
+        batch=batch, losses=losses if losses is not None else []
+    )
 
 
 ConfigStructure: TypeAlias = Dict[str, Type | Dict]

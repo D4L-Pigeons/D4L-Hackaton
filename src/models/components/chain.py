@@ -3,13 +3,15 @@ import torch.nn as nn
 from src.utils.config import validate_config_structure, parse_choice_spec_path
 from argparse import Namespace
 from src.utils.common_types import ConfigStructure
-from typing import List, Dict, TypeAlias, Type, TypedDict
-from src.models.components.blocks import BlockStack
+from typing import List, Dict, TypeAlias, Type, TypedDict, Callable, Any
+import inspect
+from src.models.components.blocks import BlockStack, StandaloneTinyModule
 from src.models.components.latent import (
     GaussianPosterior,
     GaussianMixturePriorNLL,
     LatentConstraint,
     FuzzyClustering,
+    VectorConditionedLogitsGMPriorNLL,
 )
 from src.utils.common_types import (
     Batch,
@@ -19,7 +21,7 @@ from src.utils.common_types import (
     format_structured_loss,
 )
 from src.models.components.misc import AggregateDataAdapter, BatchRearranger
-from typing import Callable
+from src.models.components.condition_embedding import ConditionEmbeddingTransformer
 from src.models.components.loss import (
     get_reconstruction_loss,
     LossManager,
@@ -30,23 +32,33 @@ from src.models.components.optimizer import get_optimizer
 
 ChainLink: TypeAlias = Type[nn.Module]
 
-_BLOCKS_MODULE: Dict[str, ChainLink] = {"block_stack": BlockStack}
+_BLOCKS_MODULE: Dict[str, ChainLink] = {
+    "block_stack": BlockStack,
+    "standalone_tiny_module": StandaloneTinyModule,
+}
 
 _LATENT_MODULE: Dict[str, ChainLink] = {
     "posterior_gaussian": GaussianPosterior,
     "prior_gaussian_mixture_nll": GaussianMixturePriorNLL,
     "constraint_latent": LatentConstraint,
     "clustering_fuzzy": FuzzyClustering,
+    "prior_vec_conditioned_logits_gaussian_mixture_nll": VectorConditionedLogitsGMPriorNLL,
 }
+
 _MISC_MODULE: Dict[str, ChainLink] = {
     "adapter": AggregateDataAdapter,
     "batch_rearranger": BatchRearranger,
+}
+
+_CONDITION_EMBEDDING_MODULE: Dict[str, ChainLink] = {
+    "condition_embedding_transformer": ConditionEmbeddingTransformer
 }
 
 _CHAIN_LINKS: Dict[str, Dict[str, ChainLink]] = {
     "blocks": _BLOCKS_MODULE,
     "latent": _LATENT_MODULE,
     "misc": _MISC_MODULE,
+    "condition_embedding": _CONDITION_EMBEDDING_MODULE,
 }
 
 
@@ -64,7 +76,7 @@ def _get_chain_link(chain_link_spec: Namespace) -> ChainLink:
         next_choice = choice.get(key, None)
         if next_choice is None:
             raise ValueError(
-                f'The provided key {key} is wrong. Must be one of {" ,".join(list(choice.keys()))}'
+                f'The provided key {key} is wrong. Must be one of {", ".join(list(choice.keys()))}'
             )
         choice = next_choice
     return choice(cfg=chain_link_spec.cfg)
@@ -89,7 +101,7 @@ class ChainAE(pl.LightningModule):
     """
 
     _config_structure: ConfigStructure = {
-        "chain": [{"chain_link_spec_path": str, "cfg": Namespace}],
+        "chain": [{"chain_link_spec_path": str, "name": str, "cfg": Namespace}],
         "optimizer": {"optimizer_name": str, "kwargs": Namespace},
         "loss": {
             "loss_manager": Namespace,
@@ -100,8 +112,17 @@ class ChainAE(pl.LightningModule):
                 "kwargs": Namespace,
             },
         },
+        "forward_link_order": [str],
         "processing_commands": [
-            {"command_name": str, "final_link_idx": int, "kwargs": Namespace}
+            {
+                "command_name": str,
+                "processing_spec": {
+                    "train": bool,
+                    "steps": [
+                        {"link_name": str, "method_name": str, "kwargs": Namespace}
+                    ],
+                },
+            }
         ],
     }
 
@@ -109,18 +130,15 @@ class ChainAE(pl.LightningModule):
         super(ChainAE, self).__init__()
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
-        # Preparing and setting the processing commands allowing to process the batch up to the chain link specified by index.
-        self._processing_commands: Dict[str, Dict[str, Dict | int]] = {}
-        self._parse_processing_command_definitions(
-            processing_commands=cfg.processing_commands
-        )
+        self._cfg: Namespace = cfg
 
         # Building chain based on the config.
-        self._chain: nn.ModuleList = nn.ModuleList()
-        self._build_chain(chain_cfg=cfg.chain)
+        self._chain: nn.ModuleDict = nn.ModuleDict()
+        self._setup_chain(chain_cfg=cfg.chain)
 
-        # Checking the command indices correctness.
-        self._assert_commands()
+        # Setting the order of modules during forward.
+        self._forward_link_order: List[str] = cfg.forward_link_order
+        self._assert_forward_link_order()
 
         # Initializing LossMangager.
         self._loss_manager: LossManager = LossManager(cfg=cfg.loss.loss_manager)
@@ -138,7 +156,6 @@ class ChainAE(pl.LightningModule):
             == "none"
         )
         self._reconstruction_var_name: str = cfg.loss.reconstruction_loss_spec.var_name
-
         # Make the input tensor broadcastable if needed.
         self._input_tensor_dim_match_transform: callable = (
             (lambda x: x)
@@ -146,50 +163,102 @@ class ChainAE(pl.LightningModule):
             else lambda x: x.unsqueeze(1)
         )
 
+        # Preparing and setting the processing commands allowing to process the batch in a flexible manner.
+        self._processing_commands: Dict[str, Dict[str, Dict | int]] = {}
+        self._parse_processing_command_definitions(
+            processing_commands=cfg.processing_commands
+        )
+        self._assert_commands()
+
+    def _setup_chain(self, chain_cfg: List[Namespace]):
+        for chain_spec in chain_cfg:
+            assert (
+                chain_spec.name not in self._chain
+            ), f"The keyword {chain_spec.name} is already present in self._chain."
+            self._chain[chain_spec.name] = _get_chain_link(chain_link_spec=chain_spec)
+
+    def _assert_forward_link_order(self) -> None:
+        for chain_link_name in self._forward_link_order:
+            assert (
+                chain_link_name in self._chain
+            ), f"Chain link name {chain_link_name} is not present in self._chain = {list(self._chain.keys())}."
+
     def _parse_processing_command_definitions(
         self, processing_commands: List[Namespace]
     ) -> None:
         for command in processing_commands:
-            self._processing_commands[command.command_name] = {
-                "final_link_idx": command.final_link_idx,
-                "kwargs": vars(command.kwargs),
-            }
-
-    def _build_chain(self, chain_cfg: List[Namespace]):
-        for chain_spec in chain_cfg:
-            self._chain.append(_get_chain_link(chain_link_spec=chain_spec))
+            self._processing_commands[command.command_name] = command.processing_spec
 
     def _assert_commands(self) -> None:
-        for command_key, command_val in self._processing_commands.items():
-            assert command_val["final_link_idx"] < len(
-                self._chain
-            ), f"The value {command_val['final_link_idx']} for command {command_key} if greater than the number of chain_links={len(self._chain)}."
+        for command_key, command_processing_spec in self._processing_commands.items():
+            for cmd_proc_step in command_processing_spec.steps:
+                assert (
+                    cmd_proc_step.link_name in self._chain
+                ), f"The {cmd_proc_step.link_name} does not match with any link_name from _chain {list(self._chain.keys())}."
 
-    def run_processing_command(self, batch: Batch, command_name: str) -> Batch:
+                link = self._chain[cmd_proc_step.link_name]
+                method = getattr(link, cmd_proc_step.method_name, None)
+
+                assert (
+                    method is not None
+                ), f"Link '{cmd_proc_step.link_name}' has no attribute named {cmd_proc_step.method_name}."
+                assert inspect.ismethod(method) or inspect.isfunction(
+                    method
+                ), f"Attribute '{cmd_proc_step.method_name}' of link '{cmd_proc_step.link_name}' is not a method."
+
+    def run_processing_command(
+        self,
+        batch: Batch,
+        command_name: str,
+        dynamic_kwargs: Dict[str, Namespace] = {},
+    ) -> Batch:
         assert (
             command_name in self._processing_commands
         ), f"The provivided command {command_name} is not within defined commands {self._processing_commands}."
-        command = self._processing_commands[command_name]
-        final_link_idx: int = command["final_link_idx"]
-
-        # Processing up to the final link specified in command definition without passing on loss information.
-        for chain_link in self._chain[:final_link_idx]:
-            chain_link_output = chain_link(batch)
+        for link_name, kwargs in dynamic_kwargs.items():
+            assert (
+                link_name in self._chain
+            ), f"The link of name '{link_name}' is not present in self._chain."
+            assert isinstance(
+                kwargs, Namespace
+            ), "The provided kwargs are not an instance of Namespace."
+        command_processing_spec = self._processing_commands[command_name]
+        # Processing
+        for processing_step in command_processing_spec.steps:
+            chain_link = self._chain[processing_step.link_name]
+            method = getattr(chain_link, processing_step.method_name)
+            dynamic_kwargs_step = dynamic_kwargs.get(
+                processing_step.link_name, Namespace()
+            )
+            chain_link_output = method(
+                batch=batch,
+                **vars(processing_step.kwargs),
+                **vars(dynamic_kwargs_step),
+            )
+            assert (
+                "batch" in chain_link_output
+            ), f'Output of "{chain_link}" does not have "batch" key.'
             batch = chain_link_output["batch"]
+        return batch
 
-        # Special treatment for the last link, which may take additional kwargs to the forward method.
-        chain_link_output = self._chain[final_link_idx](
-            batch=batch, **command["kwargs"]
-        )
-        batch = chain_link_output["batch"]
-
+    def forward(self, batch: Batch) -> Batch:
+        # Processing
+        for link_name in self._forward_link_order:
+            chain_link = self._chain[link_name]
+            chain_link_output = chain_link(batch)
+            assert (
+                "batch" in chain_link_output
+            ), f'Output of "{chain_link}" does not have "batch" key.'
+            batch = chain_link_output["batch"]
+            for structured_loss in chain_link_output["losses"]:
+                self._loss_manager.process_structured_loss(structured_loss)
         return batch
 
     def _get_reconstruction_structured_loss(
         self, x_input: torch.Tensor, x_reconstr: torch.Tensor
     ) -> StructuredLoss:
         loss = self._reconstr_loss_fn(
-            self._input_tensor_dim_match_transform(x_input), x_reconstr
+            x_reconstr, self._input_tensor_dim_match_transform(x_input)
         )
         return format_structured_loss(
             loss=loss,
@@ -203,12 +272,7 @@ class ChainAE(pl.LightningModule):
             self._reconstruction_var_name
         ].clone()  # Is this clone necessary?
 
-        # Processing
-        for chain_link in self._chain:
-            chain_link_output = chain_link(batch)
-            batch = chain_link_output["batch"]
-            for structured_loss in chain_link_output["losses"]:
-                self._loss_manager.process_structured_loss(structured_loss)
+        batch = self.forward(batch=batch)
 
         output_reconstr_var: torch.Tensor = batch[self._reconstruction_var_name]
         reconstr_loss: StructuredLoss = self._get_reconstruction_structured_loss(
@@ -225,11 +289,8 @@ class ChainAE(pl.LightningModule):
 
     def validation_step(self, batch: Batch) -> torch.Tensor:
         input_reconstr_var: torch.Tensor = batch[self._reconstruction_var_name].clone()
-        for chain_link in self._chain:
-            chain_link_output = chain_link(batch)
-            batch = chain_link_output["batch"]
-            for structured_loss in chain_link_output["losses"]:
-                self._loss_manager.process_structured_loss(structured_loss)
+
+        batch = self.forward(batch=batch)
 
         output_reconstr_var: torch.Tensor = batch[self._reconstruction_var_name]
         reconstr_loss: StructuredLoss = self._get_reconstruction_structured_loss(
@@ -246,6 +307,7 @@ class ChainAE(pl.LightningModule):
 
     def configure_optimizers(self):
         return get_optimizer(
-            optimizer_name=self.cfg.optimizer.optimizer_name,
-            kwargs=vars(self.cfg.optimizer.kwargs),
+            optimizer_name=self._cfg.optimizer.optimizer_name,
+            params=self.parameters(),
+            kwargs=vars(self._cfg.optimizer.kwargs),
         )

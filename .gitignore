@@ -16,3 +16,4 @@ src/utils/data/__init__.py
 src/utils/evaluation/__init__.py
 tests/__init__.py
 .neptune/*
+lightning_logs/*

@@ -190,11 +190,24 @@ class GaussianPosterior(nn.Module):  # nn.Module for compatibility
         self._n_latent_samples: int = cfg.n_latent_samples
         self._loss_coef_posterior_entropy: float = cfg.loss_coef_posterior_entropy
 
-    def forward(
-        self, batch: Batch, n_latent_samples: None | int = None
-    ) -> StructuredForwardOutput:
-        if n_latent_samples is None:
-            n_latent_samples = self._n_latent_samples
+    def sample(self, batch: Batch) -> StructuredForwardOutput:
+        means, stds = batch[self._data_name].chunk(chunks=2, dim=1)
+        stds = self._std_transform(stds)
+        rv = make_normal_rv(mean=means, std=stds)
+        # Replacing the 'data' with reparametrisation trick samples in the batch and leaving the rest unchanged.
+        latent_samples = rv.rsample(sample_shape=(1,))  # (1, batch_size, latent_dim)
+        batch[self._data_name] = rearrange(
+            tensor=latent_samples, pattern="samp batch dim -> batch samp dim"
+        )
+        return format_structured_forward_output(
+            batch=batch,
+        )
+
+    def forward(self, batch: Batch) -> StructuredForwardOutput:
+        r"""
+        Input data shape: (batch dim)
+        Output data shape: (batch sampl dim//2)
+        """
         means, stds = batch[self._data_name].chunk(chunks=2, dim=1)
         stds = self._std_transform(stds)
         rv = make_normal_rv(mean=means, std=stds)
@@ -203,7 +216,7 @@ class GaussianPosterior(nn.Module):  # nn.Module for compatibility
         )  # (1, batch_size)
         # Replacing the 'data' with reparametrisation trick samples in the batch and leaving the rest unchanged.
         latent_samples = rv.rsample(
-            sample_shape=(n_latent_samples,)
+            sample_shape=(self._n_latent_samples,)
         )  # (n_latent_samples, batch_size, latent_dim)
         batch[self._data_name] = rearrange(
             tensor=latent_samples, pattern="samp batch dim -> batch samp dim"
@@ -274,6 +287,20 @@ class _GM(nn.Module, abc.ABC):
 
     def reset_rv(self) -> None:
         self._rv = None
+
+    def sample(self, n_samples: int) -> Batch:
+        if self._rv is None:
+            raise RuntimeError(
+                "Random variable not set. Call set_rv() before sampling."
+            )
+
+        component_samples = _sample_diff_gm_rv(self._rv, sample_shape=(n_samples,))
+        batch = {
+            self._data_name: rearrange(
+                tensor=component_samples, pattern="samp batch dim -> batch samp dim"
+            )
+        }
+        return format_structured_forward_output(batch=batch)
 
     def _get_nll(self, x: torch.Tensor) -> torch.Tensor:
         gm_nll_per_lat_sampl = -self._rv.log_prob(x)
@@ -407,17 +434,8 @@ class FuzzyClustering(_GM):
 
     def forward(self, batch: Batch) -> StructuredForwardOutput:
         r"""
-        Forward pass of the FuzzyClustering class.
-
-        Args:
-            batch (Batch): The input batch.
-
-        Returns:
-            StructuredForwardOutput: The output of the forward pass.
-
-        Raises:
-            None
-
+        Input data shape: (batch dim)
+        Output data shape: (batch dim)
         """
         self.set_rv()
         gm_nll = self._get_nll(x=batch[self._data_name])  # (1)
@@ -550,14 +568,134 @@ class LatentConstraint(nn.Module):  # nn.Module for compatibility
         self._loss_coef_latent_constraint: float = cfg.loss_coef_latent_constraint
 
     def forward(self, batch: Batch) -> StructuredForwardOutput:
+        loss = self._calculate_constraint(x=batch[self._data_name], dim=None)
         return format_structured_forward_output(
             batch=batch,
             losses=[
                 format_structured_loss(
-                    loss=self._calculate_constraint(x=batch[self._data_name], dim=None),
+                    loss=loss,
                     coef=self._loss_coef_latent_constraint,
                     name=map_loss_name(loss_name="latent_constraint"),
                     aggregated=True,
+                )
+            ],
+        )
+
+
+class VectorConditionedLogitsGMPriorNLL(nn.Module):
+    r"""
+    Module for computing the negative log-likelihood (NLL) loss of a Gaussian Mixture Model (GMM)
+    conditioned on a vector of logits.
+    Args:
+        cfg (Namespace): The configuration object containing the following attributes:
+            - data_name (str): The name of the input data tensor.
+            - logits_name (str): The name of the logits tensor.
+            - components_std (float): The standard deviation of the GMM components.
+            - loss_coef_prior_nll (float): The coefficient for scaling the prior NLL loss.
+    Attributes:
+        _config_structure (ConfigStructure): The structure of the configuration object.
+        _data_name (str): The name of the input data tensor.
+        logits_name (str): The name of the logits tensor.
+        _components_std (float): The standard deviation of the GMM components.
+        _loss_coef_prior_nll (float): The coefficient for scaling the prior NLL loss.
+    Methods:
+        forward(batch: Batch) -> Batch:
+            Computes the forward pass of the module.
+    """
+
+    _config_structure: ConfigStructure = {
+        "data_name": str,
+        "logits_name": str,
+        "n_components": int,
+        "latent_dim": int,
+        "components_std": float,
+        "loss_coef_prior_nll": float,
+    }
+
+    def __init__(self, cfg: Namespace) -> None:
+        super(VectorConditionedLogitsGMPriorNLL, self).__init__()
+        validate_config_structure(cfg=cfg, config_structure=self._config_structure)
+
+        self._data_name: str = cfg.data_name
+        self._logits_name: str = cfg.logits_name
+        self._components_std: float = cfg.components_std
+        self._loss_coef_prior_nll: float = cfg.loss_coef_prior_nll
+        self._n_components: int = cfg.n_components
+        self._latent_dim: int = cfg.latent_dim
+        self._component_means = nn.Parameter(
+            torch.empty(cfg.n_components, cfg.latent_dim), requires_grad=True
+        )
+        torch.nn.init.xavier_normal_(self._component_means)
+        self.register_buffer(
+            "_std", torch.tensor(cfg.components_std, dtype=torch.float32)
+        )
+
+    def sample(self, batch: Batch, n_latent_samples: int) -> StructuredForwardOutput:
+        logits: torch.Tensor = batch[self._logits_name]
+        assert (
+            logits.shape[-1] == self._n_components
+        ), f"The number of logits is {logits.shape[-1]} but should be {self._n_components}."
+        batch_size: int = logits.shape[0]
+
+        # For each condition embedding we are extracting n_latent_samples of latent samples.
+        latent_samples_all: torch.Tensor = torch.zeros(
+            (batch_size, n_latent_samples, self._latent_dim)
+        )
+        # Ugh for loop. Write in vectorised way.
+        for i in range(batch_size):
+            gm_rv = make_gm_rv(
+                component_logits=logits[i, :],
+                means=self._component_means,
+                std=self._std,
+            )
+            latent_samples: torch.Tensor = gm_rv.sample(
+                sample_shape=(n_latent_samples,)
+            )
+            latent_samples_all[i, :, :] = latent_samples
+            #     , pattern="samp dim -> 1 samp dim"
+            # )
+
+        # Putting samples to the same place the embedded data is after regular forward.
+        batch[self._data_name] = latent_samples_all
+
+        return format_structured_forward_output(batch=batch)
+
+    # def _vectorised_multi_gm_nll(self, logits: torch.Tensor) -> torch.Tensor:
+    #     pass
+
+    def forward(self, batch: Batch) -> StructuredForwardOutput:
+        logits: torch.Tensor = batch[self._logits_name]
+        assert (
+            logits.shape[-1] == self._n_components
+        ), f"The number of logits is {logits.shape[-1]} but should be {self._n_components}."
+        batch_size: int = logits.shape[0]
+        x: torch.Tensor = batch[self._data_name]  # (batch_size, n_latent_samples, dim)
+        assert (
+            len(x.shape) == 3
+        ), f"Got len(x.shape) equal {len(x.shape)}, but should be 3."
+        assert (
+            x.shape[-1] == self._latent_dim
+        ), f"The x.shape[-1] should match latent_dim={self._latent_dim}."
+        nll_lat_sampl: torch.Tensor = torch.zeros(
+            (x.shape[:2])
+        )  # (batch_size, n_latent_samples)
+        # Ugh for loop. Write in vectorised way.
+        for i in range(batch_size):
+            gm_rv = make_gm_rv(
+                component_logits=logits[i, :],
+                means=self._component_means,
+                std=self._std,
+            )
+            nll_lat_sampl[i, :] = -gm_rv.log_prob(x[i, :])
+
+        return format_structured_forward_output(
+            batch=batch,
+            losses=[
+                format_structured_loss(
+                    loss=nll_lat_sampl,
+                    coef=self._loss_coef_prior_nll,
+                    name=map_loss_name(loss_name="prior_nll"),
+                    aggregated=False,
                 )
             ],
         )
