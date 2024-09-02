@@ -95,12 +95,11 @@ def test_standalone_tiny_module_with_relu(batch_fixture):
     cfg = Namespace(
         nnmodule_spec_path="activation/relu",
         kwargs=Namespace(),
-        data_name="input",
     )
     module = StandaloneTinyModule(cfg)
     batch = batch_fixture
     input_tensor = batch["input"]
-    output_tensor = module(batch)["batch"]["input"]
+    output_tensor = module(batch, data_name="input")["batch"]["input"]
     assert output_tensor.shape == input_tensor.shape
 
 
@@ -109,12 +108,11 @@ def test_standalone_tiny_module_with_dropout(batch_fixture):
     cfg = Namespace(
         nnmodule_spec_path="dropout/ordinary",
         kwargs=Namespace(p=0.5),
-        data_name="input",
     )
     module = StandaloneTinyModule(cfg)
     batch = batch_fixture
     input_tensor = batch["input"]
-    output_tensor = module(batch)["batch"]["input"]
+    output_tensor = module(batch, data_name="input")["batch"]["input"]
     assert output_tensor.shape == input_tensor.shape
 
 

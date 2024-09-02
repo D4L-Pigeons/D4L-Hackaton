@@ -10,7 +10,7 @@ from src.utils.common_types import (
 )
 from src.utils.config import validate_config_structure
 from typing import List
-from einops import rearrange
+from einops import rearrange, repeat
 
 # class ContinousValuedConditionEmbedding(nn.Module):
 #     def __init__(self, cfg: Namespace) -> None:
@@ -103,9 +103,6 @@ class ConditionEmbeddingTransformer(nn.Module):
         cfg (Namespace): Configuration object.
 
     Attributes:
-        _cond_ids_name (str): Name of the condition IDs.
-        _cat_ids_name (str): Name of the category IDs.
-        _cond_embed_name (str): Name of the condition embedding.
         _cls_pooling_token (nn.Parameter): Parameter for the CLS pooling token.
         _condition_embedding_module (DiscreteValuedConditionEmbedding): Condition embedding module.
         _transformer_encoder (nn.TransformerEncoder): Transformer encoder.
@@ -117,9 +114,6 @@ class ConditionEmbeddingTransformer(nn.Module):
     """
 
     _config_structure: ConfigStructure = {
-        "cond_ids_name": str,
-        "cat_ids_name": str,
-        "cond_embed_name": str,
         "embedding_dim": int,
         "transformer": {"encoder_kwargs": Namespace, "encoder_layer_kwargs": Namespace},
         "embedding_module": Namespace,
@@ -129,17 +123,15 @@ class ConditionEmbeddingTransformer(nn.Module):
         super(ConditionEmbeddingTransformer, self).__init__()
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
-        self._cond_ids_name: str = cfg.cond_ids_name
-        self._cat_ids_name: str = cfg.cat_ids_name
-        self._cond_embed_name: str = cfg.cond_embed_name
-
         self._cls_pooling_token = nn.Parameter(
             torch.empty(size=(1, 1, cfg.embedding_dim))
         )
         torch.nn.init.xavier_normal_(self._cls_pooling_token)
+
         self._condition_embedding_module = DiscreteValuedConditionEmbedding(
             cfg=cfg.embedding_module, embedding_dim=cfg.embedding_dim
         )
+
         self._transformer_encoder = nn.TransformerEncoder(
             encoder_layer=nn.TransformerEncoderLayer(
                 d_model=cfg.embedding_dim,
@@ -149,14 +141,20 @@ class ConditionEmbeddingTransformer(nn.Module):
             **vars(cfg.transformer.encoder_kwargs),
         )
 
-    def forward(self, batch: Batch) -> Batch:
+    def forward(
+        self, batch: Batch, cond_ids_name: str, cat_ids_name: str, cond_embed_name: str
+    ) -> Batch:
+
         # Embedding conditions
         condition_embeddings = self._condition_embedding_module.embed(
-            cond_ids=batch[self._cond_ids_name], cat_ids=batch[self._cat_ids_name]
+            cond_ids=batch[cond_ids_name], cat_ids=batch[cat_ids_name]
         )
-        repeated_cls_pool_token: torch.Tensor = self._cls_pooling_token.repeat(
-            condition_embeddings.shape[0], 1, 1
+
+        batch_size: int = condition_embeddings.shape[0]
+        repeated_cls_pool_token: torch.Tensor = repeat(
+            self._cls_pooling_token, "1 1 dim -> batch 1 dim", batch=batch_size
         )
+
         # Add cls pooling token
         condition_embeddings = torch.cat(
             [
@@ -165,17 +163,14 @@ class ConditionEmbeddingTransformer(nn.Module):
             ],
             dim=1,  # sequence dim
         )
+
         assert torch.isnan(condition_embeddings).any().logical_not()
-        # print(
-        #     condition_embeddings.shape,
-        #     condition_embeddings.dtype,
-        #     condition_embeddings.min(),
-        #     condition_embeddings.max(),
-        # )
+
         # Apply transformer
         transformer_output = self._transformer_encoder(condition_embeddings)
         assert torch.isnan(transformer_output).any().logical_not()
+
         # Extract the embedding of the pooling token
-        batch[self._cond_embed_name] = transformer_output[:, 0, :]
+        batch[cond_embed_name] = transformer_output[:, 0, :]
 
         return format_structured_forward_output(batch=batch)

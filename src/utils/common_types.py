@@ -8,14 +8,17 @@ class StructuredLoss(TypedDict):
     data: torch.Tensor
     coef: float
     name: str
-    aggregated: bool
+    reduced: bool
 
 
 def format_structured_loss(
-    loss: torch.Tensor, coef: float, name: str, aggregated: bool
+    loss: torch.Tensor, coef: float, name: str, reduced: bool
 ) -> StructuredLoss:
-
-    return StructuredLoss(data=loss, coef=coef, name=name, aggregated=aggregated)
+    if reduced:
+        assert (
+            loss.shape == ()
+        ), f"If the loss '{name}' is reduced is should have shape () but got {loss.shape}."
+    return StructuredLoss(data=loss, coef=coef, name=name, reduced=reduced)
 
 
 class StructuredForwardOutput(TypedDict):

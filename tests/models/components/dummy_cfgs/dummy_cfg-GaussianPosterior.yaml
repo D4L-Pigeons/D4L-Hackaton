@@ -1,4 +1,2 @@
-n_latent_samples: 2
 std_transform: "softplus"
-data_name: "data"
 loss_coef_posterior_entropy: 1.

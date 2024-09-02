@@ -134,12 +134,10 @@ def test_GaussianPosterior():
     # Test _std_transform attribute
     assert model._std_transform is not None
 
-    # Test _data_name attribute
-    assert model._data_name == "data"
     # Test forward method
     batch = {"data": torch.tensor([[1.0, 2.0, 3.0, 3.0]])}
     data_init_shape = batch["data"].shape
-    output = model.forward(batch)
+    output = model.forward(batch, data_name="data", n_latent_samples=2)
     assert "batch" in output
     assert "losses" in output
     assert (
@@ -242,7 +240,9 @@ def test_GaussianMixturePriorNLL_forward(batch_fixture):
     model = GaussianMixturePriorNLL(cfg)
     # Test forward method
     batch = batch_fixture
-    output = model.forward(batch)
+    output = model.forward(
+        batch, data_name="data", component_indicator_name="component_indicator"
+    )
     assert "batch" in output
     assert "losses" in output
     assert output["batch"] == batch
@@ -268,7 +268,7 @@ def test_FuzzyClustering_forward(batch_fixture):
 
     # Test forward method
     batch = batch_fixture
-    output = model.forward(batch)
+    output = model.forward(batch, data_name="data")
     assert "batch" in output
     assert "losses" in output
     losses = output["losses"]
@@ -343,8 +343,6 @@ def test_LatentConstraint():
 
 def test_VectorConditionedLogitsGMPriorNLL_forward():
     cfg = Namespace(
-        data_name="data",
-        logits_name="logits",
         n_components=4,
         latent_dim=8,
         components_std=1.0,
@@ -357,7 +355,11 @@ def test_VectorConditionedLogitsGMPriorNLL_forward():
         "data": torch.randn((16, 1, 8)),
         "logits": torch.randn((16, 4)),
     }
-    output = model.forward(batch)
+    output = model.forward(
+        batch,
+        data_name="data",
+        logits_name="logits",
+    )
     assert "batch" in output
     assert "losses" in output
     assert output["batch"] == batch

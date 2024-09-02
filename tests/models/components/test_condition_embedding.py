@@ -62,9 +62,6 @@ def test_discrete_valued_condition_embedding_with_negative_categories():
 
 def test_condition_embedding_transformer():
     cfg = Namespace(
-        cond_ids_name="cond_ids",
-        cat_ids_name="cat_ids",
-        cond_embed_name="cond_embed",
         embedding_dim=16,
         transformer=Namespace(
             encoder_kwargs=Namespace(num_layers=3),
@@ -81,7 +78,12 @@ def test_condition_embedding_transformer():
         "cond_ids": torch.tensor([[0, 1, 2]]),
         "cat_ids": torch.tensor([[1, 2, 3]]),
     }
-    output = transformer(batch)
+    output = transformer(
+        batch,
+        cond_ids_name="cond_ids",
+        cat_ids_name="cat_ids",
+        cond_embed_name="cond_embed",
+    )
 
     assert "cond_embed" in output["batch"]
     assert output["batch"]["cond_embed"].shape == (1, cfg.embedding_dim)
@@ -89,9 +91,6 @@ def test_condition_embedding_transformer():
 
 def test_condition_embedding_transformer_with_large_embedding_dim():
     cfg = Namespace(
-        cond_ids_name="cond_ids",
-        cat_ids_name="cat_ids",
-        cond_embed_name="cond_embed",
         embedding_dim=10,
         transformer=Namespace(
             encoder_kwargs=Namespace(num_layers=3),
@@ -108,7 +107,12 @@ def test_condition_embedding_transformer_with_large_embedding_dim():
         "cond_ids": torch.tensor([[0, 1], [1, 1]]),
         "cat_ids": torch.tensor([[0, 0], [1, 1]]),
     }
-    output = transformer(batch)
+    output = transformer(
+        batch,
+        cond_ids_name="cond_ids",
+        cat_ids_name="cat_ids",
+        cond_embed_name="cond_embed",
+    )
 
     assert "cond_embed" in output["batch"]
     assert output["batch"]["cond_embed"].shape == (2, cfg.embedding_dim)

@@ -1,6 +1,4 @@
 n_components: 3
 latent_dim: 8
 components_std: 1.
-data_name: "data"
-component_indicator_name: "component_indicator"
 loss_coef_prior_nll: 1.

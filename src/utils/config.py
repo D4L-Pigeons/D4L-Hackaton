@@ -1,8 +1,5 @@
 from argparse import Namespace
 from typing import List
-
-from flask import config
-from numpy import isin
 from src.utils.common_types import ConfigStructure
 import yaml
 from src.utils.paths import CONFIG_PATH
@@ -11,56 +8,96 @@ from pathlib import Path
 
 
 def validate_config_structure(
-    cfg: Namespace | List[Namespace], config_structure: ConfigStructure
+    cfg: Namespace | List[Namespace] | None, config_structure: ConfigStructure
 ) -> None:
     r"""
-    Validates the structure of the configuration based on the provided config_structure checking keyword and type aggrement.
+    Validates the structure of the configuration object `cfg` against the expected `config_structure`.
 
     Args:
-        cfg (Namespace | List[Namespace]): The configuration to validate.
-        config_structure (ConfigStructure): The expected structure of the configuration.
+        cfg (Namespace | List[Namespace] | None): The configuration object to be validated.
+            It can be a single Namespace object, a list of Namespace objects, or None.
+        config_structure (ConfigStructure): The expected structure of the configuration object.
 
     Raises:
-        ValueError: If there is a mismatch between the provided keys and expected keys,
-                    or if the type of an attribute does not match the expected type.
+        ValueError: If the structure of the configuration object does not match the expected structure.
 
-    Note:
-        - If a Namespace is encountered, the validation responsibility is passed to another module.
-        - If a list is encountered, the validation is performed recursively for each element in the list.
-        - The list should not be empty, otherwise, it will not be validated.
+    Notes:
+        - Tuple allows to drop a config element or allows success when _validate_config_structure returns None on any of the possibilities from the tuple.
+        - The `Namespace` type represents a simple object that holds attributes as key-value pairs.
+        - The `List[Namespace]` type represents a list of Namespace objects.
+        - The `None` type represents an empty configuration object.
+
+    The function recursively checks the structure of the `cfg` object against the `config_structure`.
+    It performs the following checks based on the type of `config_structure`:
+    - If `config_structure` is a type, it checks if `cfg` is an instance of that type.
+    - If `config_structure` is a tuple, it checks if `cfg` matches any of the elements in the tuple.
+    - If `config_structure` is a Namespace object, it checks if the keys of `cfg` match the keys of `config_structure`.
+      It then recursively checks the structure of each attribute in `cfg`.
+    - If `config_structure` is a list, it checks if `cfg` is a list and recursively checks the structure of each element in the list.
+
+    If any mismatch or error is found during the validation process, a ValueError is raised with a descriptive error message.
     """
-    if isinstance(cfg, Namespace):
-        variables = vars(cfg)
-        if variables.keys() != config_structure.keys():
-            raise ValueError(
-                f"There is a mismatch between provided keys {list(variables.keys())} and expected keys {list(config_structure.keys())}"
-            )
-        for attr_name, attr_val in variables.items():
-            if (
-                isinstance(config_structure[attr_name], dict)
-                and isinstance(attr_val, Namespace)
-            ) or (
-                isinstance(config_structure[attr_name], list)
-                and isinstance(attr_val, list)
-            ):  # If Namespace we are passing the verification responsibility to some other module.
-                validate_config_structure(attr_val, config_structure[attr_name])
 
-            elif not isinstance(attr_val, config_structure[attr_name]):
-                raise ValueError(
-                    f"Invalid type for attribute '{attr_name}'. Expected {config_structure[attr_name]} but got {type(attr_val)}"
+    def _validate_config_structure(
+        cfg: Namespace | List[Namespace] | None,
+        config_structure: ConfigStructure,
+        cfg_path: str = "",
+    ) -> None | Exception:
+        error = None
+
+        if isinstance(config_structure, type):
+            if not isinstance(cfg, config_structure):
+                error = ValueError(
+                    f"Invalid type for attribute '{cfg_path}' with value '{cfg}'. Expected {config_structure} but got {type(cfg)}"
                 )
-    elif isinstance(cfg, list):
-        if not isinstance(config_structure, list):
-            raise ValueError("Config structure is not list at this level.")
-        if (
-            len(cfg) != 0
-        ):  # Proceed only if the list is nonempty. BAD if the list is obligatory!!!
-            config_structure = config_structure[0]
-            if not config_structure == Namespace:
-                for cfg_elem in cfg:
-                    validate_config_structure(
-                        cfg=cfg_elem, config_structure=config_structure
-                    )
+
+        elif isinstance(config_structure, tuple):
+            if cfg is not None:
+                for config_structure_ in config_structure:
+                    error = _validate_config_structure(cfg, config_structure_, cfg_path)
+                    if error is None:
+                        break
+
+        elif isinstance(cfg, Namespace):
+            cfg = vars(cfg)
+
+            if cfg.keys() != config_structure.keys():
+                error = ValueError(
+                    f"At level {cfg_path} | There is a mismatch between provided keys {list(cfg.keys())} and expected keys {list(config_structure.keys())}"
+                )
+
+            for attr_name, attr_val in cfg.items():
+                error = _validate_config_structure(
+                    cfg=attr_val,
+                    config_structure=config_structure[attr_name],
+                    cfg_path=cfg_path + "/" + attr_name,
+                )
+                if error is not None:
+                    break
+
+        elif isinstance(cfg, list):
+            if not isinstance(config_structure, list):
+                error = ValueError(
+                    f"At level {cfg_path} | Config structure is of type {type(config_structure)} not a list as expected."
+                )
+            elif (
+                len(cfg) != 0
+            ):  # Proceed only if the list is nonempty. BAD if the list is obligatory!!!
+                config_structure = config_structure[0]
+                if not config_structure == Namespace:
+                    for cfg_elem in cfg:
+                        _validate_config_structure(
+                            cfg=cfg_elem,
+                            config_structure=config_structure,
+                            cfg_path=cfg_path + "[list-item]/",
+                        )
+
+        return error
+
+    error = _validate_config_structure(cfg=cfg, config_structure=config_structure)
+
+    if error is not None:
+        raise error
 
 
 _CHOICE_PATH_SEPARATOR: str = "/"

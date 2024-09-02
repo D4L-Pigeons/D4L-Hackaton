@@ -1,57 +1,66 @@
 chain:
-- chain_link_spec_path: "misc/batch_rearranger"
-  name: "br-0"
+- name: "encoder"
+  chain_link_spec_path: "blocks/block_stack"
   cfg:
-    rearrange_patterns: [{data_name: "img", pattern: "b 1 h w -> b (h w)", kwargs: {}}]
-- chain_link_spec_path: "blocks/block_stack"
-  name: "bs-0"
-  cfg:
-    data_name: "img"
     input_dim: 784
     output_dim: 2
     hidden_dims: [512]
     ordered_module_specs:
     - {nnmodule_spec_path: "activation/relu", kwargs: {}}
     block_wrapper_name: null
-- chain_link_spec_path: "latent/clustering_fuzzy"
-  name: "cf"
+- name: "latent_clustering"
+  chain_link_spec_path: "latent/clustering_fuzzy"
   cfg:
-    n_components: 16
+    n_components: 20
     latent_dim: 2
     components_std: 1.
-    data_name: "img"
     constraint_method: "huber"
-    data_name: "img"
-    loss_coef_latent_fuzzy_clustering: 1.
-    loss_coef_clustering_component_reg: 1.
-- chain_link_spec_path: "blocks/block_stack"
-  name: "bs-2"
+    loss_coef_latent_fuzzy_clustering: 0.001
+    loss_coef_clustering_component_reg: 0.0001
+- name: "decoder"
+  chain_link_spec_path: "blocks/block_stack"
   cfg:
     input_dim: 2
     output_dim: 784
     hidden_dims: [512]
     ordered_module_specs:
     - {nnmodule_spec_path: "activation/relu", kwargs: {}}
-    data_name: "img"
     block_wrapper_name: null
-- chain_link_spec_path: "blocks/standalone_tiny_module"
-  name: "oa"
+- name: "output-activation"
+  chain_link_spec_path: "blocks/standalone_tiny_module"
   cfg:
-    data_name: "img"
     nnmodule_spec_path: "activation/sigmoid"
     kwargs: {}
-- chain_link_spec_path: "misc/batch_rearranger"
-  name: "br-3"
+- name: "rearrange"
+  chain_link_spec_path: "misc/rearranger"
+  cfg: {}
+- name: "reconstr_loss"
+  chain_link_spec_path: "loss/reconstruction"
   cfg:
-    rearrange_patterns: [{data_name: "img", pattern: "b (h w) -> b 1 h w", kwargs: {h: 28, w: 28}}]
-forward_link_order: ["br-0", "bs-0", "bs-2", "oa", "br-3"]
-optimizer: {optimizer_name: "adam", kwargs: {lr: 0.001}}
-loss:
-  loss_manager:
-    loss_aggregator: "mean"
-  reconstruction_loss_spec:
-    nnmodulename: "mse"
     coef: 1.
-    var_name: "img"
-    kwargs: {reduction: 'sum'}
-processing_commands: []
+    loss_fn: {name: "mse", kwargs: {reduction: "none"}}
+    tensor_reductor: {name: "mean", kwargs: {}}
+- name: "clone_tensor"
+  chain_link_spec_path: "misc/cloner"
+  cfg: {}
+optimizer: {optimizer_name: "adam", kwargs: {lr: 0.001}}
+loss_manager:
+  reductions:
+  - {reduce_pattern: "b 1 ->", reductor_name: "mean", kwargs: {}}
+processing_commands:
+- command_name: "forward"
+  processing_steps:
+  - {link_name: 'clone_tensor', method_name: 'forward', kwargs: {data_name: "img", clone_name: "img_org"}}
+  - {link_name: 'rearrange', method_name: 'forward', kwargs: {data_name: "img", pattern: "b 1 h w -> b (h w)"}}
+  - {link_name: 'encoder', method_name: 'forward', kwargs: {data_name: "img"}}
+  - {link_name: 'rearrange', method_name: 'forward', kwargs: {data_name: "img", pattern: "b d -> b 1 d"}}
+  - {link_name: 'latent_clustering', method_name: 'forward', kwargs: {data_name: "img"}}
+  - {link_name: 'rearrange', method_name: 'forward', kwargs: {data_name: "img", pattern: "b 1 d -> b d"}}
+  - {link_name: 'decoder', method_name: 'forward', kwargs: {data_name: "img"}}
+  - {link_name: 'output-activation', method_name: 'forward', kwargs: {data_name: "img"}}
+  - {link_name: 'rearrange', method_name: 'forward', kwargs: {data_name: "img", pattern: "b (h w) -> b 1 h w", h: 28, w: 28}}
+  - {link_name: 'reconstr_loss', method_name: 'forward', kwargs: {data_name: "img", target_name: "img_org", reduce_pattern: "b 1 h w ->"}}
+- command_name: "encode"
+  processing_steps:
+  - {link_name: 'rearrange', method_name: 'forward', kwargs: {data_name: "img", pattern: "b 1 h w -> b (h w)"}}
+  - {link_name: 'encoder', method_name: 'forward', kwargs: {data_name: "img"}}

@@ -1,3 +1,3 @@
 train: True
-label_condition: {token_id: 1, known_prob: 0.5}
+label_condition: {token_id: 1, known_prob: 1.}
 cond_trans_mgr: []

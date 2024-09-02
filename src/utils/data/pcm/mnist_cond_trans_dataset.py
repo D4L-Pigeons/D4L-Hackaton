@@ -1,6 +1,5 @@
 from flask import config
 from pkg_resources import get_distribution
-from sympy import Q
 import torch
 import torch.distributions as td
 from typing import List, Dict, Callable, Any, TypedDict, Tuple, TypeAlias
@@ -9,7 +8,6 @@ from src.utils.config import validate_config_structure
 from src.utils.common_types import ConfigStructure
 import numpy as np
 from functools import partial
-import PIL as pil
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from einops import rearrange
@@ -107,13 +105,41 @@ class ResizeTransform(ImageTransform):
         self._size: int = size
 
     def __call__(self, img: torch.Tensor) -> torch.Tensor:
-        init_size: int = img.shape[1:]
+        init_size: int = img.shape[1]
+        img = transforms.functional.resize(img, size=(self._size, self._size))
+
+        if init_size > self._size:
+            img = transforms.functional.pad(
+                img,
+                padding=[(init_size - self._size) // 2],
+            )
+        elif init_size < self._size:
+            img = transforms.functional.crop(
+                img,
+                top=(self._size - init_size) // 2,
+                left=(self._size - init_size) // 2,
+                height=init_size,
+                width=init_size,
+            )
+
         img = transforms.functional.resize(
-            transforms.functional.pad(
-                transforms.functional.resize(img, size=(self._size, self._size)),
-                padding=[(init_size[0] - self._size) // 2],
-            ),
+            img,
             size=init_size,
+        )
+        return img
+
+
+class TranslateTransform(ImageTransform):
+    def __init__(self, translation: Tuple[float, float]) -> None:
+        self._translation: Tuple[float, float] = translation
+
+    def __call__(self, img: torch.Tensor) -> torch.Tensor:
+        img = transforms.functional.affine(
+            img,
+            angle=0,
+            translate=self._translation,
+            scale=1.0,
+            shear=0,
         )
         return img
 
@@ -122,6 +148,7 @@ _IMAGE_TENSOR_TRANSFORMS: Dict[str, ImageTransform] = {
     "fade": FadeTransform,
     "rotate": RotationTransform,
     "resize": ResizeTransform,
+    "translate": TranslateTransform,
 }
 
 
@@ -215,7 +242,7 @@ class ContinousConditionTransform(ConditionTransform):
 
 class CategoricalConditionTransform(ConditionTransform):
     _config_structure: ConfigStructure = {
-        "categories_map": [int],
+        "categories_map": (int | float, [float | int]),
     } | ConditionTransform._config_structure
 
     def __init__(self, cfg: Namespace) -> None:
@@ -225,7 +252,7 @@ class CategoricalConditionTransform(ConditionTransform):
         self._distribution: td.Distribution = _get_discrete_distribution(
             dist_name=cfg.distribution.name, kwargs=vars(cfg.distribution.kwargs)
         )
-        self._categories: List[int] = cfg.categories_map
+        self._categories: List[float | List[float]] = cfg.categories_map
 
     def _map_category_to_value(self, category: int) -> int:
         return self._categories[category]
@@ -337,7 +364,9 @@ class ConditionalMNIST(Dataset):
         self._label_token_id: torch.Tensor = torch.tensor(
             [cfg.label_condition.token_id], dtype=torch.long
         )
+
         self._label_known_prob: float = cfg.label_condition.known_prob
+
         self._mnist = torchvision.datasets.MNIST(
             root=RAW_DATA_PATH, train=cfg.train, download=True
         )
@@ -358,6 +387,7 @@ class ConditionalMNIST(Dataset):
         img = conditions["transform"](img)
         token_ids: torch.Tensor = conditions["token_ids"]
         values: torch.Tensor = conditions["values"]
+
         if torch.bernoulli(torch.tensor(self._label_known_prob)).item():
             token_ids = torch.cat([self._label_token_id, token_ids], dim=0)
             values = torch.cat([label, values], dim=0)

@@ -1,19 +1,15 @@
-import torch
 from argparse import Namespace
+import torch
+import torch.nn as nn
 from typing import (
-    Any,
     List,
     Dict,
     Type,
     TypeAlias,
-    TypedDict,
     Optional,
-    Union,
     NamedTuple,
     Optional,
 )
-from numpy import block, isin
-import torch.nn as nn
 from src.utils.common_types import (
     Batch,
     ConfigStructure,
@@ -24,7 +20,6 @@ from src.utils.config import (
     validate_config_structure,
     parse_choice_spec_path,
 )
-from src.utils.common_types import format_structured_forward_output
 
 
 class ModuleSpec(Namespace):
@@ -114,7 +109,7 @@ class StandaloneTinyModule(nn.Module):
 
     Args:
         cfg (Namespace): Configuration object containing the following attributes:
-            - module_name (str): Name of the module.
+            - nnmodule_spec_path (str): Name of the module.
             - kwargs (Namespace): Additional keyword arguments for the module.
 
     Attributes:
@@ -131,20 +126,20 @@ class StandaloneTinyModule(nn.Module):
     _config_structure: ConfigStructure = {
         "nnmodule_spec_path": str,
         "kwargs": Namespace,
-        "data_name": str,
     }
 
     def __init__(self, cfg: Namespace) -> None:
         super(StandaloneTinyModule, self).__init__()
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
+
         spec: ModuleSpec = ModuleSpec(
             nnmodule_spec_path=cfg.nnmodule_spec_path, kwargs=cfg.kwargs
         )
-        self._data_name: str = cfg.data_name
         self._tiny_module: nn.Module = _get_module_from_spec(spec=spec, output_dim=None)
 
-    def forward(self, batch: Batch) -> StructuredForwardOutput:
-        batch[self._data_name] = self._tiny_module(batch[self._data_name])
+    def forward(self, batch: Batch, data_name: str) -> StructuredForwardOutput:
+        batch[data_name] = self._tiny_module(batch[data_name])
+
         return format_structured_forward_output(batch=batch)
 
 
@@ -298,9 +293,7 @@ class BlockStack(nn.Module):
         "output_dim": int,
         "hidden_dims": list,
         "ordered_module_specs": list,
-        "data_name": str,
         "block_wrapper_name": str | None,
-        # "output_activation_name": str | None,
     }
 
     def __init__(self, cfg: Namespace) -> None:
@@ -309,7 +302,6 @@ class BlockStack(nn.Module):
 
         self.input_dim: int = cfg.input_dim
         self.output_dim: int = cfg.output_dim
-        self._data_name: str = cfg.data_name
 
         blocks: List[nn.Module] = []
         dims: List[int] = [cfg.input_dim] + cfg.hidden_dims
@@ -318,6 +310,7 @@ class BlockStack(nn.Module):
             ModuleSpec(**vars(spec))
             for spec in cfg.ordered_module_specs  # Conversion from List[Namespace] done just for consistency.
         ]
+
         # Creating blocks if len(dims) > 1
         for in_dim, out_dim in zip(dims[:-1], dims[1:]):
             blocks.append(
@@ -334,11 +327,9 @@ class BlockStack(nn.Module):
             block_wrapper_name=cfg.block_wrapper_name,
         )
 
-        # if cfg.output_activation_name:
-        #     self.blocks.append(_get_module_from_spec())
-
         self.blocks: nn.Sequential = nn.Sequential(*blocks)
 
-    def forward(self, batch: Batch) -> StructuredForwardOutput:
-        batch[self._data_name] = self.blocks(batch[self._data_name])
+    def forward(self, batch: Batch, data_name: str) -> StructuredForwardOutput:
+        batch[data_name] = self.blocks(batch[data_name])
+
         return format_structured_forward_output(batch=batch, losses=[])

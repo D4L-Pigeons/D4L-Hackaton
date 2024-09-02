@@ -1,46 +1,67 @@
 chain:
-- chain_link_spec_path: "misc/batch_rearranger"
-  name: "br-0"
+- name: "encoder"
+  chain_link_spec_path: "blocks/block_stack"
   cfg:
-    rearrange_patterns: [{data_name: "img", pattern: "b 1 h w -> b (h w)", kwargs: {}}]
-- chain_link_spec_path: "blocks/block_stack"
-  name: "bs-0"
-  cfg:
-    data_name: "img"
     input_dim: 784
     output_dim: 2
-    hidden_dims: [512]
+    hidden_dims: [512, 100]
     ordered_module_specs:
     - {nnmodule_spec_path: "activation/relu", kwargs: {}}
     block_wrapper_name: null
-- chain_link_spec_path: "blocks/block_stack"
-  name: "bs-2"
+- name: "decoder"
+  chain_link_spec_path: "blocks/block_stack"
   cfg:
     input_dim: 2
     output_dim: 784
-    hidden_dims: [512]
+    hidden_dims: [100, 512]
     ordered_module_specs:
     - {nnmodule_spec_path: "activation/relu", kwargs: {}}
-    data_name: "img"
     block_wrapper_name: null
-- chain_link_spec_path: "blocks/standalone_tiny_module"
-  name: "oa"
+- name: "output-activation"
+  chain_link_spec_path: "blocks/standalone_tiny_module"
   cfg:
-    data_name: "img"
     nnmodule_spec_path: "activation/sigmoid"
     kwargs: {}
-- chain_link_spec_path: "misc/batch_rearranger"
-  name: "br-3"
+- name: "rearrange"
+  chain_link_spec_path: "misc/rearranger"
+  cfg: {}
+- name: "reconstr_loss"
+  chain_link_spec_path: "loss/reconstruction"
   cfg:
-    rearrange_patterns: [{data_name: "img", pattern: "b (h w) -> b 1 h w", kwargs: {h: 28, w: 28}}]
-forward_link_order: ["br-0", "bs-0", "bs-2", "oa", "br-3"]
-optimizer: {optimizer_name: "adam", kwargs: {lr: 0.001}}
-loss:
-  loss_manager:
-    loss_aggregator: "mean"
-  reconstruction_loss_spec:
-    nnmodulename: "mse"
     coef: 1.
-    var_name: "img"
-    kwargs: {reduction: 'sum'}
-processing_commands: []
+    loss_fn: {name: "mse", kwargs: {reduction: "none"}}
+    tensor_reductor: {name: "mean", kwargs: {}}
+- name: "clone_tensor"
+  chain_link_spec_path: "misc/cloner"
+  cfg: {}
+optimizers:
+- {optimizer_name: "adam", kwargs: {lr: 0.001}, links: ["encoder", "decoder"], lr_scheduler: null}
+loss_manager:
+  reductions: []
+processing_commands:
+- command_name: "forward"
+  processing_steps:
+  - {link: 'clone_tensor', method: 'forward', kwargs: {data_name: "img", clone_name: "img_org"}}
+  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b 1 h w -> b (h w)"}}
+  - {link: 'encoder', method: 'forward', kwargs: {data_name: "img"}}
+  - {link: 'decoder', method: 'forward', kwargs: {data_name: "img"}}
+  - {link: 'output-activation', method: 'forward', kwargs: {data_name: "img"}}
+  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b (h w) -> b 1 h w", h: 28, w: 28}}
+  - {link: 'reconstr_loss', method: 'forward', kwargs: {data_name: "img", target_name: "img_org", reduce_pattern: "b 1 h w -> "}}
+- command_name: "encode"
+  processing_steps:
+  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b 1 h w -> b (h w)"}}
+  - {link: 'encoder', method: 'forward', kwargs: {data_name: "img"}}
+- command_name: "encode-decode"
+  processing_steps:
+  - {link: 'clone_tensor', method: 'forward', kwargs: {data_name: "img", clone_name: "img_org"}}
+
+  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b 1 h w -> b (h w)"}}
+
+  - {link: 'encoder', method: 'forward', kwargs: {data_name: "img"}}
+
+  - {link: 'decoder', method: 'forward', kwargs: {data_name: "img"}}
+
+  - {link: 'output-activation', method: 'forward', kwargs: {data_name: "img"}}
+
+  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b (h w) -> b 1 h w", h: 28, w: 28}}
