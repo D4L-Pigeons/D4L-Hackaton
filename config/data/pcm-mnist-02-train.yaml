@@ -5,7 +5,7 @@ cond_trans_mgr:
   is_continous: False
   cfg:
     token_id: 2
-    image_transform: {name: "fade", keyword: "size", kwargs: {}}
+    image_transform: {name: "fade", keyword: "threshold", kwargs: {}}
     distribution: {name: "categorical", kwargs: {probs: [0.3, 0.35, 0.35]}}
     categories_map: [0., 0.3, 0.7]
 - known_prob: 0.1
