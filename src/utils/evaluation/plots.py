@@ -157,9 +157,7 @@ def plot_images_with_conditions(
 
             # Set title for each image
             condition_text = f"Conditions: {conditions[i].cpu().numpy()}"
-            condition_values_text = (
-                f"Condition Values: {condition_values[i].cpu().numpy()}"
-            )
+            condition_values_text = f"Values: {condition_values[i].cpu().numpy()}"
             title_text = f"{condition_text}\n{condition_values_text}"
             axes[i][j].set_title(title_text, fontsize=8)
 

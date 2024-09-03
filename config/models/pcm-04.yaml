@@ -76,7 +76,7 @@ chain:
 
 optimizers:
 - {optimizer_name: "adam", kwargs: {lr: 0.001}, links: ["encoder", "decoder", "condition_embeddings_to_logits"], lr_scheduler: null}
-- {optimizer_name: "adam", kwargs: {lr: 0.01}, links: ["condition_embedding"], lr_scheduler: {schedulers: [{name: "linear", kwargs: {total_iters: 50, start_factor: 0.02}}], out_cfg_kwargs: {interval: "epoch", frequency: 1, monitor: "val_loss", strict: True, name: null}}}
+- {optimizer_name: "adam", kwargs: {lr: 0.01}, links: ["condition_embedding"], lr_scheduler: {schedulers: [{name: "linear", kwargs: {total_iters: 50, start_factor: 0.1}}], out_cfg_kwargs: {interval: "epoch", frequency: 1, monitor: "val_loss", strict: True, name: null}}}
 - {optimizer_name: "adam", kwargs: {lr: 0.001}, links: ["conditioned_prior"], lr_scheduler: null}
 
 loss_manager:
