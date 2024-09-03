@@ -1,0 +1,31 @@
+train: False
+label_condition: {token_id: 1, known_prob: 0.5}
+cond_trans_mgr:
+- known_prob: 0.9
+  is_continous: False
+  cfg:
+    token_id: 2
+    image_transform: {name: "fade", keyword: "size", kwargs: {}}
+    distribution: {name: "categorical", kwargs: {probs: [0.3, 0.35, 0.35]}}
+    categories_map: [0., 0.3, 0.7]
+- known_prob: 0.1
+  is_continous: False
+  cfg:
+    token_id: 3
+    image_transform: {name: "rotate", keyword: "degree", kwargs: {}}
+    distribution: {name: "categorical", kwargs: {probs: [0.7, 0.1, 0.1, 0.05, 0.05]}}
+    categories_map: [0., 10., -10., 15., -15]
+- known_prob: 0.9
+  is_continous: False
+  cfg:
+    token_id: 4
+    image_transform: {name: "resize", keyword: "size", kwargs: {}}
+    distribution: {name: "categorical", kwargs: {probs: [0.3, 0.35, 0.35]}}
+    categories_map: [28, 24, 32]
+- known_prob: 0.5
+  is_continous: False
+  cfg:
+    token_id: 5
+    image_transform: {name: "translate", keyword: "translation", kwargs: {}}
+    distribution: {name: "categorical", kwargs: {probs: [0.2, 0.2, 0.2, 0.2, 0.2]}}
+    categories_map: [[0, 0], [3, 3], [-3, -3], [3, -3], [-3, 3]]
