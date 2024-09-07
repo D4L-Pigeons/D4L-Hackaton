@@ -13,7 +13,7 @@ chain:
   chain_link_spec_path: "latent/posterior_gaussian"
   cfg:
     std_transform: "softplus"
-    loss_coef_posterior_entropy: .001
+    loss_coef_posterior_entropy: .1
 
 - name: "condition_embedding"
   chain_link_spec_path: "condition_embedding/condition_embedding_transformer"
@@ -22,11 +22,21 @@ chain:
     transformer: {encoder_kwargs: {num_layers: 4}, encoder_layer_kwargs: {nhead: 4, dim_feedforward: 256}}
     embedding_module: {n_conditions: 5, n_categories_per_condition: [10, 3, 5, 3, 5]}
 
-- name: "condition_embeddings_to_logits"
+
+- name: "condition-to-logits"
   chain_link_spec_path: "blocks/block_stack"
   cfg:
     input_dim: 128
-    output_dim: 100
+    output_dim: 40
+    hidden_dims: []
+    ordered_module_specs: []
+    block_wrapper_name: null
+
+- name: "condition-to-decoder"
+  chain_link_spec_path: "blocks/block_stack"
+  cfg:
+    input_dim: 128
+    output_dim: 10
     hidden_dims: []
     ordered_module_specs: []
     block_wrapper_name: null
@@ -34,15 +44,15 @@ chain:
 - name: "conditioned_prior"
   chain_link_spec_path: "latent/prior_vec_conditioned_logits_gaussian_mixture_nll"
   cfg:
-    n_components: 100
+    n_components: 40
     latent_dim: 16
     components_std: 1.
-    loss_coef_prior_nll: .001
+    loss_coef_prior_nll: 1.
 
 - name: "decoder"
   chain_link_spec_path: "blocks/block_stack"
   cfg:
-    input_dim: 16
+    input_dim: 26
     output_dim: 784
     hidden_dims: [100, 512]
     ordered_module_specs:
@@ -62,9 +72,15 @@ chain:
     nnmodule_spec_path: "activation/sigmoid"
     kwargs: {}
 
-- name: "clone-input"
+- name: "clone-duplicate"
   chain_link_spec_path: "misc/cloner"
   cfg: {}
+
+- name: "adapter"
+  chain_link_spec_path: "misc/adapter"
+  cfg:
+    aggregation_type: "concat"
+    kwargs: {dim: -1}
 
 - name: "rearrange"
   chain_link_spec_path: "misc/rearranger"
@@ -75,8 +91,8 @@ chain:
   cfg: {}
 
 optimizers:
-- {optimizer_name: "adam", kwargs: {lr: 0.001}, links: ["encoder", "decoder", "condition_embeddings_to_logits"], lr_scheduler: {schedulers: [{name: "linear", kwargs: {total_iters: 50, start_factor: 0.1}}], out_cfg_kwargs: {interval: "epoch", frequency: 1, monitor: "val_loss", strict: True, name: null}}}
-- {optimizer_name: "adam", kwargs: {lr: 0.1}, links: ["condition_embedding"], lr_scheduler: {schedulers: [{name: "linear", kwargs: {total_iters: 50, start_factor: 0.1}}], out_cfg_kwargs: {interval: "epoch", frequency: 1, monitor: "val_loss", strict: True, name: null}}}
+- {optimizer_name: "adam", kwargs: {lr: 0.001}, links: ["encoder", "decoder", "condition-to-logits", "condition-to-decoder"], lr_scheduler: {schedulers: [{name: "linear", kwargs: {total_iters: 50, start_factor: 0.1}}], out_cfg_kwargs: {interval: "epoch", frequency: 1, monitor: "val_loss", strict: True, name: null}}}
+- {optimizer_name: "adam", kwargs: {lr: 0.01}, links: ["condition_embedding"], lr_scheduler: {schedulers: [{name: "linear", kwargs: {total_iters: 50, start_factor: 0.1}}], out_cfg_kwargs: {interval: "epoch", frequency: 1, monitor: "val_loss", strict: True, name: null}}}
 - {optimizer_name: "adam", kwargs: {lr: 0.001}, links: ["conditioned_prior"], lr_scheduler: null}
 
 loss_manager:
@@ -87,75 +103,58 @@ loss_manager:
 processing_commands:
 - command_name: "forward"
   processing_steps:
-  - {link: 'clone-input', method: 'forward', kwargs: {data_name: "img", clone_name: "img_org"}}
-
+  - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "img", clone_name: "img_org", clone: true}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b 1 h w -> b (h w)"}}
-
   - {link: 'encoder', method: 'forward', kwargs: {data_name: "img"}}
-
   - {link: 'posterior', method: 'forward', kwargs: {data_name: "img", n_latent_samples: 16}}
-
   - {link: 'condition_embedding', method: 'forward', kwargs: {cond_ids_name: 'condition_token_ids', cat_ids_name: 'condition_values', cond_embed_name: 'cond_embed'}}
-
-  - {link: 'condition_embeddings_to_logits', method: 'forward', kwargs: {data_name: "cond_embed"}}
-
-  - {link: 'conditioned_prior', method: 'forward', kwargs: {data_name: "img", logits_name: "cond_embed"}}
-
+  - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "cond_embed", clone_name: "logits", clone: false}}
+  - {link: 'condition-to-decoder', method: 'forward', kwargs: {data_name: "cond_embed"}}
+  - {link: 'condition-to-logits', method: 'forward', kwargs: {data_name: "logits"}}
+  - {link: 'conditioned_prior', method: 'forward', kwargs: {data_name: "img", logits_name: "logits"}}
+  - {link: 'repeat', method: 'forward', kwargs: {data_name: "cond_embed", pattern: "b d -> b s d", s: 16}}
+  - {link: 'adapter', method: 'forward', kwargs: {batch_aggr_def: {img: ["img", "cond_embed"]}}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b s d -> (b s) d"}}
-
   - {link: 'decoder', method: 'forward', kwargs: {data_name: "img"}}
-
   - {link: 'output-activation', method: 'forward', kwargs: {data_name: "img"}}
-
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 16, h: 28, w: 28}}
-
   - {link: 'repeat', method: 'forward', kwargs: {data_name: "img_org", pattern: "b 1 h w -> b s 1 h w", s: 16}}
-
   - {link: 'reconstr_loss', method: 'forward', kwargs: {data_name: "img", target_name: "img_org", reduce_pattern: "b s 1 h w -> b s"},}
 
 - command_name: "encode"
   processing_steps:
-  - {link: 'clone-input', method: 'forward', kwargs: {data_name: "img", clone_name: "img_org"}}
-
+  - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "img", clone_name: "img_org"}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b 1 h w -> b (h w)"}}
-
   - {link: 'encoder', method: 'forward', kwargs: {data_name: "img"}}
-
   - {link: 'posterior', method: 'forward', kwargs: {data_name: "img", n_latent_samples: 1}}
-
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b 1 d -> b d"},}
 
 - command_name: "encode-decode"
   processing_steps:
-  - {link: 'clone-input', method: 'forward', kwargs: {data_name: "img", clone_name: "img_org"}}
-
+  - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "img", clone_name: "img_org", clone: true}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b 1 h w -> b (h w)"}}
-
   - {link: 'encoder', method: 'forward', kwargs: {data_name: "img"}}
-
   - {link: 'posterior', method: 'forward', kwargs: {data_name: "img", n_latent_samples: 1}}
-
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b 1 d -> b d"}}
-
+  - {link: 'condition_embedding', method: 'forward', kwargs: {cond_ids_name: 'condition_token_ids', cat_ids_name: 'condition_values', cond_embed_name: 'cond_embed'}}
+  - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "cond_embed", clone_name: "logits", clone: false}}
+  - {link: 'condition-to-decoder', method: 'forward', kwargs: {data_name: "cond_embed"}}
+  - {link: 'condition-to-logits', method: 'forward', kwargs: {data_name: "logits"}}
+  - {link: 'adapter', method: 'forward', kwargs: {batch_aggr_def: {img: ["img", "cond_embed"]}}}
   - {link: 'decoder', method: 'forward', kwargs: {data_name: "img"}}
-
   - {link: 'output-activation', method: 'forward', kwargs: {data_name: "img"}}
-
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b (h w) -> b 1 h w", h: 28, w: 28},}
 
 - command_name: "sample-prior"
   processing_steps:
-
   - {link: 'condition_embedding', method: 'forward', kwargs: {cond_ids_name: 'condition_token_ids', cat_ids_name: 'condition_values', cond_embed_name: 'cond_embed'}}
-
-  - {link: 'condition_embeddings_to_logits', method: 'forward', kwargs: {data_name: "cond_embed"}}
-
-  - {link: 'conditioned_prior', method: 'sample', kwargs: {n_latent_samples: 16, data_name: "img", logits_name: "cond_embed"}}
-
+  - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "cond_embed", clone_name: "logits", clone: false}}
+  - {link: 'condition-to-logits', method: 'forward', kwargs: {data_name: "logits"}}
+  - {link: 'condition-to-decoder', method: 'forward', kwargs: {data_name: "cond_embed"}}
+  - {link: 'conditioned_prior', method: 'sample', kwargs: {n_latent_samples: 16, data_name: "img", logits_name: "logits"}}
+  - {link: 'repeat', method: 'forward', kwargs: {data_name: "cond_embed", pattern: "b d -> b s d", s: 16}}
+  - {link: 'adapter', method: 'forward', kwargs: {batch_aggr_def: {img: ["img", "cond_embed"]}}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b s d -> (b s) d"}}
-
   - {link: 'decoder', method: 'forward', kwargs: {data_name: "img"}}
-
   - {link: 'output-activation', method: 'forward', kwargs: {data_name: "img"}}
-
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 16, h: 28, w: 28}}

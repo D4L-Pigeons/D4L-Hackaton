@@ -13,7 +13,7 @@ chain:
   chain_link_spec_path: "latent/posterior_gaussian"
   cfg:
     std_transform: "softplus"
-    loss_coef_posterior_entropy: .001
+    loss_coef_posterior_entropy: .1
 
 - name: "condition_embedding"
   chain_link_spec_path: "condition_embedding/condition_embedding_transformer"
@@ -37,7 +37,7 @@ chain:
     n_components: 100
     latent_dim: 16
     components_std: 1.
-    loss_coef_prior_nll: .001
+    loss_coef_prior_nll: 1.
 
 - name: "decoder"
   chain_link_spec_path: "blocks/block_stack"

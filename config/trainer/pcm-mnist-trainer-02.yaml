@@ -1,0 +1,21 @@
+callbacks:
+- name: "neptune_plot"
+  cfg:
+    plotting_func: {name: "original_vs_reconstructed", kwargs: {org_imgs_name: "img_org", reconstructed_imgs_name: "img", num_images: 10, wspace: 0.25, hspace: 0.25, filename_comp: "org_vs_reconstr"}}
+    command_name: "encode-decode"
+    neptune_plot_log_path: "validation_plots/reconstructed"
+    plot_file_base_name: "reconstruction"
+    command_dynamic_kwargs: {}
+  kwargs: {}
+- name: "neptune_plot"
+  cfg:
+    plotting_func: {name: "images_with_conditions", kwargs: {filename_comp: "embeddings_plot", imgs_name: "img", conditions_name: "condition_token_ids", condition_values_name: "condition_values", disp_batch_size: 10, disp_n_latent_samples: 16, disp_img_size: 2, y_title_shift: 0.91}}
+    command_name: "sample-prior"
+    neptune_plot_log_path: "validation_plots/sample_prior"
+    plot_file_base_name: "sample_prior"
+    command_dynamic_kwargs: {}
+  kwargs: {}
+num_nodes: null
+accelerator: null
+devices: null
+kwargs: {}

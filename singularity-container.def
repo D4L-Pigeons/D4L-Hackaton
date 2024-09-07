@@ -1,0 +1,32 @@
+BootStrap: docker
+From: ubuntu:22.04
+
+
+%files
+        ./requirements_vaes.txt
+
+%post
+        TZ=Europe/Warsaw
+        ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+        apt -y update && apt -y upgrade
+
+        # Install python
+        apt install -y python3-pip
+        pip3 install --upgrade pip
+        apt-get -y install git
+
+        echo "PYTHON VERSION"
+        python3 --version # 3.10.12
+        pip3 --version # 23.3.2
+        pip3 install -r requirements.txt
+
+        # Clean cache to reduce size of the image
+        apt clean
+        rm -r $(pip cache dir)/*
+
+%startscript
+        PATH=$PATH:$HOME/.local/bin
+
+%labels
+   Author pigeons
