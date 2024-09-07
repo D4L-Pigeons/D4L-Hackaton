@@ -1,13 +1,13 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import torch
-import neptune
-from pytorch_lightning import LightningModule, Trainer
-from pytorch_lightning.callbacks import Callback
 from functools import partial
-import inspect
 from typing import Callable, Dict, Any, List, Tuple
-from src.utils.common_types import Batch
+from utils.common_types import Batch
+from sklearn.manifold import TSNE
+
+# import scienceplots
+# plt.style.use("science")
 
 
 def plot_original_vs_reconstructed(
@@ -167,30 +167,7 @@ def plot_images_with_conditions(
     return {filename_comp: fig}
 
 
-def wrap_with_first_batch(func: Callable, *args, **kwargs) -> Callable:
-    r"""
-    A decorator that wraps a function to automatically pass the first batch
-    from a dataloader as the first argument named 'batch'.
-
-    Parameters:
-    func (Callable): The function to be wrapped.
-
-    Returns:
-    Callable: The wrapped function.
-    """
-
-    def wrapped_function(
-        processing_function: Callable,
-        dataloader: torch.utils.data.DataLoader,
-    ):
-        batch = next(iter(dataloader))
-        batch = processing_function(batch=batch)
-        return func(batch, *args, **kwargs)
-
-    return wrapped_function
-
-
-def plot_latent(
+def plot_2d_latent(
     processing_function: Callable,
     dataloader: torch.utils.data.DataLoader,
     data_name: str,
@@ -229,6 +206,8 @@ def plot_latent(
                 if is_condition_categorical
                 else condition_value
             )
+
+            condition_value = condition_value.to("cpu").detach().numpy()
             scatter = ax.scatter(
                 embedding[:, plot_dim_1],
                 embedding[:, plot_dim_2],
@@ -254,55 +233,138 @@ def plot_latent(
     return figs  # Return the figure object
 
 
-class NeptunePlotLogCallback(Callback):
+def plot_latent_tsne(
+    processed_data: Batch,
+    data_name: str,
+    condition_value_name: str,
+    condition_value_idxs: list,
+    are_conditions_categorical: list,
+    filename_comp: str,
+    plot_dims: Tuple[int] = (0, 1),
+    figsize: Tuple[float, float] = (6, 6),
+    n_components: int = 2,
+) -> List[matplotlib.figure.Figure]:
 
-    def __init__(
-        self,
-        plotting_function_taking_dataloader: Callable,
-        command_name: str,
-        neptune_plot_log_path: str,
-        plot_file_base_name: str,
-        command_dynamic_kwargs: Dict[str, Any] = {},
-    ) -> None:
-        self._plotting_function = plotting_function_taking_dataloader
-        self._command_name = command_name
-        self._command_dynamic_kwargs = command_dynamic_kwargs
-        self._plot_file_base_name = plot_file_base_name
-        self._neptune_plot_log_path = neptune_plot_log_path
+    figs_axs = [
+        plt.subplots(figsize=figsize) for _ in condition_value_idxs
+    ]  # Create a new figure and axes
 
-    def on_validation_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        val_dataloader = trainer.val_dataloaders
-        run_processing_command_method = getattr(
-            pl_module, "run_processing_command", None
+    plot_dim_1, plot_dim_2 = plot_dims
+
+    embedding = processed_data[data_name].to("cpu").detach().numpy()
+
+    reducer = TSNE(n_components=n_components)
+    embedding = reducer.fit_transform(embedding)
+
+    for condition_value_idx, is_condition_categorical, (fig, ax) in zip(
+        condition_value_idxs, are_conditions_categorical, figs_axs
+    ):
+        condition_value = processed_data[condition_value_name][:, condition_value_idx]
+        condition_value = (
+            condition_value.to(dtype=torch.long)
+            if is_condition_categorical
+            else condition_value
         )
-
-        assert (
-            run_processing_command_method is not None
-        ), "Provided pl_module has no attribute named run_processing_command."
-        assert inspect.ismethod(run_processing_command_method) or inspect.isfunction(
-            run_processing_command_method
-        ), f"Attribute run_processing_command of pl_module is not a method."
-
-        partial_run_processing_command_method = partial(
-            run_processing_command_method,
-            command_name=self._command_name,
-            dynamic_kwargs=self._command_dynamic_kwargs,
-            reset_loss_manager=True,
+        condition_value = condition_value.to("cpu").detach().numpy()
+        scatter = ax.scatter(
+            embedding[:, plot_dim_1],
+            embedding[:, plot_dim_2],
+            c=condition_value,
+            cmap="tab10",
+            s=1,
         )
+        fig.colorbar(scatter, ax=ax)  # Add a colorbar to the figure
+        ax.set_title(
+            f"Validation set embedding | Condition id {condition_value_idx}"
+        )  # Set the title of the plot
+        plt.close(fig)
 
-        pl_module.train(False)
+    figs = {
+        f"{filename_comp}-{condition_value_idx}": fig_ax[0]
+        for condition_value_idx, fig_ax in zip(condition_value_idxs, figs_axs)
+    }
 
-        figs = self._plotting_function(
-            processing_function=partial_run_processing_command_method,
-            dataloader=val_dataloader,
-        )
+    return figs  # Return the figure object
 
-        for fig_filename_end, fig in figs.items():
-            # Log the plot to Neptune
-            if trainer.logger is not None and hasattr(trainer.logger, "experiment"):
-                trainer.logger.experiment[
-                    f"{self._neptune_plot_log_path}/{self._plot_file_base_name}-{fig_filename_end}-{trainer.current_epoch}"
-                ].upload(neptune.types.File.as_image(fig))
 
-            # Close the figure to release memory
-            plt.close(fig)
+def wrap_with_first_batch(func: Callable, **kwargs: Dict[str, Any]) -> Callable:
+    r"""
+    A decorator that wraps a function to automatically pass the first batch
+    from a dataloader as the first argument named 'batch'.
+
+    Parameters:
+    func (Callable): The function to be wrapped.
+
+    Returns:
+    Callable: The wrapped function.
+    """
+
+    def wrapped_function(
+        processing_function: Callable,
+        dataloader: torch.utils.data.DataLoader,
+    ):
+        batch = next(iter(dataloader))
+        batch = processing_function(batch=batch)
+        return func(batch, **kwargs)
+
+    return wrapped_function
+
+
+def wrap_with_processed_dataset(
+    func: Callable, n_batches: int, **kwargs: Dict[str, Any]
+) -> Callable:
+
+    def wrapped_function(
+        processing_function: Callable,
+        dataloader: torch.utils.data.DataLoader,
+    ):
+        dataloader_iterator = iter(dataloader)
+        batch = next(dataloader_iterator)
+        processed_data = processing_function(batch)
+
+        for batch, batch_idx in zip(dataloader_iterator, range(n_batches)):
+            batch = processing_function(batch=batch)
+
+            for key in processed_data.keys():
+                processed_data[key] = torch.cat(
+                    [processed_data[key], batch[key]], dim=0
+                )
+
+        return func(processed_data, **kwargs)
+
+    return wrapped_function
+
+
+def wrap_with_dataloader(func: Callable, **kwargs: Dict[str, Any]) -> Callable:
+
+    def wrapped_function(
+        processing_function: Callable, dataloader: torch.utils.data.DataLoader
+    ):
+        return func(processing_function, dataloader, **kwargs)
+
+    return wrapped_function
+
+
+_PLOTTING_FUNCTIONS: Dict[str, Callable] = {
+    "latent_2d": partial(wrap_with_dataloader, func=plot_2d_latent),
+    "latent_tsne": partial(wrap_with_processed_dataset, func=plot_latent_tsne),
+    "original_vs_reconstructed": partial(
+        wrap_with_first_batch, func=plot_original_vs_reconstructed
+    ),
+    "images_with_conditions": partial(
+        wrap_with_first_batch, func=plot_images_with_conditions
+    ),
+}
+
+
+def get_plotting_function_taking_dataloader(
+    plotting_func_name: str, **kwargs: Dict[str, Any]
+) -> Callable:
+    plotting_func: None | Callable = _PLOTTING_FUNCTIONS.get(plotting_func_name, None)
+
+    if plotting_func is not None:
+        return plotting_func(**kwargs)
+
+    raise ValueError(
+        f"The provided plotting_func_name {plotting_func_name} is invalid. Must be one of {list(_PLOTTING_FUNCTIONS.keys())}"
+    )
