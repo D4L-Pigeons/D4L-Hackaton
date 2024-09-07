@@ -7,25 +7,25 @@ import pytorch_lightning as pl
 import inspect
 from argparse import Namespace
 
-from src.utils.config import validate_config_structure, parse_choice_spec_path
-from src.utils.common_types import Batch, ConfigStructure
-from src.models.components.blocks import BlockStack, StandaloneTinyModule
-from src.models.components.latent import (
+from utils.config import validate_config_structure, parse_choice_spec_path
+from utils.common_types import Batch, ConfigStructure
+from models.components.blocks import BlockStack, StandaloneTinyModule
+from models.components.latent import (
     GaussianPosterior,
     GaussianMixturePriorNLL,
     LatentConstraint,
     FuzzyClustering,
     VectorConditionedLogitsGMPriorNLL,
 )
-from src.models.components.misc import (
+from models.components.misc import (
     AggregateDataAdapter,
     BatchRearranger,
     TensorCloner,
     BatchRepeater,
 )
-from src.models.components.condition_embedding import ConditionEmbeddingTransformer
-from src.models.components.loss import LossManager, ReconstructionLoss
-from src.models.components.optimizer import get_chained_scheduler, get_optimizer
+from models.components.condition_embedding import ConditionEmbeddingTransformer
+from models.components.loss import LossManager, ReconstructionLoss
+from models.components.optimizer import get_chained_scheduler, get_optimizer
 
 ChainLink: TypeAlias = Type[nn.Module]
 
@@ -249,7 +249,11 @@ class Chain(pl.LightningModule):
 
         self.manual_backward(loss)
 
-        for optimizer in self.optimizers():
+        optimizers = self.optimizers()
+        if not isinstance(optimizers, list):
+            optimizers = [optimizers]
+
+        for optimizer in optimizers:
             optimizer.step()
             optimizer.zero_grad()
 
@@ -269,10 +273,11 @@ class Chain(pl.LightningModule):
         return self._loss_manager.get_loss()
 
     def configure_optimizers(self) -> dict:
-        configs = []
+        optimizers = []
+        lr_schedulers_config = []
 
         for optimizer_cfg in self._optimizers_cfg:
-            config = {}
+            # config = {}
 
             # Generator is enough.
             params = (
@@ -285,7 +290,8 @@ class Chain(pl.LightningModule):
                 params=params,
                 kwargs=vars(optimizer_cfg.kwargs),
             )
-            config["optimizer"] = optimizer
+            # config["optimizer"] = optimizer
+            optimizers.append(optimizer)
 
             if optimizer_cfg.lr_scheduler is not None:
                 lr_scheduler = get_chained_scheduler(
@@ -296,7 +302,16 @@ class Chain(pl.LightningModule):
                     optimizer_cfg.lr_scheduler.out_cfg_kwargs
                 )  # see configure_optimizers docs
                 lr_scheduler_cfg["scheduler"] = lr_scheduler
-                config["lr_scheduler"] = lr_scheduler_cfg
-            configs.append(config)
+                lr_schedulers_config.append(lr_scheduler_cfg)
+                # config["lr_scheduler"] = lr_scheduler_cfg
+            # configs.append(config)
 
-        return configs
+        return optimizers, lr_schedulers_config
+
+    def on_train_epoch_end(self) -> None:
+        lr_schedulers = self.lr_schedulers()
+        if not isinstance(lr_schedulers, list):
+            lr_schedulers = [lr_schedulers]
+
+        for lr_scheduler in lr_schedulers:
+            lr_scheduler.step()

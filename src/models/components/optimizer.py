@@ -25,7 +25,7 @@ def get_optimizer(
     if optimizer_class is not None:
         return optimizer_class(params=params, **kwargs)
     raise ValueError(
-        f"The provided optimizer_name {optimizer_name} is invalid. Must be one of {_OPTIMIZERS.keys()}"
+        f"The provided optimizer_name {optimizer_name} is invalid. Must be one of {list(_OPTIMIZERS.keys())}"
     )
 
 
@@ -36,7 +36,7 @@ def get_scheduler(
     if scheduler_class is not None:
         return scheduler_class(optimizer=optimizer, **kwargs)
     raise ValueError(
-        f"The provided scheduler_name {scheduler_name} is invalid. Must be one of {_SCHEDULERS.keys()}"
+        f"The provided scheduler_name {scheduler_name} is invalid. Must be one of {list(_SCHEDULERS.keys())}"
     )
 
 
