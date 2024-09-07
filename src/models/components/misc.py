@@ -2,13 +2,13 @@ import torch
 import torch.nn as nn
 from functools import reduce, partial
 from typing import TypeAlias, Dict, List, Callable, Set, Any
-from src.utils.common_types import (
+from utils.common_types import (
     Batch,
     ConfigStructure,
     StructuredForwardOutput,
     format_structured_forward_output,
 )
-from src.utils.config import validate_config_structure
+from utils.config import validate_config_structure
 from argparse import Namespace
 from einops import rearrange, repeat
 
@@ -63,7 +63,6 @@ class AggregateDataAdapter(nn.Module):
 
     Args:
         aggregation_type (str): The type of aggregation to be performed.
-        batch_aggr_def (BatchAggregationDefinition): The definition of batch aggregation.
         kwargs (Dict[str, Any]): Additional keyword arguments.
 
     Attributes:
@@ -85,7 +84,6 @@ class AggregateDataAdapter(nn.Module):
         super(AggregateDataAdapter, self).__init__()
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
-        self._batch_aggr_def: BatchAggregationDefinition = cfg.batch_aggr_def
         self._aggregate: TensorAggregator = get_tensor_aggregator(
             aggregation_type=cfg.aggregation_type, kwargs=vars(cfg.kwargs)
         )
@@ -134,9 +132,12 @@ class TensorCloner(nn.Module):
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
     def forward(
-        self, batch: Batch, data_name: str, clone_name: str
+        self, batch: Batch, data_name: str, clone_name: str, clone: bool = True
     ) -> StructuredForwardOutput:
-        batch[clone_name] = batch[data_name].clone()
+        if clone:
+            batch[clone_name] = batch[data_name].clone()
+        else:
+            batch[clone_name] = batch[data_name]
         return format_structured_forward_output(batch=batch)
 
 

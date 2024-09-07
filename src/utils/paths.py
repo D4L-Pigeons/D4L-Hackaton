@@ -14,6 +14,7 @@ PREPROCESSED_DATA_PATH: Path = DATA_PATH / "preprocessed"
 CONFIG_PATH: Path = Path(__file__).parent.parent.parent / "config"
 CONFIG_PATH_DATA: Path = CONFIG_PATH / "data"
 CONFIG_PATH_MODELS: Path = CONFIG_PATH / "models"
+CONFIG_PATH_TRAINER: Path = CONFIG_PATH / "trainer"
 # ------
 
 # Results paths

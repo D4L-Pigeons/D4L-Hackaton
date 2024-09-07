@@ -1,13 +1,12 @@
 import abc
 from argparse import Namespace
-from typing import Callable, Dict, List, NamedTuple, Optional, Tuple, TypeAlias, Type
-from flask import config
+from typing import Callable, Dict, NamedTuple, Optional, Tuple, TypeAlias, Type
 import torch
 import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange, einsum
-from src.utils.common_types import (
+from utils.common_types import (
     Batch,
     StructuredForwardOutput,
     format_structured_forward_output,
@@ -15,9 +14,9 @@ from src.utils.common_types import (
     ConfigStructure,
 )
 
-from src.models.components.loss import get_explicit_constraint, map_loss_name
+from models.components.loss import get_explicit_constraint, map_loss_name
 
-from src.utils.config import validate_config_structure
+from utils.config import validate_config_structure
 
 _EPS: float = 1e-8
 
@@ -377,7 +376,38 @@ class GaussianMixturePriorNLL(_GM):
 
         self._loss_coef_prior_nll: float = cfg.loss_coef_prior_nll
 
-    def forward(
+    def forward_unknown(self, batch: Batch, data_name: str) -> StructuredForwardOutput:
+        r"""
+        Input data shape: (batch, smapl, dim)
+        Output data shape: (batch, smapl, dim)
+        """
+        x = batch[data_name]
+
+        self.set_rv()
+
+        nll_lat_sampl = torch.zeros((x.shape[:2]))  # (batch_size, n_latent_samples)
+
+        unknown_gm_nll_lat_sampl = self._get_nll(x=x)  # (batch_size, n_latent_samples)
+        assert (
+            nll_lat_sampl.shape == unknown_gm_nll_lat_sampl.shape
+        ), f"nll_lat_sampl.shape = {nll_lat_sampl.shape} and unknown_gm_nll_lat_sampl.shape = {unknown_gm_nll_lat_sampl.shape}"
+        nll_lat_sampl = unknown_gm_nll_lat_sampl  #
+
+        self.reset_rv()
+
+        return format_structured_forward_output(
+            batch=batch,
+            losses=[
+                format_structured_loss(
+                    loss=nll_lat_sampl,
+                    coef=self._loss_coef_prior_nll,
+                    name=map_loss_name(loss_name="prior_nll"),
+                    reduced=False,
+                )
+            ],
+        )
+
+    def forward_known(
         self, batch: Batch, data_name: str, component_indicator_name: str
     ) -> StructuredForwardOutput:
         r"""
@@ -386,15 +416,42 @@ class GaussianMixturePriorNLL(_GM):
         """
         x = batch[data_name]
 
-        # if component_indicator_name is not None:
+        component_indicator = batch[component_indicator_name]
+
+        known_gm_nll_lat_sampl = self._get_component_conditioned_nll(
+            x=x,
+            component_indicator=component_indicator,
+        )  # (known_batch_size, n_latent_samples)
+        nll_lat_sampl = known_gm_nll_lat_sampl
+
+        self.reset_rv()
+
+        return format_structured_forward_output(
+            batch=batch,
+            losses=[
+                format_structured_loss(
+                    loss=nll_lat_sampl,
+                    coef=self._loss_coef_prior_nll,
+                    name=map_loss_name(loss_name="prior_nll"),
+                    reduced=False,
+                )
+            ],
+        )
+
+    def forward_mixed(
+        self, batch: Batch, data_name: str, component_indicator_name: str
+    ) -> StructuredForwardOutput:
+        r"""
+        Input data shape: (batch, smapl, dim)
+        Output data shape: (batch, smapl, dim)
+        """
+        x = batch[data_name]
+
         component_indicator = batch[component_indicator_name]
         unknown_mask = (
             component_indicator == -1
         )  # -1 indicates that the component is unknown for a sample
         known_mask = unknown_mask.logical_not()
-        # else: WRONG BTW
-        #     unknown_mask = torch.ones_like(input=x, dtype=torch.bool)
-        #     known_mask = unknown_mask.logical_not()
 
         self.set_rv()
 

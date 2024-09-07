@@ -1,10 +1,11 @@
 from argparse import Namespace
 from typing import List
-from src.utils.common_types import ConfigStructure
 import yaml
-from src.utils.paths import CONFIG_PATH
+from utils.paths import CONFIG_PATH
 import json
 from pathlib import Path
+
+from utils.common_types import ConfigStructure
 
 
 def validate_config_structure(
@@ -40,10 +41,13 @@ def validate_config_structure(
 
     def _validate_config_structure(
         cfg: Namespace | List[Namespace] | None,
-        config_structure: ConfigStructure,
+        config_structure: ConfigStructure | None,
         cfg_path: str = "",
     ) -> None | Exception:
         error = None
+
+        if cfg is None and config_structure is None:
+            return error
 
         if isinstance(config_structure, type):
             if not isinstance(cfg, config_structure):

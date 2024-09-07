@@ -1,14 +1,12 @@
-from re import L
-from matplotlib import category
 import torch
 import torch.nn as nn
 from argparse import Namespace
-from src.utils.common_types import (
+from utils.common_types import (
     Batch,
     ConfigStructure,
     format_structured_forward_output,
 )
-from src.utils.config import validate_config_structure
+from utils.config import validate_config_structure
 from typing import List
 from einops import rearrange, repeat
 

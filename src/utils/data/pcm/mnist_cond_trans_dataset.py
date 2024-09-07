@@ -1,21 +1,18 @@
-from flask import config
-from pkg_resources import get_distribution
 import torch
 import torch.distributions as td
 from typing import List, Dict, Callable, Any, TypedDict, Tuple, TypeAlias
 from argparse import Namespace
-from src.utils.config import validate_config_structure
-from src.utils.common_types import ConfigStructure
 import numpy as np
 from functools import partial
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-from einops import rearrange
 import abc
-from src.utils.common_types import Batch
-from src.utils.paths import RAW_DATA_PATH
 import torchvision
 
+from utils.config import validate_config_structure
+from utils.common_types import ConfigStructure
+from utils.common_types import Batch
+from utils.paths import RAW_DATA_PATH
 
 _CONTINOUS_DISTRIBUTIONS: Dict[str, td.Distribution] = {"uniform": td.Uniform}
 

@@ -10,13 +10,13 @@ from typing import (
     NamedTuple,
     Optional,
 )
-from src.utils.common_types import (
+from utils.common_types import (
     Batch,
     ConfigStructure,
     StructuredForwardOutput,
     format_structured_forward_output,
 )
-from src.utils.config import (
+from utils.config import (
     validate_config_structure,
     parse_choice_spec_path,
 )

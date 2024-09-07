@@ -1,5 +1,6 @@
 import torch
 from typing import List, Dict, TypeAlias, TypedDict, Type, Optional
+from argparse import Namespace
 
 Batch: TypeAlias = Dict[str, torch.Tensor]
 
@@ -41,4 +42,4 @@ def format_structured_forward_output(
     )
 
 
-ConfigStructure: TypeAlias = Dict[str, Type | Dict]
+ConfigStructure: TypeAlias = Dict[str, Type | Dict | Namespace | None]
