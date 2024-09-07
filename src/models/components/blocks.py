@@ -1,15 +1,7 @@
 from argparse import Namespace
 import torch
 import torch.nn as nn
-from typing import (
-    List,
-    Dict,
-    Type,
-    TypeAlias,
-    Optional,
-    NamedTuple,
-    Optional,
-)
+from typing import List, Dict, Type, TypeAlias, Optional, NamedTuple, Any
 from utils.common_types import (
     Batch,
     ConfigStructure,
@@ -136,6 +128,13 @@ class StandaloneTinyModule(nn.Module):
             nnmodule_spec_path=cfg.nnmodule_spec_path, kwargs=cfg.kwargs
         )
         self._tiny_module: nn.Module = _get_module_from_spec(spec=spec, output_dim=None)
+
+    @staticmethod
+    def _parse_hparams_to_dict(cfg: Namespace) -> Dict[str, Any]:
+        return {
+            "nnmodule_spec_path": cfg.nnmodule_spec_path,
+            "kwargs": vars(cfg.kwargs),
+        }
 
     def forward(self, batch: Batch, data_name: str) -> StructuredForwardOutput:
         batch[data_name] = self._tiny_module(batch[data_name])
@@ -328,6 +327,16 @@ class BlockStack(nn.Module):
         )
 
         self.blocks: nn.Sequential = nn.Sequential(*blocks)
+
+    @staticmethod
+    def _parse_hparams_to_dict(cfg: Namespace) -> Dict[str, Any]:
+        return {
+            "input_dim": cfg.input_dim,
+            "output_dim": cfg.output_dim,
+            "hidden_dims": str(cfg.hidden_dims),
+            "ordered_module_specs": str(cfg.ordered_module_specs),
+            "block_wrapper_name": cfg.block_wrapper_name,
+        }
 
     def forward(self, batch: Batch, data_name: str) -> StructuredForwardOutput:
         batch[data_name] = self.blocks(batch[data_name])

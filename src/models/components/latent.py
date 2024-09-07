@@ -1,11 +1,12 @@
-import abc
-from argparse import Namespace
-from typing import Callable, Dict, NamedTuple, Optional, Tuple, TypeAlias, Type
 import torch
 import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
+import abc
+from argparse import Namespace
+from typing import Callable, Dict, NamedTuple, Optional, Tuple, TypeAlias, Any
 from einops import rearrange, einsum
+
 from utils.common_types import (
     Batch,
     StructuredForwardOutput,
@@ -13,9 +14,7 @@ from utils.common_types import (
     format_structured_loss,
     ConfigStructure,
 )
-
 from models.components.loss import get_explicit_constraint, map_loss_name
-
 from utils.config import validate_config_structure
 
 _EPS: float = 1e-8
@@ -231,6 +230,13 @@ class GaussianPosterior(nn.Module):  # nn.Module for compatibility
         self._std_transform: Callable = _get_std_transform(cfg.std_transform)
         self._loss_coef_posterior_entropy: float = cfg.loss_coef_posterior_entropy
 
+    @staticmethod
+    def _parse_hparams_to_dict(cfg: Namespace) -> Dict[str, Any]:
+        return {
+            "std_transform": cfg.std_transform,
+            "loss_coef_posterior_entropy": cfg.loss_coef_posterior_entropy,
+        }
+
     def forward(
         self, batch: Batch, data_name: str, n_latent_samples: int
     ) -> StructuredForwardOutput:
@@ -315,6 +321,14 @@ class _GM(nn.Module, abc.ABC):
         )
         self._rv: Optional[td.MixtureSameFamily[td.Normal]] = None
 
+    @staticmethod
+    def _parse_hparams_to_dict(cfg: Namespace) -> Dict[str, Any]:
+        return {
+            "n_components": cfg.n_components,
+            "components_std": cfg.components_std,
+            "latent_dim": cfg.latent_dim,
+        }
+
     def set_rv(self) -> None:
         self._rv = make_gm_rv(
             component_logits=self._component_logits,
@@ -375,6 +389,12 @@ class GaussianMixturePriorNLL(_GM):
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
         self._loss_coef_prior_nll: float = cfg.loss_coef_prior_nll
+
+    @staticmethod
+    def _parse_hparams_to_dict(cfg: Namespace) -> Dict[str, Any]:
+        return _GM._parse_hparams_to_dict(cfg=cfg) | {
+            "loss_coef_prior_nll": cfg.loss_coef_prior_nll
+        }
 
     def forward_unknown(self, batch: Batch, data_name: str) -> StructuredForwardOutput:
         r"""
@@ -525,6 +545,14 @@ class FuzzyClustering(_GM):
             cfg.loss_coef_clustering_component_reg
         )
 
+    @staticmethod
+    def _parse_hparams_to_dict(cfg: Namespace) -> Dict[str, Any]:
+        return _GM._parse_hparams_to_dict(cfg=cfg) | {
+            "constraint_method": cfg.constraint_method,
+            "loss_coef_latent_fuzzy_clustering": cfg.loss_coef_latent_fuzzy_clustering,
+            "loss_coef_clustering_component_reg": cfg.loss_coef_clustering_component_reg,
+        }
+
     def _calculate_component_constraint(self) -> torch.Tensor:
         # Component mean regularization bringing the components' means. Weighted by the components' probabilities.
         component_regularization = (
@@ -672,6 +700,14 @@ class LatentConstraint(nn.Module):  # nn.Module for compatibility
         self._data_name: str = cfg.data_name
         self._loss_coef_latent_constraint: float = cfg.loss_coef_latent_constraint
 
+    @staticmethod
+    def _parse_hparams_to_dict(cfg: Namespace) -> Dict[str, Any]:
+        return {
+            "constraint_method": cfg.constraint_method,
+            "data_name": cfg.data_name,
+            "loss_coef_latent_constraint": cfg.loss_coef_latent_constraint,
+        }
+
     def forward(self, batch: Batch) -> StructuredForwardOutput:
         loss = self._calculate_constraint(x=batch[self._data_name], dim=None)
         return format_structured_forward_output(
@@ -728,6 +764,15 @@ class VectorConditionedLogitsGMPriorNLL(nn.Module):
         self.register_buffer(
             "_std", torch.tensor(cfg.components_std, dtype=torch.float32)
         )
+
+    @staticmethod
+    def _parse_hparams_to_dict(cfg: Namespace) -> Dict[str, Any]:
+        return {
+            "n_components": cfg.n_components,
+            "latent_dim": cfg.latent_dim,
+            "components_std": cfg.components_std,
+            "loss_coef_prior_nll": cfg.loss_coef_prior_nll,
+        }
 
     def sample(
         self, batch: Batch, n_latent_samples: int, data_name: str, logits_name: str

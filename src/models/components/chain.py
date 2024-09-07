@@ -120,6 +120,7 @@ class Chain(pl.LightningModule):
 
         # Building chain based on the config.
         self._chain: nn.ModuleDict = nn.ModuleDict()
+        self._hparams_parsed_to_dict: Dict[str, Dict | str, int] = {}
         self._setup_chain(chain_cfg=cfg.chain)
 
         # Setup optimizers config.
@@ -137,11 +138,26 @@ class Chain(pl.LightningModule):
         self._assert_commands()
 
     def _setup_chain(self, chain_cfg: List[Namespace]):
-        for chain_spec in chain_cfg:
+        for link_spec in chain_cfg:
             assert (
-                chain_spec.name not in self._chain
-            ), f"The keyword {chain_spec.name} is already present in self._chain."
-            self._chain[chain_spec.name] = _get_chain_link(chain_link_spec=chain_spec)
+                link_spec.name not in self._chain
+            ), f"The keyword {link_spec.name} is already present in self._chain."
+            chain_link = _get_chain_link(chain_link_spec=link_spec)
+            _parse_hparams_to_dict = getattr(chain_link, "_parse_hparams_to_dict", None)
+
+            if _parse_hparams_to_dict is not None:
+                assert inspect.ismethod(_parse_hparams_to_dict) or inspect.isfunction(
+                    _parse_hparams_to_dict
+                ), f"Attribute '_parse_hparams_to_dict' of link '{link_spec.name}' is not a method."
+                self._hparams_parsed_to_dict[link_spec.name] = _parse_hparams_to_dict(
+                    cfg=link_spec.cfg
+                )
+
+            self._chain[link_spec.name] = chain_link
+
+    @property
+    def parsed_hparams(self) -> Dict[str, Any]:
+        return {"chain_hparams": self._hparams_parsed_to_dict}
 
     def _assert_optimizers_cfg(self) -> None:
         optimizer_assigned: Dict[str, bool] = {}

@@ -197,6 +197,8 @@ def main(args: Namespace) -> None:
             neptune.types.File(str(val_data_cfg_file_path))
         )
 
+        neptune_logger.experiment.assign(chain.parsed_hparams)
+
     trainer_cfg_path: Path = CONFIG_PATH_TRAINER / args.trainer_cfg
     trainer_cfg = load_config_from_path(file_path=trainer_cfg_path)
 

@@ -1,14 +1,15 @@
 import torch
 import torch.nn as nn
 from argparse import Namespace
+from typing import Dict, Any
+from einops import repeat
+
 from utils.common_types import (
     Batch,
     ConfigStructure,
     format_structured_forward_output,
 )
 from utils.config import validate_config_structure
-from typing import List
-from einops import rearrange, repeat
 
 # class ContinousValuedConditionEmbedding(nn.Module):
 #     def __init__(self, cfg: Namespace) -> None:
@@ -138,6 +139,16 @@ class ConditionEmbeddingTransformer(nn.Module):
             ),
             **vars(cfg.transformer.encoder_kwargs),
         )
+
+    @staticmethod
+    def _parse_hparams_to_dict(cfg: Namespace) -> Dict[str, Any]:
+        return {
+            "embedding_dim": cfg.embedding_dim,
+            "transformer": {
+                "encoder_kwargs": vars(cfg.transformer.encoder_kwargs),
+                "encoder_layer_kwargs": vars(cfg.transformer.encoder_layer_kwargs),
+            },
+        }
 
     def forward(
         self, batch: Batch, cond_ids_name: str, cat_ids_name: str, cond_embed_name: str
