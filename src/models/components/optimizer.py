@@ -1,6 +1,12 @@
 import torch
 from torch.optim import Adam, SGD, Adagrad, RMSprop
-from torch.optim.lr_scheduler import StepLR, LinearLR, ExponentialLR, ChainedScheduler
+from torch.optim.lr_scheduler import (
+    StepLR,
+    LinearLR,
+    ExponentialLR,
+    ConstantLR,
+    ChainedScheduler,
+)
 from typing import Dict, Any, Iterable, List
 from argparse import Namespace
 
@@ -15,6 +21,7 @@ _SCHEDULERS: Dict[str, torch.optim.lr_scheduler.LRScheduler] = {
     "step": StepLR,
     "linear": LinearLR,
     "exp": ExponentialLR,
+    "const": ConstantLR,
 }
 
 

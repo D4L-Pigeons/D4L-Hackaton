@@ -111,10 +111,6 @@ class LossManager:
         self._reduction_specs: List[Namespace] = cfg.reductions
         self._tensor_reductors: Callable[[torch.Tensor], torch.Tensor] = []
         self._setup_reduce_loss_tensor()
-        # self._tensor_reductor: TensorReductor = get_tensor_reductor(
-        #     tensor_reductor_name=cfg.tensor_reductor.name,
-        #     kwargs=vars(cfg.tensor_reductor.kwargs),
-        # )
         self._loss_unreduced: List[torch.Tensor] = []
         self._loss_reduced: torch.Tensor = torch.zeros(1)
         self._loss_log_dict: Dict[str, float] = {}

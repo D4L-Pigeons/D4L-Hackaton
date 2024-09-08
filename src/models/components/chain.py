@@ -137,12 +137,22 @@ class Chain(pl.LightningModule):
         )
         self._assert_commands()
 
-    def _setup_chain(self, chain_cfg: List[Namespace]):
+        # Parsing hparams
+        self._parse_hparams_to_dict(cfg=cfg)
+
+    def _setup_chain(self, chain_cfg: List[Namespace]) -> None:
         for link_spec in chain_cfg:
             assert (
                 link_spec.name not in self._chain
             ), f"The keyword {link_spec.name} is already present in self._chain."
-            chain_link = _get_chain_link(chain_link_spec=link_spec)
+            self._chain[link_spec.name] = _get_chain_link(chain_link_spec=link_spec)
+
+    def _parse_hparams_to_dict(self, cfg: List[Namespace]) -> None:
+        for link_spec in cfg.chain:
+            assert (
+                link_spec.name not in self._chain
+            ), f"The keyword {link_spec.name} is already present in self._chain."
+            chain_link = self._chain[link_spec.name]
             _parse_hparams_to_dict = getattr(chain_link, "_parse_hparams_to_dict", None)
 
             if _parse_hparams_to_dict is not None:
@@ -152,8 +162,14 @@ class Chain(pl.LightningModule):
                 self._hparams_parsed_to_dict[link_spec.name] = _parse_hparams_to_dict(
                     cfg=link_spec.cfg
                 )
-
-            self._chain[link_spec.name] = chain_link
+        self._hparams_parsed_to_dict["optimizers"] = {}
+        for optimizer_spec in cfg.optimizers:
+            for link_name in optimizer_spec.links:
+                self._hparams_parsed_to_dict["optimizers"][link_name] = {
+                    "optimizer_name": optimizer_spec.optimizer_name,
+                    "kwargs": vars(optimizer_spec.kwargs),
+                    "lr_scheduler": str(optimizer_spec.lr_scheduler),
+                }
 
     @property
     def parsed_hparams(self) -> Dict[str, Any]:
