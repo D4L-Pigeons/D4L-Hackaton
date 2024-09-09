@@ -1,8 +1,8 @@
 import inspect
 from functools import partial
-from typing import Dict, Any
+from typing import Dict, Any, Callable
 import neptune
-from pytorch_lightning.callbacks import Callback
+from pytorch_lightning.callbacks import Callback, LearningRateMonitor
 import pytorch_lightning as pl
 import matplotlib.pyplot as plt
 from argparse import Namespace
@@ -75,7 +75,19 @@ class NeptunePlotLogCallback(Callback):
             plt.close(fig)
 
 
-_CALLBACKS: Dict[str, pl.Callback] = {"neptune_plot": NeptunePlotLogCallback}
+def no_cfg_wrapper(pl_callback: pl.Callback) -> Callable:
+
+    def wrapped_pl_callback(cfg: Namespace, **kwargs: Dict[str, Any]) -> pl.Callback:
+        return pl_callback(**kwargs)
+
+    return wrapped_pl_callback
+
+
+_CALLBACKS: Dict[str, pl.Callback] = {
+    "neptune_plot": NeptunePlotLogCallback,
+    # "lr_logger": LearningRateLogger,
+    "lr_monitor": no_cfg_wrapper(LearningRateMonitor),
+}
 
 
 def get_callback(

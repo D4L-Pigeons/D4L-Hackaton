@@ -3,7 +3,6 @@ from torch.optim import Adam, SGD, Adagrad, RMSprop
 from torch.optim.lr_scheduler import (
     StepLR,
     LinearLR,
-    ExponentialLR,
     ConstantLR,
     ChainedScheduler,
 )
@@ -17,10 +16,44 @@ _OPTIMIZERS: Dict[str, torch.optim.Optimizer] = {
     "rmsprop": RMSprop,
 }
 
+
+class TotalStepLR(torch.optim.lr_scheduler.LRScheduler):
+    def __init__(
+        self,
+        optimizer: torch.optim.Optimizer,
+        step_size: int,
+        gamma: float = 0.1,
+        last_epoch: int = -1,
+        total_iters: int = None,
+    ) -> None:
+        self.total_iters = total_iters
+        super(TotalStepLR, self).__init__(optimizer, last_epoch)
+        self.step_size = step_size
+        self.gamma = gamma
+
+    def get_lr(self) -> List[float]:
+        torch.optim.lr_scheduler._warn_get_lr_called_within_step(self)
+        if self.total_iters is None or self.total_iters == 0:
+            return [base_lr for base_lr in self.base_lrs]
+        else:
+            return [
+                base_lr * self.gamma ** (self.last_epoch // self.step_size)
+                for base_lr in self.base_lrs
+            ]
+
+    def _get_closed_form_lr(self) -> List[float]:
+        if self.total_iters is None or self.total_iters == 0:
+            return [base_lr for base_lr in self.base_lrs]
+        else:
+            return [
+                base_lr * self.gamma ** (self.last_epoch / self.step_size)
+                for base_lr in self.base_lrs
+            ]
+
+
 _SCHEDULERS: Dict[str, torch.optim.lr_scheduler.LRScheduler] = {
-    "step": StepLR,
+    "step": TotalStepLR,
     "linear": LinearLR,
-    "exp": ExponentialLR,
     "const": ConstantLR,
 }
 

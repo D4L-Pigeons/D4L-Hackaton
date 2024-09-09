@@ -94,10 +94,11 @@ class Chain(pl.LightningModule):
                 "optimizer_name": str,
                 "kwargs": Namespace,
                 "lr_scheduler": (
+                    None,
                     {
                         "schedulers": [{"name": str, "kwargs": Namespace}],
                         "out_cfg_kwargs": Namespace,
-                    }
+                    },
                 ),
             }
         ],
@@ -149,9 +150,6 @@ class Chain(pl.LightningModule):
 
     def _parse_hparams_to_dict(self, cfg: List[Namespace]) -> None:
         for link_spec in cfg.chain:
-            assert (
-                link_spec.name not in self._chain
-            ), f"The keyword {link_spec.name} is already present in self._chain."
             chain_link = self._chain[link_spec.name]
             _parse_hparams_to_dict = getattr(chain_link, "_parse_hparams_to_dict", None)
 
@@ -162,6 +160,7 @@ class Chain(pl.LightningModule):
                 self._hparams_parsed_to_dict[link_spec.name] = _parse_hparams_to_dict(
                     cfg=link_spec.cfg
                 )
+
         self._hparams_parsed_to_dict["optimizers"] = {}
         for optimizer_spec in cfg.optimizers:
             for link_name in optimizer_spec.links:
@@ -254,7 +253,9 @@ class Chain(pl.LightningModule):
             )
             batch = chain_link_output["batch"]
             for structured_loss in chain_link_output["losses"]:
-                self._loss_manager.process_structured_loss(structured_loss)
+                self._loss_manager.process_structured_loss(
+                    link_name=processing_step.link, structured_loss=structured_loss
+                )
 
         if reset_loss_manager:
             self._loss_manager.reset()
@@ -271,10 +272,19 @@ class Chain(pl.LightningModule):
         batch = self.forward(batch=batch)
 
         self.log_dict(
-            dictionary=self._loss_manager.log_dict,
+            dictionary=self._loss_manager.loss_log_dict,
             prog_bar=True,
             on_step=True,
             on_epoch=True,
+            logger=True,
+        )
+
+        self.log_dict(
+            dictionary=self._loss_manager.loss_coef_log_dict,
+            prog_bar=False,
+            on_step=False,
+            on_epoch=True,
+            logger=True,
         )
 
         loss = self._loss_manager.get_loss()
@@ -296,10 +306,11 @@ class Chain(pl.LightningModule):
         batch = self.forward(batch=batch)
 
         self.log_dict(
-            dictionary=self._loss_manager.log_dict,
+            dictionary=self._loss_manager.loss_log_dict,
             prog_bar=True,
             on_step=False,
             on_epoch=True,
+            logger=True,
         )
 
         return self._loss_manager.get_loss()
@@ -340,10 +351,22 @@ class Chain(pl.LightningModule):
 
         return optimizers, lr_schedulers_config
 
-    def on_train_epoch_end(self) -> None:
+    def on_train_epoch_start(self) -> None:
+        # Update learning rate schedulers
         lr_schedulers = self.lr_schedulers()
-        if not isinstance(lr_schedulers, list):
-            lr_schedulers = [lr_schedulers]
+        if lr_schedulers is not None:
+            if not isinstance(lr_schedulers, list):
+                lr_schedulers = [lr_schedulers]
 
-        for lr_scheduler in lr_schedulers:
-            lr_scheduler.step()
+            for lr_scheduler in lr_schedulers:
+                lr_scheduler.step()
+
+        # Update loss coef schedulers
+        self._loss_manager.loss_coef_schedulers_step()
+
+    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        checkpoint["loss_manager"] = self._loss_manager.state_dict()
+
+    def on_load_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        loss_manager_state_dict = checkpoint["loss_manager"]
+        self._loss_manager.load_state_dict(state_dict=loss_manager_state_dict)

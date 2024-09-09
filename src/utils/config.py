@@ -46,7 +46,11 @@ def validate_config_structure(
     ) -> None | Exception:
         error = None
 
-        if cfg is None and config_structure is None:
+        if config_structure is None:
+            if cfg is not None:
+                error = ValueError(
+                    f"Attribute '{cfg_path}' is not None but config_structure is."
+                )
             return error
 
         if isinstance(config_structure, type):
@@ -56,11 +60,10 @@ def validate_config_structure(
                 )
 
         elif isinstance(config_structure, tuple):
-            if cfg is not None:
-                for config_structure_ in config_structure:
-                    error = _validate_config_structure(cfg, config_structure_, cfg_path)
-                    if error is None:
-                        break
+            for config_structure_ in config_structure:
+                error = _validate_config_structure(cfg, config_structure_, cfg_path)
+                if error is None:
+                    return None
 
         elif isinstance(cfg, Namespace):
             cfg = vars(cfg)

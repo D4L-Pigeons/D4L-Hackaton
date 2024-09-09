@@ -16,7 +16,6 @@ from utils.data.pcm.mnist_cond_trans_dataset import (
 )
 
 # Other
-from functools import partial
 from argparse import Namespace
 
 # Paths

@@ -15,6 +15,9 @@ callbacks:
     plot_file_base_name: "sample_prior"
     command_dynamic_kwargs: {}
   kwargs: {}
+- name: "lr_monitor"
+  cfg: {}
+  kwargs: {logging_interval: "epoch"}
 num_nodes: null
 accelerator: null
 devices: null
