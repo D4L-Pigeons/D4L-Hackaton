@@ -26,7 +26,7 @@ chain:
   chain_link_spec_path: "blocks/block_stack"
   cfg:
     input_dim: 128
-    output_dim: 40
+    output_dim: 100
     hidden_dims: [80]
     ordered_module_specs: []
     block_wrapper_name: null
@@ -43,7 +43,7 @@ chain:
 - name: "conditioned_prior"
   chain_link_spec_path: "latent/prior_vec_conditioned_logits_gaussian_mixture_nll"
   cfg:
-    n_components: 40
+    n_components: 100
     latent_dim: 16
     components_std: 1.
     loss_coef_prior_nll: .001
@@ -101,22 +101,20 @@ optimizers:
 
 loss_manager:
   reductions:
-  - {reduce_pattern: "b s -> b", reductor_name: "logsumexp", pre_scale: 100., post_scale: 0.01, kwargs: {}}
-  - {reduce_pattern: "b ->", reductor_name: "mean", pre_scale: null, post_scale: null, kwargs: {}}
+  - {reduce_pattern: "b s ->", reductor_name: "mean", pre_scale: null, post_scale: null, kwargs: {}}
   loss_coef_schedulers:
   - link_name: "posterior"
     loss_name: "postr_neg_entr"
     schedulers_cfg:
-    - {name: 'linear', kwargs: {start_coef_scale: .04, end_coef_scale: 1., num_epochs: 25}}
+    - {name: 'linear', kwargs: {start_coef_scale: .001, end_coef_scale: 1., num_epochs: 50}}
   - link_name: "conditioned_prior"
     loss_name: "prior_nll"
     schedulers_cfg:
-    - {name: 'linear', kwargs: {start_coef_scale: .04, end_coef_scale: 1., num_epochs: 25}}
+    - {name: 'linear', kwargs: {start_coef_scale: .001, end_coef_scale: 1., num_epochs: 50}}
   - link_name: "reconstr_loss"
     loss_name: "reconstr"
     schedulers_cfg:
-    - {name: 'linear', kwargs: {start_coef_scale: .1, end_coef_scale: 1., num_epochs: 25}}
-    - {name: 'linear', kwargs: {start_coef_scale: 1., end_coef_scale: .1, num_epochs: 25},}
+    - {name: 'linear', kwargs: {start_coef_scale: 1., end_coef_scale: .1, num_epochs: 100},}
 
 processing_commands:
 - command_name: "forward"
@@ -124,19 +122,19 @@ processing_commands:
   - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "img", clone_name: "img_org", clone: true}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b 1 h w -> b (h w)"}}
   - {link: 'encoder', method: 'forward', kwargs: {data_name: "img"}}
-  - {link: 'posterior', method: 'forward', kwargs: {data_name: "img", n_latent_samples: 32}}
+  - {link: 'posterior', method: 'forward', kwargs: {data_name: "img", n_latent_samples: 1}}
   - {link: 'condition_embedding', method: 'forward', kwargs: {cond_ids_name: 'condition_token_ids', cat_ids_name: 'condition_values', cond_embed_name: 'cond_embed'}}
   - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "cond_embed", clone_name: "logits", clone: false}}
   - {link: 'condition-to-decoder', method: 'forward', kwargs: {data_name: "cond_embed"}}
   - {link: 'condition-to-logits', method: 'forward', kwargs: {data_name: "logits"}}
   - {link: 'conditioned_prior', method: 'forward', kwargs: {data_name: "img", logits_name: "logits"}}
-  - {link: 'repeat', method: 'forward', kwargs: {data_name: "cond_embed", pattern: "b d -> b s d", s: 32}}
+  - {link: 'repeat', method: 'forward', kwargs: {data_name: "cond_embed", pattern: "b d -> b s d", s: 1}}
   - {link: 'adapter', method: 'forward', kwargs: {batch_aggr_def: {img: ["img", "cond_embed"]}}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b s d -> (b s) d"}}
   - {link: 'decoder', method: 'forward', kwargs: {data_name: "img"}}
   - {link: 'output-activation', method: 'forward', kwargs: {data_name: "img"}}
-  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 32, h: 28, w: 28}}
-  - {link: 'repeat', method: 'forward', kwargs: {data_name: "img_org", pattern: "b 1 h w -> b s 1 h w", s: 32}}
+  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 1, h: 28, w: 28}}
+  - {link: 'repeat', method: 'forward', kwargs: {data_name: "img_org", pattern: "b 1 h w -> b s 1 h w", s: 1}}
   - {link: 'reconstr_loss', method: 'forward', kwargs: {data_name: "img", target_name: "img_org", reduce_pattern: "b s 1 h w -> b s"},}
 
 - command_name: "encode"
