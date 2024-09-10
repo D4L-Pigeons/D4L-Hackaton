@@ -72,8 +72,21 @@ def get_parser():
         "--experiment_name", type=str, required=True, help="Name of the experiment"
     )
 
-    parser.add_argument(
+    model = parser.add_argument_group("Model configuration")
+    model.add_argument(
         "--model_cfg", type=str, required=True, help="Filename of the model config file"
+    )
+    model.add_argument(
+        "--checkpoint_experiment_id",
+        type=str,
+        default=None,
+        help="Id of the experiment required for loading from checkpoint.",
+    )
+    model.add_argument(
+        "--checkpoint_name",
+        type=str,
+        default=None,
+        help="Model checkpoint name e.g. 'epoch=1-step-1876.ckpt' required for loading from checkpoint.",
     )
 
     trainer = parser.add_argument_group("Trainer configuration")
@@ -166,13 +179,6 @@ def main(args: Namespace) -> None:
     )
 
     if args.verbose:
-        print("Setting up model.")
-
-    model_cfg_file_path: Path = CONFIG_PATH_MODELS / args.model_cfg
-    chain_cfg = load_config_from_path(file_path=model_cfg_file_path)
-    chain = Chain(cfg=chain_cfg)
-
-    if args.verbose:
         print("Setting up neptune logger.")
 
     global neptune_logger
@@ -182,24 +188,61 @@ def main(args: Namespace) -> None:
         name=args.experiment_name,
     )
 
+    if args.verbose:
+        print("Setting up model.")
+
+    model_cfg_file_path: Path = CONFIG_PATH_MODELS / args.model_cfg
+    chain_cfg = load_config_from_path(file_path=model_cfg_file_path)
+
+    if args.checkpoint_experiment_id is not None and args.checkpoint_name is not None:
+        if args.verbose:
+            print("Loading model from checkpoint.")
+
+        checkpoint_path = (
+            Path(__file__).parent.parent
+            / ".neptune"
+            / args.experiment_name
+            / args.checkpoint_experiment_id
+            / "checkpoints"
+            / args.checkpoint_name
+        )
+        if not checkpoint_path.exists():
+            print(f"Checkpoint with path='{checkpoint_path}' not found.")
+            raise NotImplementedError(
+                "Downloading from Neptune before 'load_from_checkpoint' not implemented"
+            )
+            # if neptune_logger is not None and hasattr(neptune_logger, "experiment"):
+
+        chain = Chain.load_from_checkpoint(
+            checkpoint_path=checkpoint_path, cfg=chain_cfg
+        )
+    else:
+        if args.verbose:
+            print("Initializing new model.")
+        chain = Chain(cfg=chain_cfg)
+
+    trainer_cfg_path: Path = CONFIG_PATH_TRAINER / args.trainer_cfg
+    trainer_cfg = load_config_from_path(file_path=trainer_cfg_path)
+
     if neptune_logger is not None and hasattr(neptune_logger, "experiment"):
-        neptune_logger.experiment[f"config/model_config.yaml"].upload(
+        epoch: int = chain.current_epoch
+        # HANDLE LOADING FROM CHECKPOINT CASE
+        neptune_logger.experiment[f"config/model_config_{epoch}.yaml"].upload(
             neptune.types.File(str(model_cfg_file_path))
         )
-        neptune_logger.experiment[f"config/train_data_config.yaml"].upload(
+        neptune_logger.experiment[f"config/train_data_config_{epoch}.yaml"].upload(
             neptune.types.File(str(train_data_cfg_file_path))
         )
-        neptune_logger.experiment[f"config/val_data_config.yaml"].upload(
+        neptune_logger.experiment[f"config/val_data_config_{epoch}.yaml"].upload(
             neptune.types.File(str(val_data_cfg_file_path))
         )
-        neptune_logger.experiment[f"config/val_data_config.yaml"].upload(
+        neptune_logger.experiment[f"config/val_data_config_{epoch}.yaml"].upload(
             neptune.types.File(str(val_data_cfg_file_path))
         )
 
         neptune_logger.experiment.assign(chain.parsed_hparams)
 
-    trainer_cfg_path: Path = CONFIG_PATH_TRAINER / args.trainer_cfg
-    trainer_cfg = load_config_from_path(file_path=trainer_cfg_path)
+        neptune_logger.experiment.wait()
 
     if args.verbose:
         print("Setting up trainer.")

@@ -158,6 +158,7 @@ class BaseLossCoefScheduler:
     def step(self) -> float:
         """Increase the epoch and return the updated coefficient."""
         self.epoch_count += 1
+        self.epoch_count = min(self.num_epochs, self.epoch_count)
         self._current_coef_scale = self.get_coef_scale()
         return self.get_coef_scale()
 
@@ -200,7 +201,8 @@ class ExponentialLossCoefScheduler(BaseLossCoefScheduler):
 
 # NOTE: The below ChainedLossCoefScheduler scheduler has different | better :) logic than ChainedScheduler from pytorch.
 class ChainedLossCoefScheduler:
-    def __init__(self, schedulers: List[Any]):
+
+    def __init__(self, schedulers: List[BaseLossCoefScheduler]):
         """
         Args:
             schedulers (list): A list of scheduler instances that will be applied sequentially.
@@ -238,6 +240,7 @@ class ChainedLossCoefScheduler:
 
     def load_state_dict(self, state_dict: Dict[str, Any]) -> None:
         """Load the state of all schedulers."""
+        print(f"THE TYPE OF THE STATE DICT IS {type(state_dict)}")
         for scheduler, state in zip(self.schedulers, state_dict["schedulers"]):
             scheduler.load_state_dict(state)
         self.current_scheduler_idx = state_dict["current_scheduler_idx"]
@@ -448,15 +451,16 @@ class LossManager:
             loss_coef_scheduler.step()
 
     def _scale_loss_coef(self, full_loss_name: str, coef: float) -> float:
+        scaled_coef: float = coef
         loss_coef_scheduler = self._loss_coef_schedulers.get(full_loss_name, None)
         if loss_coef_scheduler is not None:
             coef_scale = loss_coef_scheduler.get_coef_scale()
-            coef *= coef_scale
-        return coef
+            scaled_coef *= coef_scale
+        return scaled_coef
 
     def state_dict(self) -> Dict[str, Any]:
         return {
-            full_loss_name: loss_coef_scheduler.state_dict
+            full_loss_name: loss_coef_scheduler.state_dict()
             for full_loss_name, loss_coef_scheduler in self._loss_coef_schedulers.items()
         }
 
