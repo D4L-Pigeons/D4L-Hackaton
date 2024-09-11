@@ -1,15 +1,7 @@
 callbacks:
 - name: "neptune_plot"
   cfg:
-    plotting_func: {name: "gm_means_pca", kwargs: {gm_means_name: "gm_means", 'n_components:': '', filename_comp: "org_vs_reconstr"}}
-    command_name: "get_means"
-    neptune_plot_log_path: "validation_plots/gm_means_pca"
-    plot_file_base_name: "evaluation"
-    command_dynamic_kwargs: {}
-  kwargs: {}
-- name: "neptune_plot"
-  cfg:
-    plotting_func: {name: "latent_tsne", kwargs: {gm_means_name: "gm_means", 'n_components:': '', filename_comp: "org_vs_reconstr"}}
+    plotting_func: {name: "gm_means_pca", kwargs: {gm_means_name: "gm_means", n_components: 10, filename_comp: "means_pca"}}
     command_name: "get_means"
     neptune_plot_log_path: "validation_plots/gm_means_pca"
     plot_file_base_name: "evaluation"

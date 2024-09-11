@@ -419,6 +419,7 @@ def plot_gm_means_pca(
         components=pca.components_,
         feature_names=np.arange(n_features),
         correlation_threshold=correlation_threshold,
+        xlab="Principal Component",
     )
 
     return {
@@ -490,7 +491,7 @@ def wrap_with_just_processing_function_output(
 ) -> Callable:
 
     def wrapped_function(
-        processing_function: Callable, dataloader: torch.utils.data.Dataloader
+        processing_function: Callable, dataloader: torch.utils.data.DataLoader
     ):
         batch = processing_function({})
         return func(batch, **kwargs)
