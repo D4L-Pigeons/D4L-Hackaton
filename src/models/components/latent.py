@@ -774,6 +774,10 @@ class VectorConditionedLogitsGMPriorNLL(nn.Module):
             "loss_coef_prior_nll": cfg.loss_coef_prior_nll,
         }
 
+    def get_means(self, batch: Batch, gm_means_name: str) -> StructuredForwardOutput:
+        batch[gm_means_name] = self._component_means
+        return format_structured_forward_output(batch=batch)
+
     def sample(
         self, batch: Batch, n_latent_samples: int, data_name: str, logits_name: str
     ) -> StructuredForwardOutput:

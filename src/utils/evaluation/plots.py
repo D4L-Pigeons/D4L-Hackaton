@@ -5,6 +5,10 @@ from functools import partial
 from typing import Callable, Dict, Any, List, Tuple
 from utils.common_types import Batch
 from sklearn.manifold import TSNE
+from sklearn.decomposition import PCA
+import numpy as np
+import pandas as pd
+import seaborn as sns
 
 # import scienceplots
 # plt.style.use("science")
@@ -287,6 +291,142 @@ def plot_latent_tsne(
     return figs  # Return the figure object
 
 
+def helper_make_barplot(
+    x: List[str],
+    y: List[float],
+    title: str,
+    xlab: str,
+    ylab: str,
+    rotation: int = 0,
+    figsize: Tuple[float, float] = (10, 4),
+) -> matplotlib.figure.Figure:
+    r"""
+    Make a barplot.
+
+    Parameters:
+    x (List[str]): The x-axis labels.
+    y (List[float]): The y-axis values.
+    title (str): The title of the plot.
+    xlab (str): The label for the x-axis.
+    ylab (str): The label for the y-axis.
+    rotation (int): The rotation angle for x-axis labels.
+    figsize (Tuple[float, float]): Size of the figure.
+
+    Returns:
+    matplotlib.figure.Figure: The figure object containing the plot.
+    """
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.bar(x, y, color="black")
+    ax.set_title(title)
+    ax.set_xlabel(xlab)
+    ax.set_ylabel(ylab)
+    ax.set_xticks(range(len(x)))
+    ax.set_xticklabels(x, rotation=rotation)
+
+    plt.close(fig)
+
+    return fig
+
+
+def helper_plot_features_components_correlation(
+    components: np.ndarray,
+    feature_names: np.ndarray,
+    correlation_threshold: float = 0,
+    title: str = "",
+    xlab: str = "",
+    display_desc: bool = False,
+    figsize: Tuple[float, float] = (10, 8),
+) -> matplotlib.figure.Figure:
+    r"""
+    Plot the correlation of the features with the components.
+
+    Parameters:
+    components (np.ndarray): The PCA components.
+    feature_names (np.ndarray): The names of the features.
+    correlation_threshold (float): The threshold for displaying correlations.
+    title (str): The title of the plot.
+    xlab (str): The label for the x-axis.
+    display_desc (bool): Whether to display the title.
+    figsize (Tuple[float, float]): Size of the figure.
+
+    Returns:
+    matplotlib.figure.Figure: The figure object containing the plot.
+    """
+    df_disp = pd.DataFrame(
+        data=components.T * 100, index=feature_names, columns=list(range(1, 11))
+    )
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.heatmap(
+        df_disp,
+        annot=True,
+        fmt=".0f",
+        vmin=-100,
+        vmax=100,
+        linewidth=0.5,
+        mask=abs(df_disp) < correlation_threshold,
+        cmap=sns.diverging_palette(255, 10, as_cmap=True),
+        ax=ax,
+    )
+    if display_desc:
+        ax.set_title(title)
+    ax.set_xlabel(xlab)
+
+    plt.close(fig)
+
+    return fig
+
+
+def plot_gm_means_pca(
+    batch: Batch,
+    gm_means_name: str,
+    filename_comp: str,
+    n_components: int,
+    barplot_figsize: Tuple[float, float] = (10, 4),
+    correlation_threshold: float = 0,
+) -> matplotlib.figure.Figure:
+    r"""
+    Perform PCA on gm_means and plot the explained variance ratio.
+
+    Parameters:
+    batch (Batch): The batch containing gm_means.
+    gm_means_name (str): The key for gm_means in the batch.
+    filename_comp (str): The filename component for saving the plot.
+    n_components (int): Number of principal components to compute.
+    figsize (Tuple[float, float]): Size of the figure.
+
+    Returns:
+    matplotlib.figure.Figure: The figure object containing the plot.
+    """
+    gm_means = batch[gm_means_name].detach().numpy()
+    n_features = gm_means.shape[-1]
+
+    # Fit and transform PCA
+    pca = PCA(n_components=n_components)
+    pca.fit(gm_means)
+
+    # Plot explained variance ratio
+    explained_var_ratio = helper_make_barplot(
+        x=np.arange(1, n_components + 1),
+        y=pca.explained_variance_ratio_,
+        title="Explained Variance Ratio of Principal Components (Non Scaled)",
+        xlab="Principal Component",
+        ylab="Explained Variance Ratio",
+        figsize=barplot_figsize,
+    )
+
+    # Plot component
+    component_correlation = helper_plot_features_components_correlation(
+        components=pca.components_,
+        feature_names=np.arange(n_features),
+        correlation_threshold=correlation_threshold,
+    )
+
+    return {
+        f"{filename_comp}-expl_var_ratio": explained_var_ratio,
+        f"{filename_comp}-comp_corr": component_correlation,
+    }
+
+
 def wrap_with_first_batch(func: Callable, **kwargs: Dict[str, Any]) -> Callable:
     r"""
     A decorator that wraps a function to automatically pass the first batch
@@ -345,9 +485,27 @@ def wrap_with_dataloader(func: Callable, **kwargs: Dict[str, Any]) -> Callable:
     return wrapped_function
 
 
+def wrap_with_just_processing_function_output(
+    func: Callable, **kwargs: Dict[str, Any]
+) -> Callable:
+
+    def wrapped_function(
+        processing_function: Callable, dataloader: torch.utils.data.Dataloader
+    ):
+        batch = processing_function({})
+        return func(batch, **kwargs)
+
+    return wrapped_function
+
+
 _PLOTTING_FUNCTIONS: Dict[str, Callable] = {
     "latent_2d": partial(wrap_with_dataloader, func=plot_2d_latent),
     "latent_tsne": partial(wrap_with_processed_dataset, func=plot_latent_tsne),
+    "gm_means_pca": partial(
+        wrap_with_just_processing_function_output, plot_gm_means_pca
+    ),
+    "latent_pca": None,
+    "patent_pca+tsne": None,
     "original_vs_reconstructed": partial(
         wrap_with_first_batch, func=plot_original_vs_reconstructed
     ),

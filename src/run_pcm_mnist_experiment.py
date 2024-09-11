@@ -29,7 +29,7 @@ from utils.pl_trainer.trainer import get_trainer
 
 
 DEFAULT_PROJECT_NAME: str = "multimodal/vaes"
-DEFAULT_BATCH_SIZE: int = 128
+# DEFAULT_BATCH_SIZE: int = 128
 
 
 def get_parser():
@@ -47,12 +47,6 @@ def get_parser():
         type=str,
         required=True,
         help="Filename of the validation data configuration file.",
-    )
-    data.add_argument(
-        "--batch_size",
-        type=int,
-        default=DEFAULT_BATCH_SIZE,
-        help="Batch size for training and validation",
     )
     data.add_argument(
         "--subsample_size",
@@ -95,18 +89,6 @@ def get_parser():
         type=str,
         help="Filename of the trainer configuration file.",
     )
-    trainer.add_argument(
-        "--max_epochs",
-        type=int,
-        default=None,
-        help="Maximum number of training epochs",
-    )
-    trainer.add_argument(
-        "--check_val_every_n_epoch",
-        type=int,
-        default=None,
-        help="Number of epochs between each validation check",
-    )
 
     parser.add_argument(
         "--verbose",
@@ -142,43 +124,6 @@ def main(args: Namespace) -> None:
         raise ValueError("NEPTUNE_API_TOKEN environment variable is not set.")
 
     if args.verbose:
-        print("Setting up datasets.")
-
-    train_data_cfg_file_path: Path = CONFIG_PATH_DATA / args.data_train
-    train_data_cfg = load_config_from_path(file_path=train_data_cfg_file_path)
-    cmnist_train = ConditionalMNIST(cfg=train_data_cfg)
-
-    val_data_cfg_file_path: Path = CONFIG_PATH_DATA / args.data_val
-    val_data_cfg = load_config_from_path(file_path=val_data_cfg_file_path)
-    cmnist_val = ConditionalMNIST(cfg=val_data_cfg)
-
-    # For debugging a subsample_size may be specified for faster processing.
-    if args.subsample_size is not None:
-        if args.verbose:
-            print("Subsampling.")
-
-        from torch.utils.data import Subset
-
-        lower_bound = min(len(cmnist_train), len(cmnist_val))
-        assert (
-            args.subsample_size <= lower_bound
-        ), f"The subsample_size must be lower or equal to {lower_bound}."
-
-        subset_idxs = list(range(args.subsample_size))
-        cmnist_train = Subset(cmnist_train, subset_idxs)
-        cmnist_val = Subset(cmnist_val, subset_idxs)
-
-    if args.verbose:
-        print("Setting up dataloaders.")
-
-    cmnist_train_dataloader = get_ConditionalMnistDataloader(
-        cmnist=cmnist_train, batch_size=args.batch_size, shuffle=True
-    )
-    cmnist_val_dataloader = get_ConditionalMnistDataloader(
-        cmnist=cmnist_val, batch_size=args.batch_size, shuffle=False
-    )
-
-    if args.verbose:
         print("Setting up neptune logger.")
 
     global neptune_logger
@@ -187,6 +132,14 @@ def main(args: Namespace) -> None:
         project=args.project_name,
         name=args.experiment_name,
     )
+
+    if args.verbose:
+        print("Loading data config files.")
+
+    train_data_cfg_file_path: Path = CONFIG_PATH_DATA / args.data_train
+    train_data_cfg = load_config_from_path(file_path=train_data_cfg_file_path)
+    val_data_cfg_file_path: Path = CONFIG_PATH_DATA / args.data_val
+    val_data_cfg = load_config_from_path(file_path=val_data_cfg_file_path)
 
     if args.verbose:
         print("Setting up model.")
@@ -245,13 +198,45 @@ def main(args: Namespace) -> None:
         neptune_logger.experiment.wait()
 
     if args.verbose:
+        print("Setting up datasets.")
+
+    cmnist_train = ConditionalMNIST(cfg=train_data_cfg)
+    cmnist_val = ConditionalMNIST(cfg=val_data_cfg)
+
+    # For debugging a subsample_size may be specified for faster processing.
+    if args.subsample_size is not None:
+        if args.verbose:
+            print("Subsampling.")
+
+        from torch.utils.data import Subset
+
+        lower_bound = min(len(cmnist_train), len(cmnist_val))
+        assert (
+            args.subsample_size <= lower_bound
+        ), f"The subsample_size must be lower or equal to {lower_bound}."
+
+        subset_idxs = list(range(args.subsample_size))
+        cmnist_train = Subset(cmnist_train, subset_idxs)
+        cmnist_val = Subset(cmnist_val, subset_idxs)
+
+    if args.verbose:
+        print("Setting up dataloaders.")
+
+    cmnist_train_dataloader = get_ConditionalMnistDataloader(
+        cmnist=cmnist_train, batch_size=chain_cfg.training.batch_size, shuffle=True
+    )
+    cmnist_val_dataloader = get_ConditionalMnistDataloader(
+        cmnist=cmnist_val, batch_size=chain_cfg.training.batch_size, shuffle=False
+    )
+
+    if args.verbose:
         print("Setting up trainer.")
 
     trainer = get_trainer(
         cfg=trainer_cfg,
         logger=neptune_logger,
-        max_epochs=args.max_epochs,
-        check_val_every_n_epoch=args.check_val_every_n_epoch,
+        max_epochs=chain_cfg.training.max_epochs,
+        check_val_every_n_epoch=chain_cfg.training.check_val_every_n_epoch,
     )
 
     if args.verbose:

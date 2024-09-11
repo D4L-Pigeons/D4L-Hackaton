@@ -102,6 +102,11 @@ class Chain(pl.LightningModule):
                 ),
             }
         ],
+        "training": {
+            "batch_size": int,
+            "max_epochs": int,
+            "check_val_every_n_epoch": (None, int),
+        },
         "loss_manager": Namespace,
         "processing_commands": [
             {
