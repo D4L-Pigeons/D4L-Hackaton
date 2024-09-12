@@ -37,7 +37,6 @@ Objects typed as `ConfigStructure` as used in par with `utils.config.validate_co
 #### Chain Model
 `Chain` has the following `_config_structure`:
 ```python
-
     _config_structure: ConfigStructure = {
         "chain": [{"chain_link_spec_path": str, "name": str, "cfg": Namespace}],
         "optimizers": [
@@ -46,15 +45,21 @@ Objects typed as `ConfigStructure` as used in par with `utils.config.validate_co
                 "optimizer_name": str,
                 "kwargs": Namespace,
                 "lr_scheduler": (
+                    None,
                     {
                         "schedulers": [{"name": str, "kwargs": Namespace}],
                         "out_cfg_kwargs": Namespace,
-                    }
+                    },
                 ),
             }
         ],
+        "training": {
+            "batch_size": int,
+            "max_epochs": int,
+            "check_val_every_n_epoch": (None, int),
+        },
         "loss_manager": Namespace,
-        "processing_commands": [
+        "commands": [
             {
                 "command_name": str,
                 "processing_steps": [{"link": str, "method": str, "kwargs": Namespace}],
@@ -62,7 +67,7 @@ Objects typed as `ConfigStructure` as used in par with `utils.config.validate_co
         ],
     }
 ``` 
-When using Chain as a model base keep in mind that consistent naming convention should be established between different configurations to allow easy comparison of logs e.g. decoder part may be cosistently called `decoder`. Debugging requires setting breakpoints in the `run_processing_command` and other called module of interest.
+When using Chain as a model base keep in mind that consistent naming convention should be established between different configurations to allow easy comparison of logs e.g. decoder part may be cosistently called `decoder`. Debugging requires setting breakpoints in the `run_command` and other called module of interest.
 
 ## Experiments
 
@@ -76,14 +81,11 @@ with arguments:
   * ```-h, --help```: show this help message and exit.
   * ```--project_name``` (default='multimodal/vaes'): Neptune project name.
   * ```--experiment_name```: Neptune experiment name.
-  * ```--batch_size``` (default=128): Batch size.
-  * ```--subsample_size``` (default=None): Size of the subsample.
-  * ```--max_epochs``` (default=None): Maximum number of traininig epochs.
-  * ```--check_val_every_n_epoch```: Frequency of validation.
   * ```--model_cfg```: Model config file filename.
+  * ```--trainer_cfg```: Trainer config file filename.
   * ```--data_train```: Train dataset config file filename.
   * ```--data_val``` : Validation dataset config file filename.
-  * ```--trainer_cfg```: Trainer config file filename.
+  * ```--subsample_size``` (default=None): Size of the subsample. Used for testing and debugging.
 
 ## Dataset
 

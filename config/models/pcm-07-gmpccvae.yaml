@@ -1,6 +1,6 @@
 chain:
 - name: "encoder"
-  chain_link_spec_path: "blocks/block_stack"
+  chain_link_spec_path: "blocks/dense_block_stack"
   cfg:
     input_dim: 784
     output_dim: 32
@@ -23,7 +23,7 @@ chain:
     embedding_module: {n_conditions: 5, n_categories_per_condition: [10, 3, 5, 3, 5]}
 
 - name: "condition-to-logits"
-  chain_link_spec_path: "blocks/block_stack"
+  chain_link_spec_path: "blocks/dense_block_stack"
   cfg:
     input_dim: 128
     output_dim: 100
@@ -32,7 +32,7 @@ chain:
     block_wrapper_name: null
 
 - name: "condition-to-decoder"
-  chain_link_spec_path: "blocks/block_stack"
+  chain_link_spec_path: "blocks/dense_block_stack"
   cfg:
     input_dim: 128
     output_dim: 8
@@ -49,7 +49,7 @@ chain:
     loss_coef_prior_nll: .001
 
 - name: "decoder"
-  chain_link_spec_path: "blocks/block_stack"
+  chain_link_spec_path: "blocks/dense_block_stack"
   cfg:
     input_dim: 24
     output_dim: 784
@@ -69,6 +69,7 @@ chain:
   chain_link_spec_path: "blocks/standalone_tiny_module"
   cfg:
     nnmodule_spec_path: "activation/sigmoid"
+    output_dim: null
     kwargs: {}
 
 - name: "clone-duplicate"
@@ -121,7 +122,7 @@ loss_manager:
     schedulers_cfg:
     - {name: 'linear', kwargs: {start_coef_scale: 1., end_coef_scale: .1, num_epochs: 100},}
 
-processing_commands:
+commands:
 - command_name: "forward"
   processing_steps:
   - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "img", clone_name: "img_org", clone: true}}
