@@ -1,17 +1,18 @@
 import matplotlib
 import matplotlib.pyplot as plt
-import torch
+import seaborn as sns
 from functools import partial
-from typing import Callable, Dict, Any, List, Tuple
-from utils.common_types import Batch
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
+import torch
 import numpy as np
 import pandas as pd
-import seaborn as sns
+from typing import Callable, Dict, Any, List, Tuple
 
-# import scienceplots
+# import scienceplots - See dependencies but worth installing them as the plots are sublime.
 # plt.style.use("science")
+
+from utils.common_types import Batch
 
 
 def plot_original_vs_reconstructed(
@@ -238,7 +239,7 @@ def plot_2d_latent(
 
 
 def plot_latent_tsne(
-    processed_data: Batch,
+    processed_data: Dict[str, torch.Tensor],
     data_name: str,
     condition_value_name: str,
     condition_value_idxs: list,
@@ -428,6 +429,62 @@ def plot_gm_means_pca(
     }
 
 
+def plot_latent_pca(
+    processed_data: Dict[str, torch.Tensor],
+    data_name: str,
+    condition_value_name: str,
+    condition_value_idxs: list,
+    are_conditions_categorical: list,
+    filename_comp: str,
+    plot_dims: Tuple[int] = (0, 1),
+    figsize: Tuple[float, float] = (6, 6),
+    n_components: int = 2,
+    N: int = 2,
+) -> List[matplotlib.figure.Figure]:
+
+    figs_axs = [
+        plt.subplots(figsize=figsize) for _ in condition_value_idxs
+    ]  # Create a new figure and axes
+
+    plot_dim_1, plot_dim_2 = plot_dims
+
+    embedding = processed_data[data_name].to("cpu").detach().numpy()
+    print(f"THE SHAPE OF THE EMEBDDING IS: {embedding.shape}")
+
+    reducer = PCA(n_components=n_components)
+    embedding = reducer.fit_transform(embedding)
+
+    for condition_value_idx, is_condition_categorical, (fig, ax) in zip(
+        condition_value_idxs, are_conditions_categorical, figs_axs
+    ):
+        condition_value = processed_data[condition_value_name][:, condition_value_idx]
+        condition_value = (
+            condition_value.to(dtype=torch.long)
+            if is_condition_categorical
+            else condition_value
+        )
+        condition_value = condition_value.to("cpu").detach().numpy()
+        scatter = ax.scatter(
+            embedding[:, plot_dim_1],
+            embedding[:, plot_dim_2],
+            c=condition_value,
+            cmap="tab10",
+            s=1,
+        )
+        fig.colorbar(scatter, ax=ax)  # Add a colorbar to the figure
+        ax.set_title(
+            f"Validation set embedding | Condition id {condition_value_idx}"
+        )  # Set the title of the plot
+        plt.close(fig)
+
+    figs = {
+        f"{filename_comp}-{condition_value_idx}": fig_ax[0]
+        for condition_value_idx, fig_ax in zip(condition_value_idxs, figs_axs)
+    }
+
+    return figs  # Return the figure object
+
+
 def wrap_with_first_batch(func: Callable, **kwargs: Dict[str, Any]) -> Callable:
     r"""
     A decorator that wraps a function to automatically pass the first batch
@@ -505,7 +562,7 @@ _PLOTTING_FUNCTIONS: Dict[str, Callable] = {
     "gm_means_pca": partial(
         wrap_with_just_processing_function_output, plot_gm_means_pca
     ),
-    "latent_pca": None,
+    "latent_pca": partial(wrap_with_processed_dataset, func=plot_latent_pca),
     "patent_pca+tsne": None,
     "original_vs_reconstructed": partial(
         wrap_with_first_batch, func=plot_original_vs_reconstructed

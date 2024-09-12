@@ -7,6 +7,22 @@ callbacks:
     plot_file_base_name: "evaluation"
     command_dynamic_kwargs: {}
   kwargs: {}
+- name: "neptune_plot"
+  cfg:
+    plotting_func: {name: "latent_tsne", kwargs: {n_batches: 100, data_name: "img", condition_value_name: "condition_values", condition_value_idxs: [0, 1], are_conditions_categorical: [true, true], filename_comp: "latent"}}
+    command_name: "encode"
+    neptune_plot_log_path: "validation_plots/latent_tsne"
+    plot_file_base_name: "embeddings"
+    command_dynamic_kwargs: {}
+  kwargs: {}
+- name: "neptune_plot"
+  cfg:
+    plotting_func: {name: "latent_pca", kwargs: {n_batches: 100, data_name: "img", condition_value_name: "condition_values", condition_value_idxs: [0, 1], are_conditions_categorical: [true, true], filename_comp: "latent"}}
+    command_name: "encode"
+    neptune_plot_log_path: "validation_plots/latent_pca"
+    plot_file_base_name: "embeddings"
+    command_dynamic_kwargs: {}
+  kwargs: {}
 num_nodes: null
 accelerator: null
 devices: null
