@@ -1,11 +1,11 @@
-import inspect
-from functools import partial
-from typing import Dict, Any, Callable
-import neptune
-from pytorch_lightning.callbacks import Callback, LearningRateMonitor
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import Callback, LearningRateMonitor
+import neptune
+from functools import partial
+import inspect
 import matplotlib.pyplot as plt
 from argparse import Namespace
+from typing import Dict, Any, Callable
 
 from utils.common_types import ConfigStructure
 from utils.config import validate_config_structure
@@ -39,19 +39,17 @@ class NeptunePlotLogCallback(Callback):
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         val_dataloader = trainer.val_dataloaders
-        run_processing_command_method = getattr(
-            pl_module, "run_processing_command", None
-        )
+        run_command_method = getattr(pl_module, "run_command", None)
 
         assert (
-            run_processing_command_method is not None
-        ), "Provided pl_module has no attribute named run_processing_command."
-        assert inspect.ismethod(run_processing_command_method) or inspect.isfunction(
-            run_processing_command_method
-        ), f"Attribute run_processing_command of pl_module is not a method."
+            run_command_method is not None
+        ), "Provided pl_module has no attribute named run_command."
+        assert inspect.ismethod(run_command_method) or inspect.isfunction(
+            run_command_method
+        ), f"Attribute run_command of pl_module is not a method."
 
-        partial_run_processing_command_method = partial(
-            run_processing_command_method,
+        partial_run_command_method = partial(
+            run_command_method,
             command_name=self._command_name,
             dynamic_kwargs=self._command_dynamic_kwargs,
             reset_loss_manager=True,
@@ -60,7 +58,7 @@ class NeptunePlotLogCallback(Callback):
         pl_module.train(False)
 
         figs = self._plotting_function(
-            processing_function=partial_run_processing_command_method,
+            processing_function=partial_run_command_method,
             dataloader=val_dataloader,
         )
 

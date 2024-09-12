@@ -30,7 +30,7 @@ from models.components.misc import (
     TensorCloner,
     BatchRepeater,
 )
-from models.components.condition_embedding import ConditionEmbeddingTransformer
+from models.components.condition_embedding import ConditionSetEmbeddingTransformer
 from models.components.loss import LossManager, ReconstructionLoss
 from models.components.optimizer import get_chained_scheduler, get_optimizer
 
@@ -57,13 +57,13 @@ _MISC_MODULE: Dict[str, ChainLink] = {
 }
 
 _CONDITION_EMBEDDING_MODULE: Dict[str, ChainLink] = {
-    "condition_embedding_transformer": ConditionEmbeddingTransformer
+    "condition_set_embedding_transformer": ConditionSetEmbeddingTransformer
 }
 
 _LOSS_MODULE: Dict[str, ChainLink] = {"reconstruction": ReconstructionLoss}
 
 _CHAIN_LINKS: Dict[str, Dict[str, ChainLink]] = {
-    "blocks": _DENSE_BLOCKS_MODULE,
+    "dense_blocks": _DENSE_BLOCKS_MODULE,
     "latent": _LATENT_MODULE,
     "misc": _MISC_MODULE,
     "condition_embedding": _CONDITION_EMBEDDING_MODULE,
@@ -330,7 +330,7 @@ class Chain(pl.LightningModule):
 
         assert (
             "forward" in self._commands
-        ), "There must be a command named forward among the self._processing_commands."
+        ), "There must be a command named forward among the self._commands."
 
         for command_key, command_processing_steps in self._commands.items():
             for cmd_proc_step in command_processing_steps:
@@ -369,8 +369,8 @@ class Chain(pl.LightningModule):
         """
 
         assert (
-            command_name in self._processing_commands
-        ), f"The provivided command {command_name} is not within defined commands {list(self._processing_commands.keys())}."
+            command_name in self._commands
+        ), f"The provivided command {command_name} is not within defined commands {list(self._commands.keys())}."
 
         # Checking dynamic_kwargs to be passed to links methods to be called.
         for link_name, kwargs in dynamic_kwargs.items():
@@ -381,7 +381,7 @@ class Chain(pl.LightningModule):
                 kwargs, Namespace
             ), "The provided kwargs are not an instance of Namespace."
 
-        command_processing_steps = self._processing_commands[command_name]
+        command_processing_steps = self._commands[command_name]
 
         # Running a specified method of each link in a specified order.
         for processing_step in command_processing_steps:

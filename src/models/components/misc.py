@@ -8,9 +8,8 @@ Classes:
     BatchRepeater: A module for repeating tensors in a batch.
 
 Functions:
-    _get_explicit_constraint: Returns a tensor aggregator function based on the specified aggregation type.
-    _get_tensor_reductor: Retrieves a tensor reduction function based on the provided name and additional keyword arguments.
-
+    get_tensor_aggregator(aggregation_type: str, kwargs: Dict[str, Any]) -> TensorAggregator:
+    get_tensor_reductor(tensor_reductor_name: str, kwargs: Dict[str, Any]) -> Callable[[torch.Tensor], torch.Tensor]:
 
 """
 
@@ -41,7 +40,7 @@ _TENSOR_AGGREGATORS: Dict[
 }
 
 
-def _get_explicit_constraint(
+def get_tensor_aggregator(
     aggregation_type: str, kwargs: Dict[str, Any]
 ) -> TensorAggregator:
     r"""
@@ -76,7 +75,7 @@ _TENSOR_REDUCTORS: Dict[str, TensorReductor] = {
 }
 
 
-def _get_tensor_reductor(
+def get_tensor_reductor(
     tensor_reductor_name: str, kwargs: Dict[str, Any]
 ) -> Callable[[torch.Tensor], torch.Tensor]:
     r"""
@@ -131,7 +130,7 @@ class AggregateDataAdapter(nn.Module):
         super(AggregateDataAdapter, self).__init__()
         validate_config_structure(cfg=cfg, config_structure=self._config_structure)
 
-        self._aggregate: TensorAggregator = _get_explicit_constraint(
+        self._aggregate: TensorAggregator = get_tensor_aggregator(
             aggregation_type=cfg.aggregation_type, kwargs=vars(cfg.kwargs)
         )
 

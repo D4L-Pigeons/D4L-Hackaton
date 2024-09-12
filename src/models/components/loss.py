@@ -656,7 +656,7 @@ class LossManager:
         )
 
     @staticmethod
-    def _parse_hparams_to_dict(self, cfg: Namespace) -> Dict[str, Any]:
+    def _parse_hparams_to_dict(cfg: Namespace) -> Dict[str, Any]:
         return cfg
 
     @property

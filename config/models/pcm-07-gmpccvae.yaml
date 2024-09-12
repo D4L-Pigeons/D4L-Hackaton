@@ -1,6 +1,6 @@
 chain:
 - name: "encoder"
-  chain_link_spec_path: "blocks/dense_block_stack"
+  chain_link_spec_path: "dense_blocks/dense_block_stack"
   cfg:
     input_dim: 784
     output_dim: 32
@@ -16,14 +16,14 @@ chain:
     loss_coef_posterior_entropy: .001
 
 - name: "condition_embedding"
-  chain_link_spec_path: "condition_embedding/condition_embedding_transformer"
+  chain_link_spec_path: "condition_embedding/condition_set_embedding_transformer"
   cfg:
     embedding_dim: 128
     transformer: {encoder_kwargs: {num_layers: 2}, encoder_layer_kwargs: {nhead: 4, dim_feedforward: 256}}
     embedding_module: {n_conditions: 5, n_categories_per_condition: [10, 3, 5, 3, 5]}
 
 - name: "condition-to-logits"
-  chain_link_spec_path: "blocks/dense_block_stack"
+  chain_link_spec_path: "dense_blocks/dense_block_stack"
   cfg:
     input_dim: 128
     output_dim: 100
@@ -32,7 +32,7 @@ chain:
     block_wrapper_name: null
 
 - name: "condition-to-decoder"
-  chain_link_spec_path: "blocks/dense_block_stack"
+  chain_link_spec_path: "dense_blocks/dense_block_stack"
   cfg:
     input_dim: 128
     output_dim: 8
@@ -49,7 +49,7 @@ chain:
     loss_coef_prior_nll: .001
 
 - name: "decoder"
-  chain_link_spec_path: "blocks/dense_block_stack"
+  chain_link_spec_path: "dense_blocks/dense_block_stack"
   cfg:
     input_dim: 24
     output_dim: 784
@@ -66,7 +66,7 @@ chain:
     tensor_reductor: {name: "mean", kwargs: {}}
 
 - name: "output-activation"
-  chain_link_spec_path: "blocks/standalone_tiny_module"
+  chain_link_spec_path: "dense_blocks/standalone_tiny_module"
   cfg:
     nnmodule_spec_path: "activation/sigmoid"
     output_dim: null
