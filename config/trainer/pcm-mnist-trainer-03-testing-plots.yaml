@@ -1,27 +1,181 @@
 callbacks:
 - name: "neptune_plot"
   cfg:
-    plotting_func: {name: "gm_means_pca", kwargs: {gm_means_name: "gm_means", n_components: 10, filename_comp: "means_pca"}}
-    command_name: "get_means"
-    neptune_plot_log_path: "validation_plots/gm_means_pca"
-    plot_file_base_name: "evaluation"
-    command_dynamic_kwargs: {}
+    neptune_plot_log_path: "validation_plots/gm_means"
+    command: {name: "get_means", dynamic_kwargs: {}}
+    plt_tree_top_node:
+      top_node_name: "nproc_batch"
+      top_node_cfg:
+        n_batches: 1
+        plt_tree_cfg:
+        - node_name: "perform_pca_node"
+          node_cfg:
+            kwargs: {n_components: 10}
+            data_name: "gm_means"
+            node_name: "plt_fn_node_list"
+            node_cfg:
+              plt_fn_node_list:
+              - name: "explained_variance_ratio_barplot"
+                kwargs: {}
+                data_args_names: ["gm_means_explained_variance_ratio"]
+                filename_comp: "gm_means_barplot"
+              - name: "features_components_corrplot"
+                kwargs: {}
+                data_args_names: ["gm_means_components"]
+                filename_comp: "gm_means_components_corrplot"
   kwargs: {}
 - name: "neptune_plot"
   cfg:
-    plotting_func: {name: "latent_tsne", kwargs: {n_batches: 100, data_name: "img", condition_value_name: "condition_values", condition_value_idxs: [0, 1], are_conditions_categorical: [true, true], filename_comp: "latent"}}
-    command_name: "encode"
-    neptune_plot_log_path: "validation_plots/latent_tsne"
-    plot_file_base_name: "embeddings"
-    command_dynamic_kwargs: {}
+    neptune_plot_log_path: "validation_plots/reconstruction"
+    command: {name: "encode-decode", dynamic_kwargs: {}}
+    plt_tree_top_node:
+      top_node_name: "nproc_batch"
+      top_node_cfg:
+        n_batches: 1
+        plt_tree_cfg:
+        - node_name: "plt_fn_node_list"
+          node_cfg:
+            plt_fn_node_list:
+            - name: "original_vs_reconstructed_plot"
+              kwargs: {num_images: 16, num_rows: 4}
+              data_args_names: ["img_org", "img"]
+              filename_comp: "org_vs_reconstructed"
   kwargs: {}
 - name: "neptune_plot"
   cfg:
-    plotting_func: {name: "latent_pca", kwargs: {n_batches: 100, data_name: "img", condition_value_name: "condition_values", condition_value_idxs: [0, 1], are_conditions_categorical: [true, true], filename_comp: "latent"}}
-    command_name: "encode"
-    neptune_plot_log_path: "validation_plots/latent_pca"
-    plot_file_base_name: "embeddings"
-    command_dynamic_kwargs: {}
+    neptune_plot_log_path: "validation_plots/prior_samples"
+    command: {name: "sample-prior", dynamic_kwargs: {}}
+    plt_tree_top_node:
+      top_node_name: "nproc_batch"
+      top_node_cfg:
+        n_batches: 1
+        plt_tree_cfg:
+        - node_name: "plt_fn_node_list"
+          node_cfg:
+            plt_fn_node_list:
+            - name: "images_with_conditions_plot"
+              kwargs: {disp_batch_size: 16, disp_n_latent_samples: 4}
+              data_args_names: ["img", "condition_token_ids", "condition_values"]
+              filename_comp: "prior_samples"
+  kwargs: {}
+- name: "neptune_plot"
+  cfg:
+    neptune_plot_log_path: "validation_plots/embeddings_pca"
+    command: {name: "encode", dynamic_kwargs: {}}
+    plt_tree_top_node:
+      top_node_name: "nproc_batch"
+      top_node_cfg:
+        n_batches: 10
+        plt_tree_cfg:
+        - node_name: "perform_pca_node"
+          node_cfg:
+            kwargs: {n_components: 10}
+            data_name: "img"
+            node_name: "plt_fn_node_list"
+            node_cfg:
+              plt_fn_node_list:
+              - name: "explained_variance_ratio_barplot"
+                kwargs: {}
+                data_args_names: ["img_explained_variance_ratio"]
+                filename_comp: "img_pca_explained_variance_ratio_barplot"
+              - name: "features_components_corrplot"
+                kwargs: {}
+                data_args_names: ["img_components"]
+                filename_comp: "img_pca_components_corrplot"
+              - name: "pairplot"
+                kwargs: {hue_dim: 0, n_data_cols: 6}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-pca-cond0"
+              - name: "pairplot"
+                kwargs: {hue_dim: 1, n_data_cols: 6}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-pca-cond1"
+              - name: "pairplot"
+                kwargs: {hue_dim: 2, n_data_cols: 6}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-pca-cond2"
+              - name: "pairplot"
+                kwargs: {hue_dim: 3, n_data_cols: 6}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-pca-cond3"
+              - name: "pairplot"
+                kwargs: {hue_dim: 4, n_data_cols: 6}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-pca-cond4"
+  kwargs: {}
+- name: "neptune_plot"
+  cfg:
+    neptune_plot_log_path: "validation_plots/embeddings_umap"
+    command: {name: "encode", dynamic_kwargs: {}}
+    plt_tree_top_node:
+      top_node_name: "nproc_batch"
+      top_node_cfg:
+        n_batches: 10
+        plt_tree_cfg:
+        - node_name: "perform_umap_node"
+          node_cfg:
+            kwargs: {n_components: 4}
+            data_name: "img"
+            node_name: "plt_fn_node_list"
+            node_cfg:
+              plt_fn_node_list:
+              - name: "pairplot"
+                kwargs: {hue_dim: 0, n_data_cols: 4}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-umap-cond0"
+              - name: "pairplot"
+                kwargs: {hue_dim: 1, n_data_cols: 4}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-umap-cond1"
+              - name: "pairplot"
+                kwargs: {hue_dim: 2, n_data_cols: 4}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-umap-cond2"
+              - name: "pairplot"
+                kwargs: {hue_dim: 3, n_data_cols: 4}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-umap-cond3"
+              - name: "pairplot"
+                kwargs: {hue_dim: 4, n_data_cols: 4}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-umap-cond4"
+  kwargs: {}
+- name: "neptune_plot"
+  cfg:
+    neptune_plot_log_path: "validation_plots/embeddings_tsne"
+    command: {name: "encode", dynamic_kwargs: {}}
+    plt_tree_top_node:
+      top_node_name: "nproc_batch"
+      top_node_cfg:
+        n_batches: 10
+        plt_tree_cfg:
+        - node_name: "perform_tsne_node"
+          node_cfg:
+            kwargs: {n_components: 3}
+            data_name: "img"
+            node_name: "plt_fn_node_list"
+            node_cfg:
+              plt_fn_node_list:
+              - name: "pairplot"
+                kwargs: {hue_dim: 0, n_data_cols: 3}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-tsne-cond0"
+              - name: "pairplot"
+                kwargs: {hue_dim: 1, n_data_cols: 3}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-tsne-cond1"
+              - name: "pairplot"
+                kwargs: {hue_dim: 2, n_data_cols: 3}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-tsne-cond2"
+              - name: "pairplot"
+                kwargs: {hue_dim: 3, n_data_cols: 3}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-tsne-cond3"
+              - name: "pairplot"
+                kwargs: {hue_dim: 4, n_data_cols: 3}
+                data_args_names: ["img", "condition_values"]
+                filename_comp: "pairplot-tsne-cond4"
   kwargs: {}
 num_nodes: null
 accelerator: null

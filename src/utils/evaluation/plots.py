@@ -1,586 +1,500 @@
-import matplotlib
+r"""
+This module provides various utilities for creating and managing plots for evaluation purposes. It includes functions for generating specific types of plots, as well as classes for organizing and managing these plots in a hierarchical structure.
+
+Modules and Functions:
+- explained_variance_ratio_barplot: Creates a bar plot to visualize the explained variance ratio.
+- _get_plt_fn: Retrieves a plotting function by its name and optionally applies partial arguments.
+
+Classes:
+- PltTreeNode: Abstract base class for creating plot tree nodes.
+- PltFnNode: Represents a node in a plot tree structure, responsible for generating plots based on provided configuration and data.
+- PltFnNodeList: Manages a list of PltFnNode instances.
+- PerformPCANode: Performs Principal Component Analysis (PCA) on a given dataset and integrates with a plotting tree node to generate plots.
+- PerformUMAPNode: Performs UMAP dimensionality reduction on a given dataset and integrates with a plotting tree node.
+- PerformTSNENode: Performs t-SNE dimensionality reduction on a given dataset and generates plots using a specified plotting node.
+- PltTreeTopNode: Abstract base class that represents the top node of a plotting tree structure.
+- NProcessedBatchesPltTreeTopNode: Handles plotting for a specified number of processed batches.
+
+Global Variables:
+- _PLT_FNS: Dictionary mapping plot function names to their corresponding functions and configurations.
+- _PLT_TREE_NODES: Dictionary mapping plot tree node names to their corresponding classes.
+- _TOP_NODES: Dictionary mapping top node names to their corresponding classes.
+
+Functions:
+- _get_plt_tree_node: Retrieves a plotting tree node function based on the provided node name.
+- get_top_node: Retrieves the top node from a predefined set of nodes based on the provided name.
+
+"""
+
 import matplotlib.pyplot as plt
-import seaborn as sns
-from functools import partial
-from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA
 import torch
 import numpy as np
-import pandas as pd
-from typing import Callable, Dict, Any, List, Tuple
+from sklearn.decomposition import PCA
+from umap import UMAP
+from sklearn.manifold import TSNE
+from functools import partial
+import abc
+from argparse import Namespace
+from typing import TypeAlias, Callable, Dict, Any, List
 
-# import scienceplots - See dependencies but worth installing them as the plots are sublime.
-# plt.style.use("science")
+from utils.evaluation.plots_base import (
+    barplot,
+    features_components_corrplot,
+    ColoredScatterplot,
+    original_vs_reconstructed_plot,
+    images_with_conditions_plot,
+    pairplot,
+)
+from utils.config import validate_config_structure
+from utils.common_types import ConfigStructure
 
-from utils.common_types import Batch
+PltFn: TypeAlias = Callable[[Any], plt.Figure]
+TensorDictFn: TypeAlias = Callable[[Dict[str, torch.Tensor]], Dict[str, torch.Tensor]]
 
 
-def plot_original_vs_reconstructed(
-    batch: Any,  # Assuming batch is a dictionary-like object
-    org_imgs_name: str,
-    reconstructed_imgs_name: str,
-    num_images: int,
-    filename_comp: str,
-    num_rows: int = 1,
-    wspace: float = 0.5,
-    hspace: float = 0.5,
-    disp_img_size: int = 2,
-) -> Dict[str, plt.Figure]:
+def explained_variance_ratio_barplot(
+    height: np.ndarray, **kwargs: Dict[str, Any]
+) -> plt.Figure:
     r"""
-    Plots a grid of original and reconstructed images in an interleaved manner.
+        Creates a bar plot to visualize the explained variance ratio.
 
     Parameters:
-    batch (Any): The batch containing original and reconstructed images.
-    org_imgs_name (str): The key for original images in the batch.
-    reconstructed_imgs_name (str): The key for reconstructed images in the batch.
-    num_images (int): The number of images to display.
-    num_rows (int): The number of rows to display the images.
-    wspace (float): The amount of width reserved for blank space between subplots.
-    hspace (float): The amount of height reserved for blank space between subplots.
-    disp_img_size (int): The size of each displayed image.
-    """
-
-    org_imgs = batch[org_imgs_name]
-    reconstructed_imgs = batch[reconstructed_imgs_name]
-
-    # Calculate the number of columns needed
-    num_cols = (
-        num_images + num_rows - 1
-    ) // num_rows  # Round up division for number of columns
-
-    # Create a figure with a grid of subplots, interleaving original and reconstructed rows
-    fig, axes = plt.subplots(
-        num_rows * 2,
-        num_cols,
-        figsize=(num_cols * disp_img_size, num_rows * 2 * disp_img_size),
-    )
-
-    # Adjust the spacing between images
-    fig.subplots_adjust(wspace=wspace, hspace=hspace)
-
-    # Plot original and reconstructed images in an interleaved manner
-    for i in range(num_images):
-        row_idx = i // num_cols  # Determine which row we are plotting in
-        col_idx = i % num_cols  # Determine which column we are plotting in
-
-        # Original images (on even-indexed rows)
-        original = org_imgs[i][0]
-        axes[2 * row_idx, col_idx].imshow(original, cmap="gray")
-        axes[2 * row_idx, col_idx].axis("off")
-
-        # Reconstructed images (on odd-indexed rows)
-        reconstruction = reconstructed_imgs[i][0].detach()
-        axes[2 * row_idx + 1, col_idx].imshow(reconstruction, cmap="gray")
-        axes[2 * row_idx + 1, col_idx].axis("off")
-
-    # Set titles next to the first image in each row
-    for row_idx in range(num_rows):
-        axes[2 * row_idx, 0].text(
-            -0.2,
-            0.5,
-            "Original",
-            va="center",
-            ha="right",
-            rotation=90,
-            fontsize=10,
-            transform=axes[2 * row_idx, 0].transAxes,
-        )
-        axes[2 * row_idx + 1, 0].text(
-            -0.2,
-            0.5,
-            "Reconstructed",
-            va="center",
-            ha="right",
-            rotation=90,
-            fontsize=10,
-            transform=axes[2 * row_idx + 1, 0].transAxes,
-        )
-
-    # fig.suptitle(f"Epoch: {epoch}")  # Add title with epoch number
-
-    # Close the figure to release memory after logging
-    plt.close(fig)
-
-    return {filename_comp: fig}
-
-
-def plot_images_with_conditions(
-    batch: Batch,
-    imgs_name: str,
-    conditions_name: str,
-    condition_values_name: str,
-    disp_batch_size: int,
-    disp_n_latent_samples: int,
-    filename_comp: str,
-    wspace: float = 0.5,
-    hspace: float = 0.5,
-    disp_img_size: int = 2,
-    y_title_shift: float = 0.95,
-) -> matplotlib.figure.Figure:
-    r"""
-    Display a grid of images with conditions and condition values as titles.
-
-    Parameters:
-    images (torch.Tensor): Tensor of images with shape (batch, n_latent_samples, 1, 28, 28).
-    conditions (torch.Tensor): Tensor of conditions with shape (batch, n_conds).
-    condition_values (torch.Tensor): Tensor of condition values with shape (batch, n_conds).
-    disp_batch_size (int): Number of batches to display.
-    disp_n_latent_samples (int): Number of latent samples to display.
-    """
-    imgs = batch[imgs_name]
-    conditions = batch[conditions_name]
-    condition_values = batch[condition_values_name]
-
-    # There is no n_latent samples dim create dummy n_latent_samples dim.
-    if len(imgs.shape) == 4:
-        imgs.unsqueeze_(1)
-
-    batch_size, n_latent_samples, _, image_height, image_width = imgs.shape
-
-    batch_size = min(batch_size, disp_batch_size)
-    n_latent_samples = min(n_latent_samples, disp_n_latent_samples)
-
-    fig, axes = plt.subplots(
-        batch_size,
-        n_latent_samples,
-        figsize=(n_latent_samples * disp_img_size, batch_size * disp_img_size),
-    )
-
-    # Adjust the spacing between images
-    fig.subplots_adjust(wspace=wspace, hspace=hspace)  # Adjust these values as needed
-
-    if batch_size == 1:
-        axes = [axes]
-    if n_latent_samples == 1:
-        axes = [[ax] for ax in axes]
-
-    for i in range(batch_size):
-        for j in range(n_latent_samples):
-            img = imgs[i, j, 0].cpu().numpy()
-            axes[i][j].imshow(img, cmap="gray")
-            axes[i][j].axis("off")
-
-            # Set title for each image
-            condition_text = f"Conditions: {conditions[i].cpu().numpy()}"
-            condition_values_text = f"Values: {condition_values[i].cpu().numpy()}"
-            title_text = f"{condition_text}\n{condition_values_text}"
-            axes[i][j].set_title(title_text, fontsize=8)
-
-    # fig.suptitle(f"Epoch: {epoch}", y=y_title_shift)  # Add title with epoch number
-    plt.close(fig)
-
-    return {filename_comp: fig}
-
-
-def plot_2d_latent(
-    processing_function: Callable,
-    dataloader: torch.utils.data.DataLoader,
-    data_name: str,
-    condition_value_name: str,
-    condition_value_idxs: list,
-    are_conditions_categorical: list,
-    filename_comp: str,
-    num_batches: None | int = None,
-    plot_dims: Tuple[int] = (0, 1),
-    figsize: Tuple[float, float] = (6, 6),
-) -> List[matplotlib.figure.Figure]:
-
-    figs_axs = [
-        plt.subplots(figsize=figsize) for _ in condition_value_idxs
-    ]  # Create a new figure and axes
-
-    # fig, ax = plt.subplots(figsize=figsize)  # Create a new figure and axes
-
-    if num_batches is None:
-        num_batches = len(dataloader)
-
-    plot_dim_1, plot_dim_2 = plot_dims
-
-    colorbar_set = False
-
-    for _, batch in zip(range(num_batches), dataloader):
-        batch = processing_function(batch)
-        embedding = batch[data_name]
-        embedding = embedding.to("cpu").detach().numpy()
-        for condition_value_idx, is_condition_categorical, (fig, ax) in zip(
-            condition_value_idxs, are_conditions_categorical, figs_axs
-        ):
-            condition_value = batch[condition_value_name][:, condition_value_idx]
-            condition_value = (
-                condition_value.to(dtype=torch.long)
-                if is_condition_categorical
-                else condition_value
-            )
-
-            condition_value = condition_value.to("cpu").detach().numpy()
-            scatter = ax.scatter(
-                embedding[:, plot_dim_1],
-                embedding[:, plot_dim_2],
-                c=condition_value,
-                cmap="tab10",
-                s=1,
-            )
-            if not colorbar_set:
-                fig.colorbar(scatter, ax=ax)  # Add a colorbar to the figure
-        colorbar_set = True
-
-    for condition_value_idx, (fig, ax) in zip(condition_value_idxs, figs_axs):
-        ax.set_title(
-            f"Validation set embedding | Condition id {condition_value_idx}"
-        )  # Set the title of the plot
-        plt.close(fig)
-
-    figs = {
-        f"{filename_comp}-{condition_value_idx}": fig_ax[0]
-        for condition_value_idx, fig_ax in zip(condition_value_idxs, figs_axs)
-    }
-
-    return figs  # Return the figure object
-
-
-def plot_latent_tsne(
-    processed_data: Dict[str, torch.Tensor],
-    data_name: str,
-    condition_value_name: str,
-    condition_value_idxs: list,
-    are_conditions_categorical: list,
-    filename_comp: str,
-    plot_dims: Tuple[int] = (0, 1),
-    figsize: Tuple[float, float] = (6, 6),
-    n_components: int = 2,
-) -> List[matplotlib.figure.Figure]:
-
-    figs_axs = [
-        plt.subplots(figsize=figsize) for _ in condition_value_idxs
-    ]  # Create a new figure and axes
-
-    plot_dim_1, plot_dim_2 = plot_dims
-
-    embedding = processed_data[data_name].to("cpu").detach().numpy()
-
-    reducer = TSNE(n_components=n_components)
-    embedding = reducer.fit_transform(embedding)
-
-    for condition_value_idx, is_condition_categorical, (fig, ax) in zip(
-        condition_value_idxs, are_conditions_categorical, figs_axs
-    ):
-        condition_value = processed_data[condition_value_name][:, condition_value_idx]
-        condition_value = (
-            condition_value.to(dtype=torch.long)
-            if is_condition_categorical
-            else condition_value
-        )
-        condition_value = condition_value.to("cpu").detach().numpy()
-        scatter = ax.scatter(
-            embedding[:, plot_dim_1],
-            embedding[:, plot_dim_2],
-            c=condition_value,
-            cmap="tab10",
-            s=1,
-        )
-        fig.colorbar(scatter, ax=ax)  # Add a colorbar to the figure
-        ax.set_title(
-            f"Validation set embedding | Condition id {condition_value_idx}"
-        )  # Set the title of the plot
-        plt.close(fig)
-
-    figs = {
-        f"{filename_comp}-{condition_value_idx}": fig_ax[0]
-        for condition_value_idx, fig_ax in zip(condition_value_idxs, figs_axs)
-    }
-
-    return figs  # Return the figure object
-
-
-def helper_make_barplot(
-    x: List[str],
-    y: List[float],
-    title: str,
-    xlab: str,
-    ylab: str,
-    rotation: int = 0,
-    figsize: Tuple[float, float] = (10, 4),
-) -> matplotlib.figure.Figure:
-    r"""
-    Make a barplot.
-
-    Parameters:
-    x (List[str]): The x-axis labels.
-    y (List[float]): The y-axis values.
-    title (str): The title of the plot.
-    xlab (str): The label for the x-axis.
-    ylab (str): The label for the y-axis.
-    rotation (int): The rotation angle for x-axis labels.
-    figsize (Tuple[float, float]): Size of the figure.
+        height (np.ndarray): An array containing the heights of the bars, representing the explained variance ratios.
+        **kwargs (Dict[str, Any]): Additional keyword arguments to pass to the barplot function.
 
     Returns:
-    matplotlib.figure.Figure: The figure object containing the plot.
-    """
-    fig, ax = plt.subplots(figsize=figsize)
-    ax.bar(x, y, color="black")
-    ax.set_title(title)
-    ax.set_xlabel(xlab)
-    ax.set_ylabel(ylab)
-    ax.set_xticks(range(len(x)))
-    ax.set_xticklabels(x, rotation=rotation)
-
-    plt.close(fig)
-
-    return fig
-
-
-def helper_plot_features_components_correlation(
-    components: np.ndarray,
-    feature_names: np.ndarray,
-    correlation_threshold: float = 0,
-    title: str = "",
-    xlab: str = "",
-    display_desc: bool = False,
-    figsize: Tuple[float, float] = (10, 8),
-) -> matplotlib.figure.Figure:
-    r"""
-    Plot the correlation of the features with the components.
-
-    Parameters:
-    components (np.ndarray): The PCA components.
-    feature_names (np.ndarray): The names of the features.
-    correlation_threshold (float): The threshold for displaying correlations.
-    title (str): The title of the plot.
-    xlab (str): The label for the x-axis.
-    display_desc (bool): Whether to display the title.
-    figsize (Tuple[float, float]): Size of the figure.
-
-    Returns:
-    matplotlib.figure.Figure: The figure object containing the plot.
-    """
-    df_disp = pd.DataFrame(
-        data=components.T * 100, index=feature_names, columns=list(range(1, 11))
-    )
-    fig, ax = plt.subplots(figsize=figsize)
-    sns.heatmap(
-        df_disp,
-        annot=True,
-        fmt=".0f",
-        vmin=-100,
-        vmax=100,
-        linewidth=0.5,
-        mask=abs(df_disp) < correlation_threshold,
-        cmap=sns.diverging_palette(255, 10, as_cmap=True),
-        ax=ax,
-    )
-    if display_desc:
-        ax.set_title(title)
-    ax.set_xlabel(xlab)
-
-    plt.close(fig)
-
-    return fig
-
-
-def plot_gm_means_pca(
-    batch: Batch,
-    gm_means_name: str,
-    filename_comp: str,
-    n_components: int,
-    barplot_figsize: Tuple[float, float] = (10, 4),
-    correlation_threshold: float = 0,
-) -> matplotlib.figure.Figure:
-    r"""
-    Perform PCA on gm_means and plot the explained variance ratio.
-
-    Parameters:
-    batch (Batch): The batch containing gm_means.
-    gm_means_name (str): The key for gm_means in the batch.
-    filename_comp (str): The filename component for saving the plot.
-    n_components (int): Number of principal components to compute.
-    figsize (Tuple[float, float]): Size of the figure.
-
-    Returns:
-    matplotlib.figure.Figure: The figure object containing the plot.
-    """
-    gm_means = batch[gm_means_name].detach().numpy()
-    n_features = gm_means.shape[-1]
-
-    # Fit and transform PCA
-    pca = PCA(n_components=n_components)
-    pca.fit(gm_means)
-
-    # Plot explained variance ratio
-    explained_var_ratio = helper_make_barplot(
-        x=np.arange(1, n_components + 1),
-        y=pca.explained_variance_ratio_,
-        title="Explained Variance Ratio of Principal Components (Non Scaled)",
-        xlab="Principal Component",
-        ylab="Explained Variance Ratio",
-        figsize=barplot_figsize,
-    )
-
-    # Plot component
-    component_correlation = helper_plot_features_components_correlation(
-        components=pca.components_,
-        feature_names=np.arange(n_features),
-        correlation_threshold=correlation_threshold,
-        xlab="Principal Component",
-    )
-
-    return {
-        f"{filename_comp}-expl_var_ratio": explained_var_ratio,
-        f"{filename_comp}-comp_corr": component_correlation,
-    }
-
-
-def plot_latent_pca(
-    processed_data: Dict[str, torch.Tensor],
-    data_name: str,
-    condition_value_name: str,
-    condition_value_idxs: list,
-    are_conditions_categorical: list,
-    filename_comp: str,
-    plot_dims: Tuple[int] = (0, 1),
-    figsize: Tuple[float, float] = (6, 6),
-    n_components: int = 2,
-    N: int = 2,
-) -> List[matplotlib.figure.Figure]:
-
-    figs_axs = [
-        plt.subplots(figsize=figsize) for _ in condition_value_idxs
-    ]  # Create a new figure and axes
-
-    plot_dim_1, plot_dim_2 = plot_dims
-
-    embedding = processed_data[data_name].to("cpu").detach().numpy()
-    print(f"THE SHAPE OF THE EMEBDDING IS: {embedding.shape}")
-
-    reducer = PCA(n_components=n_components)
-    embedding = reducer.fit_transform(embedding)
-
-    for condition_value_idx, is_condition_categorical, (fig, ax) in zip(
-        condition_value_idxs, are_conditions_categorical, figs_axs
-    ):
-        condition_value = processed_data[condition_value_name][:, condition_value_idx]
-        condition_value = (
-            condition_value.to(dtype=torch.long)
-            if is_condition_categorical
-            else condition_value
-        )
-        condition_value = condition_value.to("cpu").detach().numpy()
-        scatter = ax.scatter(
-            embedding[:, plot_dim_1],
-            embedding[:, plot_dim_2],
-            c=condition_value,
-            cmap="tab10",
-            s=1,
-        )
-        fig.colorbar(scatter, ax=ax)  # Add a colorbar to the figure
-        ax.set_title(
-            f"Validation set embedding | Condition id {condition_value_idx}"
-        )  # Set the title of the plot
-        plt.close(fig)
-
-    figs = {
-        f"{filename_comp}-{condition_value_idx}": fig_ax[0]
-        for condition_value_idx, fig_ax in zip(condition_value_idxs, figs_axs)
-    }
-
-    return figs  # Return the figure object
-
-
-def wrap_with_first_batch(func: Callable, **kwargs: Dict[str, Any]) -> Callable:
-    r"""
-    A decorator that wraps a function to automatically pass the first batch
-    from a dataloader as the first argument named 'batch'.
-
-    Parameters:
-    func (Callable): The function to be wrapped.
-
-    Returns:
-    Callable: The wrapped function.
+        plt.Figure: The matplotlib Figure object containing the bar plot.
     """
 
-    def wrapped_function(
-        processing_function: Callable,
-        dataloader: torch.utils.data.DataLoader,
-    ):
-        batch = next(iter(dataloader))
-        batch = processing_function(batch=batch)
-        return func(batch, **kwargs)
-
-    return wrapped_function
+    return barplot(height=height, x_ticks=list(range(len(height))), **kwargs)
 
 
-def wrap_with_processed_dataset(
-    func: Callable, n_batches: int, **kwargs: Dict[str, Any]
-) -> Callable:
-
-    def wrapped_function(
-        processing_function: Callable,
-        dataloader: torch.utils.data.DataLoader,
-    ):
-        dataloader_iterator = iter(dataloader)
-        batch = next(dataloader_iterator)
-        processed_data = processing_function(batch)
-
-        for batch, batch_idx in zip(dataloader_iterator, range(n_batches)):
-            batch = processing_function(batch=batch)
-
-            for key in processed_data.keys():
-                processed_data[key] = torch.cat(
-                    [processed_data[key], batch[key]], dim=0
-                )
-
-        return func(processed_data, **kwargs)
-
-    return wrapped_function
-
-
-def wrap_with_dataloader(func: Callable, **kwargs: Dict[str, Any]) -> Callable:
-
-    def wrapped_function(
-        processing_function: Callable, dataloader: torch.utils.data.DataLoader
-    ):
-        return func(processing_function, dataloader, **kwargs)
-
-    return wrapped_function
-
-
-def wrap_with_just_processing_function_output(
-    func: Callable, **kwargs: Dict[str, Any]
-) -> Callable:
-
-    def wrapped_function(
-        processing_function: Callable, dataloader: torch.utils.data.DataLoader
-    ):
-        batch = processing_function({})
-        return func(batch, **kwargs)
-
-    return wrapped_function
-
-
-_PLOTTING_FUNCTIONS: Dict[str, Callable] = {
-    "latent_2d": partial(wrap_with_dataloader, func=plot_2d_latent),
-    "latent_tsne": partial(wrap_with_processed_dataset, func=plot_latent_tsne),
-    "gm_means_pca": partial(
-        wrap_with_just_processing_function_output, plot_gm_means_pca
+_PLT_FNS: Dict[str, PltFn] = {
+    "explained_variance_ratio_barplot": Namespace(
+        partial=True, fn=explained_variance_ratio_barplot
     ),
-    "latent_pca": partial(wrap_with_processed_dataset, func=plot_latent_pca),
-    "patent_pca+tsne": None,
-    "original_vs_reconstructed": partial(
-        wrap_with_first_batch, func=plot_original_vs_reconstructed
+    "features_components_corrplot": Namespace(
+        partial=True, fn=features_components_corrplot
     ),
-    "images_with_conditions": partial(
-        wrap_with_first_batch, func=plot_images_with_conditions
+    "colored_scatterplot": Namespace(partial=False, fn=ColoredScatterplot),
+    "original_vs_reconstructed_plot": Namespace(
+        partial=True, fn=original_vs_reconstructed_plot
     ),
+    "images_with_conditions_plot": Namespace(
+        partial=True, fn=images_with_conditions_plot
+    ),
+    "pairplot": Namespace(partial=True, fn=pairplot),
 }
 
 
-def get_plotting_function_taking_dataloader(
-    plotting_func_name: str, **kwargs: Dict[str, Any]
-) -> Callable:
-    plotting_func: None | Callable = _PLOTTING_FUNCTIONS.get(plotting_func_name, None)
+def _get_plt_fn(plt_fn_name: str, **kwargs: Dict[str, Any]) -> PltFn:
+    r"""
+    Retrieve a plotting function by its name and optionally apply partial arguments.
 
-    if plotting_func is not None:
-        return plotting_func(**kwargs)
+    Args:
+        plt_fn_name (str): The name of the plotting function to retrieve.
+        **kwargs (Dict[str, Any]): Additional keyword arguments to partially apply to the plotting function.
 
-    raise ValueError(
-        f"The provided plotting_func_name {plotting_func_name} is invalid. Must be one of {list(_PLOTTING_FUNCTIONS.keys())}"
-    )
+    Returns:
+        PltFn: The plotting function corresponding to the provided name, optionally partially applied with the given arguments.
+
+    Raises:
+        ValueError: If the provided plt_fn_name does not exist in the _PLT_FNS dictionary.
+    """
+
+    plt_fn = _PLT_FNS.get(plt_fn_name, None)
+
+    if plt_fn is None:
+        raise ValueError(
+            f"The provided plt_fn_name {plt_fn_name} is wrong. Must be one of {' ,'.join(list(_PLT_FNS.keys()))}"
+        )
+
+    if plt_fn.partial:
+        return partial(plt_fn.fn, **kwargs)
+
+    return plt_fn.fn
+
+
+class PltTreeNode(abc.ABC):
+    r"""
+    Abstract base class for creating plot tree nodes.
+
+    Attributes:
+        cfg (Namespace): Configuration namespace containing necessary parameters.
+
+    Methods:
+        __init__(cfg: Namespace) -> None:
+            Initializes the plot tree node with the given configuration.
+            This method must be implemented by subclasses.
+
+        get_plots(data: Dict[str, np.ndarray]) -> Dict[str, plt.Figure]:
+            Generates and returns a dictionary of plots based on the provided data.
+            This method must be implemented by subclasses.
+    """
+
+    @abc.abstractmethod
+    def __init__(self, cfg: Namespace) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_plots(self, data: Dict[str, np.ndarray]) -> Dict[str, plt.Figure]:
+        raise NotImplementedError
+
+
+class PltFnNode(PltTreeNode):
+    r"""
+    PltFnNode is a class that represents a node in a plot tree structure, responsible for generating plots based on provided configuration and data.
+
+    Attributes:
+        _config_structure (ConfigStructure): A dictionary defining the expected structure of the configuration.
+        _plt_fn (PltFn): A plotting function obtained based on the configuration.
+        _data_args_names (List[str]): A list of argument names to be used for plotting.
+        _filename_comp (str): A string component used for naming the output plot files.
+
+    Methods:
+        __init__(cfg: Namespace) -> None:
+            Initializes the PltFnNode with the given configuration.
+
+        get_plots(data: Dict[str, np.ndarray]) -> Dict[str, plt.Figure]:
+            Generates and returns plots based on the provided data.
+    """
+
+    _config_structure: ConfigStructure = {
+        "name": str,
+        "kwargs": Namespace,
+        "data_args_names": [str],
+        "filename_comp": str,
+    }
+
+    def __init__(self, cfg: Namespace) -> None:
+        validate_config_structure(cfg=cfg, config_structure=self._config_structure)
+
+        self._plt_fn: PltFn = _get_plt_fn(plt_fn_name=cfg.name, **vars(cfg.kwargs))
+        self._data_args_names: List[str] = cfg.data_args_names
+        self._filename_comp: str = cfg.filename_comp
+
+    def get_plots(self, data: Dict[str, np.ndarray]) -> Dict[str, plt.Figure]:
+        data_args = [data[data_arg_name] for data_arg_name in self._data_args_names]
+
+        return {self._filename_comp: self._plt_fn(*data_args)}
+
+
+class PltFnNodeList(PltTreeNode):
+    r"""
+    PltFnNodeList is a class that extends PltTreeNode and is responsible for managing a list of PltFnNode instances.
+
+    Attributes:
+        _config_structure (ConfigStructure): Defines the expected structure of the configuration.
+        _plt_fn_node_list (List[PltFnNode]): A list of PltFnNode instances initialized from the provided configuration.
+
+    Methods:
+        __init__(cfg: Namespace) -> None:
+            Initializes the PltFnNodeList instance by validating the provided configuration and creating a list of PltFnNode instances.
+
+        get_plots(data: Dict[str, np.ndarray]) -> Dict[str, plt.Figure]:
+            Generates and returns a dictionary of plot figures by aggregating the plots from each PltFnNode in the list.
+    """
+
+    _config_structure: ConfigStructure = {"plt_fn_node_list": [Namespace]}
+
+    def __init__(self, cfg: Namespace) -> None:
+        validate_config_structure(cfg=cfg, config_structure=self._config_structure)
+
+        self._plt_fn_node_list: List[PltFnNode] = [
+            PltFnNode(cfg=plt_fn_node_cfg) for plt_fn_node_cfg in cfg.plt_fn_node_list
+        ]
+
+    def get_plots(self, data: Dict[str, np.ndarray]) -> Dict[str, plt.Figure]:
+        fig_dict = {}
+        for plt_fn_node in self._plt_fn_node_list:
+            fig_dict.update(plt_fn_node.get_plots(data=data))
+
+        return fig_dict
+
+
+_PLT_TREE_NODES: Dict[str, PltTreeNode] = {
+    "plt_fn_node_list": PltFnNodeList,
+}
+
+
+def _get_plt_tree_node(plt_node_name: str, cfg: Namespace) -> PltTreeNode:
+    r"""
+    Retrieve a plotting tree node function based on the provided node name.
+
+    Args:
+        plt_node_name (str): The name of the plotting tree node to retrieve.
+        cfg (Namespace): Configuration object to be passed to the plotting tree node function.
+
+    Returns:
+        PltTreeNode: The plotting tree node function corresponding to the provided name.
+
+    Raises:
+        ValueError: If the provided plt_node_name does not exist in the _PLT_TREE_NODES dictionary.
+    """
+
+    plt_fn_node = _PLT_TREE_NODES.get(plt_node_name, None)
+
+    if plt_fn_node is None:
+        raise ValueError(
+            f"The provided plt_node_name'{plt_node_name}' is wrong. Must be one of {' ,'.join(list(_PLT_TREE_NODES.keys()))}"
+        )
+
+    return plt_fn_node(cfg=cfg)
+
+
+class PerformPCANode(PltTreeNode):
+    r"""
+    PerformPCANode is a class that performs Principal Component Analysis (PCA) on a given dataset
+    and integrates with a plotting tree node to generate plots.
+
+    Attributes:
+        _config_structure (ConfigStructure): The structure of the configuration expected by the node.
+        _pca (PCA): The PCA instance used to perform dimensionality reduction.
+        _plt_tree_node (PltTreeNode): The plotting tree node used to generate plots.
+        _data_name (str): The name of the data to be transformed.
+
+    Methods:
+        __init__(cfg: Namespace) -> None:
+            Initializes the PerformPCANode with the given configuration.
+
+        get_plots(data: Dict[str, np.ndarray]) -> Dict[str, plt.Figure]:
+            Transforms the data using PCA, updates the data dictionary with PCA results,
+            and generates plots using the plotting tree node.
+    """
+
+    _config_structure: ConfigStructure = {
+        "kwargs": Namespace,
+        "data_name": str,
+        "node_name": str,
+        "node_cfg": Namespace,
+    }
+
+    def __init__(self, cfg: Namespace) -> None:
+        validate_config_structure(cfg=cfg, config_structure=self._config_structure)
+
+        self._pca = PCA(**vars(cfg.kwargs))
+        self._plt_tree_node: PltTreeNode = _get_plt_tree_node(
+            plt_node_name=cfg.node_name, cfg=cfg.node_cfg
+        )
+        self._data_name: str = cfg.data_name
+
+    def get_plots(self, data: Dict[str, np.ndarray]) -> Dict[str, plt.Figure]:
+        data[self._data_name] = self._pca.fit_transform(X=data[self._data_name])
+        data[self._data_name + "_components"] = self._pca.components_
+        data[self._data_name + "_explained_variance_ratio"] = (
+            self._pca.explained_variance_ratio_
+        )
+
+        return self._plt_tree_node.get_plots(data=data)
+
+
+_PLT_TREE_NODES["perform_pca_node"] = PerformPCANode
+
+
+class PerformUMAPNode(PltTreeNode):
+    r"""
+    PerformUMAPNode is a class that performs UMAP dimensionality reduction on a given dataset and integrates with a plotting tree node.
+
+    Attributes:
+        _config_structure (ConfigStructure): The expected structure of the configuration.
+        _umap (UMAP): The UMAP instance used for dimensionality reduction.
+        _plt_tree_node (PltTreeNode): The plotting tree node for generating plots.
+        _data_name (str): The name of the data to be transformed.
+
+    Methods:
+        __init__(cfg: Namespace) -> None:
+            Initializes the PerformUMAPNode with the given configuration.
+
+        get_plots(data: Dict[str, np.ndarray]) -> Dict[str, plt.Figure]:
+            Transforms the data using UMAP and generates plots using the plotting tree node.
+    """
+
+    _config_structure: ConfigStructure = {
+        "kwargs": Namespace,
+        "data_name": str,
+        "node_name": str,
+        "node_cfg": Namespace,
+    }
+
+    def __init__(self, cfg: Namespace) -> None:
+        validate_config_structure(cfg=cfg, config_structure=self._config_structure)
+
+        self._umap = UMAP(**vars(cfg.kwargs))
+        self._plt_tree_node: PltTreeNode = _get_plt_tree_node(
+            plt_node_name=cfg.node_name, cfg=cfg.node_cfg
+        )
+        self._data_name: str = cfg.data_name
+
+    def get_plots(self, data: Dict[str, np.ndarray]) -> Dict[str, plt.Figure]:
+        data[self._data_name] = self._umap.fit_transform(X=data[self._data_name])
+
+        return self._plt_tree_node.get_plots(data=data)
+
+
+_PLT_TREE_NODES["perform_umap_node"] = PerformUMAPNode
+
+
+class PerformTSNENode(PltTreeNode):
+    r"""
+    PerformTSNENode is a class that performs t-SNE dimensionality reduction on a given dataset and generates plots using a specified plotting node.
+
+    Attributes:
+        _config_structure (ConfigStructure): The expected structure of the configuration.
+        _tsne (TSNE): The t-SNE model initialized with the provided configuration.
+        _plt_tree_node (PltTreeNode): The plotting node used to generate plots.
+        _data_name (str): The name of the data key in the input dictionary.
+
+    Methods:
+        __init__(cfg: Namespace) -> None:
+            Initializes the PerformTSNENode with the provided configuration.
+
+        get_plots(data: Dict[str, np.ndarray]) -> Dict[str, plt.Figure]:
+            Performs t-SNE on the specified data and generates plots using the plotting node.
+    """
+
+    _config_structure: ConfigStructure = {
+        "kwargs": Namespace,
+        "data_name": str,
+        "node_name": str,
+        "node_cfg": Namespace,
+    }
+
+    def __init__(self, cfg: Namespace) -> None:
+        validate_config_structure(cfg=cfg, config_structure=self._config_structure)
+
+        self._tsne = TSNE(**vars(cfg.kwargs))
+        self._plt_tree_node: PltTreeNode = _get_plt_tree_node(
+            plt_node_name=cfg.node_name, cfg=cfg.node_cfg
+        )
+        self._data_name: str = cfg.data_name
+
+    def get_plots(self, data: Dict[str, np.ndarray]) -> Dict[str, plt.Figure]:
+        data[self._data_name] = self._tsne.fit_transform(X=data[self._data_name])
+
+        return self._plt_tree_node.get_plots(data=data)
+
+
+_PLT_TREE_NODES["perform_tsne_node"] = PerformTSNENode
+
+
+class PltTreeTopNode(abc.ABC):
+    r"""
+    PltTreeTopNode is an abstract base class that represents the top node of a plotting tree structure.
+
+    Attributes:
+        _config_structure (ConfigStructure): A dictionary defining the expected structure of the configuration.
+
+    Methods:
+        __init__(cfg: List[Namespace]) -> None:
+            Initializes the PltTreeTopNode with the given configuration.
+            Args:
+                cfg (List[Namespace]): A list of Namespace objects containing the configuration for the plotting tree.
+
+        get_plots(dataloader: torch.utils.data.DataLoader, proc_fn: TensorDictFn) -> Dict[str, plt.Figure]:
+            Abstract method that must be implemented by subclasses to generate plots.
+            Args:
+                dataloader (torch.utils.data.DataLoader): A DataLoader object to provide data for plotting.
+                proc_fn (TensorDictFn): A function to process the data.
+            Returns:
+                Dict[str, plt.Figure]: A dictionary where keys are plot names and values are matplotlib Figure objects.
+    """
+
+    _config_structure: ConfigStructure = {
+        "plt_tree_cfg": [{"node_name": str, "node_cfg": Namespace}]
+    }
+
+    def __init__(self, cfg: List[Namespace]) -> None:
+        validate_config_structure(cfg=cfg, config_structure=self._config_structure)
+
+        self._plt_fns_tree = [
+            _get_plt_tree_node(
+                plt_node_name=plt_fn_node.node_name, cfg=plt_fn_node.node_cfg
+            )
+            for plt_fn_node in cfg.plt_tree_cfg
+        ]
+
+    @abc.abstractmethod
+    def get_plots(
+        self,
+        dataloader: torch.utils.data.DataLoader,
+        proc_fn: TensorDictFn,
+    ) -> Dict[str, plt.Figure]:
+        raise NotImplementedError
+
+
+class NProcessedBatchesPltTreeTopNode(PltTreeTopNode):
+    r"""
+    A class to handle plotting for a specified number of processed batches.
+
+    Attributes:
+        _config_structure (ConfigStructure): Configuration structure for the class.
+        _n_batches (int): Number of batches to process.
+
+    Methods:
+        __init__(cfg: Namespace) -> None:
+            Initializes the NProcessedBatchesPltTreeTopNode with the given configuration.
+
+        get_plots(
+            Generates plots from the processed batches using the provided dataloader and processing function.
+    """
+
+    _config_structure: ConfigStructure = {
+        "n_batches": int
+    } | PltTreeTopNode._config_structure
+
+    def __init__(self, cfg: Namespace) -> None:
+        super(NProcessedBatchesPltTreeTopNode, self).__init__(cfg=cfg)
+        validate_config_structure(cfg=cfg, config_structure=self._config_structure)
+        self._n_batches: int = cfg.n_batches
+
+    def get_plots(
+        self,
+        dataloader: torch.utils.data.DataLoader,
+        proc_fn: TensorDictFn,
+    ) -> Dict[str, plt.Figure]:
+        dataloader_iter = iter(dataloader)
+        batch_aggregate = proc_fn(batch=next(dataloader_iter))
+
+        for batch, batch_idx in zip(dataloader_iter, range(self._n_batches - 1)):
+            batch = proc_fn(batch=batch)
+
+            for key in batch_aggregate.keys():
+                batch_aggregate[key] = torch.cat(
+                    [batch_aggregate[key], batch[key]], dim=0
+                )
+
+        plots: Dict[str, plt.Figure] = {}
+
+        for plt_fn_node in self._plt_fns_tree:
+            fig_dict = plt_fn_node.get_plots(batch_aggregate)
+            plots.update(fig_dict)
+
+        return plots
+
+
+_TOP_NODES: Dict[str, PltTreeTopNode] = {"nproc_batch": NProcessedBatchesPltTreeTopNode}
+
+
+def get_top_node(top_node_name: str, cfg: Namespace) -> PltTreeTopNode:
+    r"""
+    Retrieves the top node from a predefined set of nodes based on the provided name.
+
+    Args:
+        top_node_name (str): The name of the top node to retrieve.
+        cfg (Namespace): Configuration object to be passed to the top node.
+
+    Returns:
+        PltTreeTopNode: The top node corresponding to the provided name.
+
+    Raises:
+        ValueError: If the provided top_node_name does not exist in the predefined set of nodes.
+    """
+
+    top_node = _TOP_NODES.get(top_node_name, None)
+
+    if top_node is None:
+        raise ValueError(
+            f"The provided top_node_name '{top_node_name}' is wrong. Must be one of {' ,'.join(list(_TOP_NODES.keys()))}"
+        )
+
+    return top_node(cfg=cfg)

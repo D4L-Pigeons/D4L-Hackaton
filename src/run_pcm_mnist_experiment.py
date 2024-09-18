@@ -63,7 +63,7 @@ def get_parser():
         help="Neptune project name",
     )
     experiment.add_argument(
-        "--experiment_name", type=str, required=True, help="Name of the experiment"
+        "--experiment_name", type=str, default=None, help="Name of the experiment"
     )
 
     model = parser.add_argument_group("Model configuration")
