@@ -1,3 +1,34 @@
+r"""
+This script runs a PCM MNIST experiment using PyTorch Lightning and Neptune for logging.
+
+The script performs the following steps:
+1. Parses command-line arguments for data, experiment, model, and trainer configurations.
+2. Sets up a signal handler to gracefully stop the experiment on interrupt.
+3. Checks if the script is run from the correct directory.
+4. Retrieves the Neptune API token from the environment variables.
+5. Initializes the Neptune logger.
+6. Loads data configuration files for training and validation datasets.
+7. Sets up the model, either from a checkpoint or from scratch.
+8. Loads the trainer configuration.
+9. Uploads configuration files to Neptune and assigns hyperparameters.
+10. Sets up the Conditional MNIST datasets and dataloaders.
+11. Initializes the trainer.
+12. Trains the model using the specified trainer and dataloaders.
+13. Stops the Neptune experiment upon completion or interruption.
+
+Functions:
+- get_parser(): Defines and returns the argument parser for command-line arguments.
+- signal_handler(sig, frame): Handles interrupt signals to stop the experiment gracefully.
+- main(args: Namespace): Main function that orchestrates the experiment setup and execution.
+
+Usage:
+    Run the script from the command line with the required arguments for data, experiment, model, and trainer configurations.
+
+Example:
+    python run_pcm_mnist_experiment.py --data_train train_config.yaml --data_val val_config.yaml --model_cfg model_config.yaml --trainer_cfg trainer_config.yaml --verbose
+
+"""
+
 import os
 import signal
 import sys
@@ -61,6 +92,13 @@ def get_parser():
         type=str,
         default=DEFAULT_PROJECT_NAME,
         help="Neptune project name",
+    )
+    experiment.add_argument(
+        "--tags",
+        type=str,
+        nargs="*",
+        default=[],
+        help="List of tags for the experiment",
     )
     experiment.add_argument(
         "--experiment_name", type=str, default=None, help="Name of the experiment"
@@ -196,6 +234,10 @@ def main(args: Namespace) -> None:
         neptune_logger.experiment.assign(chain.parsed_hparams)
 
         neptune_logger.experiment.wait()
+
+        # Add tags to the Neptune experiment
+        if args.tags:
+            neptune_logger.experiment[f"sys/tags"].add(args.tags)
 
     if args.verbose:
         print("Setting up datasets.")

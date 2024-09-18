@@ -77,15 +77,43 @@ To run an experiment run the following line in terminal from project directory
 python3 src/run_pcm_mnist_experiment.py [ARGUMENTS]
 ```
 
-with arguments:
-  * ```-h, --help```: show this help message and exit.
-  * ```--project_name``` (default='multimodal/vaes'): Neptune project name.
-  * ```--experiment_name```: Neptune experiment name.
-  * ```--model_cfg```: Model config file filename.
-  * ```--trainer_cfg```: Trainer config file filename.
-  * ```--data_train```: Train dataset config file filename.
-  * ```--data_val``` : Validation dataset config file filename.
-  * ```--subsample_size``` (default=None): Size of the subsample. Used for testing and debugging.
+With the following options:
+```
+usage: run_pcm_mnist_experiment.py [-h] --data_train DATA_TRAIN --data_val DATA_VAL [--subsample_size SUBSAMPLE_SIZE] [--project_name PROJECT_NAME] [--tags [TAGS ...]] [--experiment_name EXPERIMENT_NAME] --model_cfg MODEL_CFG [--checkpoint_experiment_id CHECKPOINT_EXPERIMENT_ID] [--checkpoint_name CHECKPOINT_NAME]
+                                   [--trainer_cfg TRAINER_CFG] [--verbose]
+
+Run PCM MNIST Experiment
+
+options:
+  -h, --help            show this help message and exit
+  --verbose             Weather to present the status of script run.
+
+Data configuration:
+  --data_train DATA_TRAIN
+                        Filename of the training data configuration file
+  --data_val DATA_VAL   Filename of the validation data configuration file.
+  --subsample_size SUBSAMPLE_SIZE
+                        Subsample size for the dataset
+
+Experiment configuration:
+  --project_name PROJECT_NAME
+                        Neptune project name
+  --tags [TAGS ...]     List of tags for the experiment
+  --experiment_name EXPERIMENT_NAME
+                        Name of the experiment
+
+Model configuration:
+  --model_cfg MODEL_CFG
+                        Filename of the model config file
+  --checkpoint_experiment_id CHECKPOINT_EXPERIMENT_ID
+                        Id of the experiment required for loading from checkpoint.
+  --checkpoint_name CHECKPOINT_NAME
+                        Model checkpoint name e.g. 'epoch=1-step-1876.ckpt' required for loading from checkpoint.
+
+Trainer configuration:
+  --trainer_cfg TRAINER_CFG
+                        Filename of the trainer configuration file.
+```
 
 ## Dataset
 
