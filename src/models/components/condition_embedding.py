@@ -271,7 +271,9 @@ class ConditionSetEmbeddingTransformer(nn.Module):
         ), "Some condition embeddings contain NaN values."
 
         # Specifying positions of the pad tokens.
-        src_key_padding_mask = cond_ids == 0
+        src_key_padding_mask = torch.cat(
+            [torch.zeros((batch_size, 1)), (cond_ids == 0)], dim=1
+        )
 
         # Apply transformer to condition embeddings.
         transformer_output = self._transformer_encoder(
