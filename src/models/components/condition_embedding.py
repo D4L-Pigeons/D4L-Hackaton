@@ -244,9 +244,11 @@ class ConditionSetEmbeddingTransformer(nn.Module):
             StructuredForwardOutput: The structured output of the forward pass.
         """
 
+        cond_ids = batch[cond_ids_name]
+
         # Embed conditions.
         condition_embeddings = self._condition_embedding_module.embed(
-            cond_ids=batch[cond_ids_name], cat_ids=batch[cat_ids_name]
+            cond_ids=cond_ids, cat_ids=batch[cat_ids_name]
         )
 
         # Add repeated cls token to each sample in a batch.
@@ -268,8 +270,13 @@ class ConditionSetEmbeddingTransformer(nn.Module):
             torch.isnan(condition_embeddings).any().logical_not()
         ), "Some condition embeddings contain NaN values."
 
+        # Specifying positions of the pad tokens.
+        src_key_padding_mask = cond_ids == 0
+
         # Apply transformer to condition embeddings.
-        transformer_output = self._transformer_encoder(condition_embeddings)
+        transformer_output = self._transformer_encoder(
+            src=condition_embeddings, src_key_padding_mask=src_key_padding_mask
+        )
         assert (
             torch.isnan(transformer_output).any().logical_not()
         ), "Some transformer outputs contain NaN values."

@@ -35,7 +35,7 @@ chain:
   chain_link_spec_path: "dense_blocks/dense_block_stack"
   cfg:
     input_dim: 128
-    output_dim: 8
+    output_dim: 16
     hidden_dims: [64]
     ordered_module_specs: []
     block_wrapper_name: null
@@ -51,7 +51,7 @@ chain:
 - name: "decoder"
   chain_link_spec_path: "dense_blocks/dense_block_stack"
   cfg:
-    input_dim: 24
+    input_dim: 32
     output_dim: 784
     hidden_dims: [100, 512]
     ordered_module_specs:
@@ -91,7 +91,7 @@ chain:
   cfg: {}
 
 training:
-  batch_size: 128
+  batch_size: 512
   max_epochs: 100
   check_val_every_n_epoch: 1
 
@@ -180,4 +180,8 @@ commands:
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b s d -> (b s) d"}}
   - {link: 'decoder', method: 'forward', kwargs: {data_name: "img"}}
   - {link: 'output-activation', method: 'forward', kwargs: {data_name: "img"}}
-  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 16, h: 28, w: 28}}
+  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 16, h: 28, w: 28},}
+
+- command_name: "get_means"
+  processing_steps:
+  - {link: 'conditioned_prior', method: 'get_means', kwargs: {gm_means_name: "gm_means"}}

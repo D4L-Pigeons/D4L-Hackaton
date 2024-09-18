@@ -3,7 +3,7 @@ chain:
   chain_link_spec_path: "dense_blocks/dense_block_stack"
   cfg:
     input_dim: 784
-    output_dim: 32
+    output_dim: 48
     hidden_dims: [512, 100]
     ordered_module_specs:
     - {nnmodule_spec_path: "activation/relu", kwargs: {}}
@@ -35,14 +35,14 @@ chain:
   chain_link_spec_path: "latent/prior_vec_conditioned_logits_gaussian_mixture_nll"
   cfg:
     n_components: 100
-    latent_dim: 16
+    latent_dim: 24
     components_std: 1.
     loss_coef_prior_nll: .001
 
 - name: "decoder"
   chain_link_spec_path: "dense_blocks/dense_block_stack"
   cfg:
-    input_dim: 16
+    input_dim: 24
     output_dim: 784
     hidden_dims: [100, 512]
     ordered_module_specs:
@@ -67,6 +67,12 @@ chain:
   chain_link_spec_path: "misc/cloner"
   cfg: {}
 
+- name: "adapter"
+  chain_link_spec_path: "misc/adapter"
+  cfg:
+    aggregation_type: "concat"
+    kwargs: {dim: -1}
+
 - name: "rearrange"
   chain_link_spec_path: "misc/rearranger"
   cfg: {}
@@ -76,7 +82,7 @@ chain:
   cfg: {}
 
 training:
-  batch_size: 128
+  batch_size: 512
   max_epochs: 100
   check_val_every_n_epoch: 1
 
@@ -92,7 +98,6 @@ optimizers:
 
 loss_manager:
   reductions:
-  # - {reduce_pattern: "b s -> b", reductor_name: "logsumexp", pre_scale: 10., post_scale: 0.1, kwargs: {}}
   - {reduce_pattern: "b s ->", reductor_name: "mean", pre_scale: null, post_scale: null, kwargs: {}}
   loss_coef_schedulers:
   - link_name: "posterior"
@@ -114,17 +119,15 @@ commands:
   - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "img", clone_name: "img_org", clone: true}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b 1 h w -> b (h w)"}}
   - {link: 'encoder', method: 'forward', kwargs: {data_name: "img"}}
-  - {link: 'posterior', method: 'forward', kwargs: {data_name: "img", n_latent_samples: 1}}
+  - {link: 'posterior', method: 'forward', kwargs: {data_name: "img", n_latent_samples: 16}}
   - {link: 'condition_embedding', method: 'forward', kwargs: {cond_ids_name: 'condition_token_ids', cat_ids_name: 'condition_values', cond_embed_name: 'cond_embed'}}
-  - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "cond_embed", clone_name: "logits", clone: false}}
-  - {link: 'condition-to-logits', method: 'forward', kwargs: {data_name: "logits"}}
-  - {link: 'conditioned_prior', method: 'forward', kwargs: {data_name: "img", logits_name: "logits"}}
-  - {link: 'repeat', method: 'forward', kwargs: {data_name: "cond_embed", pattern: "b d -> b s d", s: 1}}
+  - {link: 'condition-to-logits', method: 'forward', kwargs: {data_name: "cond_embed"}}
+  - {link: 'conditioned_prior', method: 'forward', kwargs: {data_name: "img", logits_name: "cond_embed"}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b s d -> (b s) d"}}
   - {link: 'decoder', method: 'forward', kwargs: {data_name: "img"}}
   - {link: 'output-activation', method: 'forward', kwargs: {data_name: "img"}}
-  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 1, h: 28, w: 28}}
-  - {link: 'repeat', method: 'forward', kwargs: {data_name: "img_org", pattern: "b 1 h w -> b s 1 h w", s: 1}}
+  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 16, h: 28, w: 28}}
+  - {link: 'repeat', method: 'forward', kwargs: {data_name: "img_org", pattern: "b 1 h w -> b s 1 h w", s: 16}}
   - {link: 'reconstr_loss', method: 'forward', kwargs: {data_name: "img", target_name: "img_org", reduce_pattern: "b s 1 h w -> b s"},}
 
 - command_name: "encode"
@@ -143,8 +146,7 @@ commands:
   - {link: 'posterior', method: 'forward', kwargs: {data_name: "img", n_latent_samples: 1}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b 1 d -> b d"}}
   - {link: 'condition_embedding', method: 'forward', kwargs: {cond_ids_name: 'condition_token_ids', cat_ids_name: 'condition_values', cond_embed_name: 'cond_embed'}}
-  - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "cond_embed", clone_name: "logits", clone: false}}
-  - {link: 'condition-to-logits', method: 'forward', kwargs: {data_name: "logits"}}
+  - {link: 'condition-to-logits', method: 'forward', kwargs: {data_name: "cond_embed"}}
   - {link: 'decoder', method: 'forward', kwargs: {data_name: "img"}}
   - {link: 'output-activation', method: 'forward', kwargs: {data_name: "img"}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b (h w) -> b 1 h w", h: 28, w: 28},}
@@ -152,11 +154,13 @@ commands:
 - command_name: "sample-prior"
   processing_steps:
   - {link: 'condition_embedding', method: 'forward', kwargs: {cond_ids_name: 'condition_token_ids', cat_ids_name: 'condition_values', cond_embed_name: 'cond_embed'}}
-  - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "cond_embed", clone_name: "logits", clone: false}}
-  - {link: 'condition-to-logits', method: 'forward', kwargs: {data_name: "logits"}}
-  - {link: 'conditioned_prior', method: 'sample', kwargs: {n_latent_samples: 16, data_name: "img", logits_name: "logits"}}
-  - {link: 'repeat', method: 'forward', kwargs: {data_name: "cond_embed", pattern: "b d -> b s d", s: 16}}
+  - {link: 'condition-to-logits', method: 'forward', kwargs: {data_name: "cond_embed"}}
+  - {link: 'conditioned_prior', method: 'sample', kwargs: {n_latent_samples: 16, data_name: "img", logits_name: "cond_embed"}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b s d -> (b s) d"}}
   - {link: 'decoder', method: 'forward', kwargs: {data_name: "img"}}
   - {link: 'output-activation', method: 'forward', kwargs: {data_name: "img"}}
-  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 16, h: 28, w: 28}}
+  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 16, h: 28, w: 28},}
+
+- command_name: "get_means"
+  processing_steps:
+  - {link: 'conditioned_prior', method: 'get_means', kwargs: {gm_means_name: "gm_means"}}

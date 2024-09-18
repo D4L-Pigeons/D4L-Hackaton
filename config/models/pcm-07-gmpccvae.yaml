@@ -35,7 +35,7 @@ chain:
   chain_link_spec_path: "dense_blocks/dense_block_stack"
   cfg:
     input_dim: 128
-    output_dim: 8
+    output_dim: 16
     hidden_dims: [64]
     ordered_module_specs: []
     block_wrapper_name: null
@@ -51,7 +51,7 @@ chain:
 - name: "decoder"
   chain_link_spec_path: "dense_blocks/dense_block_stack"
   cfg:
-    input_dim: 24
+    input_dim: 32
     output_dim: 784
     hidden_dims: [100, 512]
     ordered_module_specs:
@@ -91,7 +91,7 @@ chain:
   cfg: {}
 
 training:
-  batch_size: 128
+  batch_size: 512
   max_epochs: 100
   check_val_every_n_epoch: 1
 
@@ -128,19 +128,19 @@ commands:
   - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "img", clone_name: "img_org", clone: true}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b 1 h w -> b (h w)"}}
   - {link: 'encoder', method: 'forward', kwargs: {data_name: "img"}}
-  - {link: 'posterior', method: 'forward', kwargs: {data_name: "img", n_latent_samples: 1}}
+  - {link: 'posterior', method: 'forward', kwargs: {data_name: "img", n_latent_samples: 16}}
   - {link: 'condition_embedding', method: 'forward', kwargs: {cond_ids_name: 'condition_token_ids', cat_ids_name: 'condition_values', cond_embed_name: 'cond_embed'}}
   - {link: 'clone-duplicate', method: 'forward', kwargs: {data_name: "cond_embed", clone_name: "logits", clone: false}}
   - {link: 'condition-to-decoder', method: 'forward', kwargs: {data_name: "cond_embed"}}
   - {link: 'condition-to-logits', method: 'forward', kwargs: {data_name: "logits"}}
   - {link: 'conditioned_prior', method: 'forward', kwargs: {data_name: "img", logits_name: "logits"}}
-  - {link: 'repeat', method: 'forward', kwargs: {data_name: "cond_embed", pattern: "b d -> b s d", s: 1}}
+  - {link: 'repeat', method: 'forward', kwargs: {data_name: "cond_embed", pattern: "b d -> b s d", s: 16}}
   - {link: 'adapter', method: 'forward', kwargs: {batch_aggr_def: {img: ["img", "cond_embed"]}}}
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b s d -> (b s) d"}}
   - {link: 'decoder', method: 'forward', kwargs: {data_name: "img"}}
   - {link: 'output-activation', method: 'forward', kwargs: {data_name: "img"}}
-  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 1, h: 28, w: 28}}
-  - {link: 'repeat', method: 'forward', kwargs: {data_name: "img_org", pattern: "b 1 h w -> b s 1 h w", s: 1}}
+  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 16, h: 28, w: 28}}
+  - {link: 'repeat', method: 'forward', kwargs: {data_name: "img_org", pattern: "b 1 h w -> b s 1 h w", s: 16}}
   - {link: 'reconstr_loss', method: 'forward', kwargs: {data_name: "img", target_name: "img_org", reduce_pattern: "b s 1 h w -> b s"},}
 
 - command_name: "encode"
@@ -179,4 +179,8 @@ commands:
   - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "b s d -> (b s) d"}}
   - {link: 'decoder', method: 'forward', kwargs: {data_name: "img"}}
   - {link: 'output-activation', method: 'forward', kwargs: {data_name: "img"}}
-  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 16, h: 28, w: 28}}
+  - {link: 'rearrange', method: 'forward', kwargs: {data_name: "img", pattern: "(b s) (h w) -> b s 1 h w", s: 16, h: 28, w: 28},}
+
+- command_name: "get_means"
+  processing_steps:
+  - {link: 'conditioned_prior', method: 'get_means', kwargs: {gm_means_name: "gm_means"}}
